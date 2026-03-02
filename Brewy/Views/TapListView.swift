@@ -53,10 +53,8 @@ private struct TapRow: View {
     let tap: BrewTap
     var healthStatus: TapHealthStatus?
 
-    private static let officialTaps: Set<String> = ["homebrew/core", "homebrew/cask"]
-
     private var isOfficialTap: Bool {
-        Self.officialTaps.contains(tap.name)
+        tap.isOfficial
     }
 
     var body: some View {

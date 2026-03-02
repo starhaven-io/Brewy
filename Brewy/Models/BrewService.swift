@@ -31,8 +31,14 @@ enum BrewError: LocalizedError {
 @Observable
 @MainActor
 final class BrewService {
+    @ObservationIgnored let commandRunner: CommandRunning
+
     @ObservationIgnored
     @AppStorage("brewPath") var customBrewPath = "/opt/homebrew/bin/brew"
+
+    init(commandRunner: CommandRunning = DefaultCommandRunner()) {
+        self.commandRunner = commandRunner
+    }
 
     var installedFormulae: [BrewPackage] = [] {
         didSet {
@@ -248,7 +254,9 @@ final class BrewService {
         let outdatedCount = allOutdated.count
         logger.info("Refresh complete: \(fetchedFormulae.count) formulae, \(fetchedCasks.count) casks, \(masCount) mas, \(outdatedCount) outdated")
         saveToCache()
-        Task { await checkTapHealth() }
+        if installedTaps.contains(where: { tapHealthStatuses[$0.name]?.isStale ?? true }) {
+            Task { await checkTapHealth() }
+        }
     }
 
     func ensureTapsLoaded() async {
@@ -587,6 +595,6 @@ final class BrewService {
 
     func runBrewCommand(_ arguments: [String]) async -> CommandResult {
         let brewPath = CommandRunner.resolvedBrewPath(preferred: customBrewPath)
-        return await CommandRunner.run(arguments, brewPath: brewPath)
+        return await commandRunner.run(arguments, brewPath: brewPath)
     }
 }

@@ -77,7 +77,6 @@ struct BrewServiceDerivedStateTests {
         #expect(libidn2Dependents.count == 1)
         #expect(libidn2Dependents[0].name == "wget")
 
-        // No dependents
         #expect(service.dependents(of: "curl").isEmpty)
     }
 
