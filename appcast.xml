@@ -3,39 +3,22 @@
     <channel>
         <title>Brewy</title>
         <item>
-            <title>0.7.0</title>
-            <pubDate>Wed, 25 Feb 2026 07:00:08 +0000</pubDate>
-            <sparkle:version>10</sparkle:version>
-            <sparkle:shortVersionString>0.7.0</sparkle:shortVersionString>
+            <title>0.8.0</title>
+            <pubDate>Mon, 02 Mar 2026 05:19:18 +0000</pubDate>
+            <sparkle:version>11</sparkle:version>
+            <sparkle:shortVersionString>0.8.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>Fixes</h2>
+            <description><![CDATA[<h2>What&#x27;s New</h2>
 <ul>
-  <li>use valid SF Symbol for orphaned packages label</li>
-  <li>resolve NavigationSplitView detail column constraint conflict</li>
-  <li>guard cache directory force unwraps, show add tap errors</li>
-</ul>
-<h2>Performance</h2>
-<ul>
-  <li>avoid O(n²) data copying in LockedData.combined()</li>
-  <li>use static DateFormatter for appcast date parsing</li>
-  <li>reuse URLSession across tap health checks</li>
-  <li>batch derived state, smart cache invalidation, reduce allocs</li>
-  <li>decouple row views from BrewService, eagerly compute pinned</li>
-</ul>
-<h2>Under the Hood</h2>
-<ul>
-  <li>consolidate duplicate GitHubRepo structs</li>
-</ul>
-<h2>Documentation</h2>
-<ul>
-  <li>update README and CLAUDE.md with tap health and migration features</li>
-</ul>
-<h2>Testing</h2>
-<ul>
-  <li>add UI test target with sidebar navigation tests</li>
-  <li>expand unit test coverage for models and services</li>
+  <li>add read-only Mac App Store support</li>
+  <li>add Homebrew services manager UI</li>
+  <li>add advanced package actions: reinstall, fetch, link, unlink</li>
+  <li>add saved package groups/watchlists</li>
+  <li>add command history and retry for package actions</li>
+  <li>add dry-run previews for cleanup and autoremove</li>
+  <li>add homepage button to Discover detail view</li>
 </ul>]]></description>
-            <enclosure url="https://github.com/p-linnane/Brewy/releases/download/0.7.0/Brewy-0.7.0.zip" length="5389661" type="application/octet-stream" sparkle:edSignature="wB2Sq28KLHP/z1CqK2PLVse+1xdXc0qRt4+xlnGvmfx3rcNQBmM4dwdcHtb6bPD+0YHQH3ASPYKN6QfaEG+dAA=="/>
+            <enclosure url="https://github.com/p-linnane/Brewy/releases/download/0.8.0/Brewy-0.8.0.zip" length="5556939" type="application/octet-stream" sparkle:edSignature="+evYaIv3o7ZmbquyGCVAti8cY1p/ZQvaD/q8g3C3U7N/RitqrD9i4ecSX06LDxpCihQBJa5BCAnYEASeSvQJAw=="/>
         </item>
     </channel>
 </rss>
