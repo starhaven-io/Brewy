@@ -83,7 +83,6 @@ enum TapHealthChecker {
             updated = true
         }
 
-        // Remove entries for taps no longer installed
         let tapNames = Set(taps.map(\.name))
         for key in statuses.keys where !tapNames.contains(key) {
             statuses.removeValue(forKey: key)
@@ -173,7 +172,6 @@ enum TapHealthChecker {
             }
         }
 
-        // Fall back to the raw redirect URL
         if let apiUrl {
             return apiUrl.absoluteString
         }

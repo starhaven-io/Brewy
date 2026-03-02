@@ -111,7 +111,7 @@ extension BrewService {
         }
         isMasAvailable = true
 
-        let result = await CommandRunner.runExecutable(masPath, arguments: ["list"])
+        let result = await commandRunner.runExecutable(masPath, arguments: ["list"])
         guard result.success else {
             logger.warning("Failed to fetch installed mas apps")
             return []
@@ -123,7 +123,7 @@ extension BrewService {
         let masPath = CommandRunner.resolvedMasPath()
         guard FileManager.default.isExecutableFile(atPath: masPath) else { return [] }
 
-        let result = await CommandRunner.runExecutable(masPath, arguments: ["outdated"])
+        let result = await commandRunner.runExecutable(masPath, arguments: ["outdated"])
         guard result.success else {
             logger.warning("Failed to fetch outdated mas apps")
             return []
@@ -139,7 +139,7 @@ extension BrewService {
         defer { isPerformingAction = false }
 
         let brewPath = CommandRunner.resolvedBrewPath(preferred: customBrewPath)
-        let result = await CommandRunner.run(["install", "mas"], brewPath: brewPath)
+        let result = await commandRunner.run(["install", "mas"], brewPath: brewPath)
         actionOutput = result.output
         if result.success {
             isMasAvailable = true

@@ -33,6 +33,35 @@ private final class LockedData: Sendable {
     }
 }
 
+// MARK: - Command Running Protocol
+
+protocol CommandRunning: Sendable {
+    func run(_ arguments: [String], brewPath: String, timeout: Duration) async -> CommandResult
+    func runExecutable(_ executablePath: String, arguments: [String], timeout: Duration) async -> CommandResult
+}
+
+extension CommandRunning {
+    func run(_ arguments: [String], brewPath: String) async -> CommandResult {
+        await run(arguments, brewPath: brewPath, timeout: CommandRunner.defaultTimeout)
+    }
+
+    func runExecutable(_ executablePath: String, arguments: [String]) async -> CommandResult {
+        await runExecutable(executablePath, arguments: arguments, timeout: CommandRunner.defaultTimeout)
+    }
+}
+
+// MARK: - Default Command Runner
+
+struct DefaultCommandRunner: CommandRunning {
+    func run(_ arguments: [String], brewPath: String, timeout: Duration) async -> CommandResult {
+        await CommandRunner.run(arguments, brewPath: brewPath, timeout: timeout)
+    }
+
+    func runExecutable(_ executablePath: String, arguments: [String], timeout: Duration) async -> CommandResult {
+        await CommandRunner.runExecutable(executablePath, arguments: arguments, timeout: timeout)
+    }
+}
+
 // MARK: - Command Runner
 
 enum CommandRunner {
@@ -111,7 +140,6 @@ enum CommandRunner {
         do {
             try process.run()
 
-            // Schedule a timeout to terminate the process if it runs too long
             let timeoutWork = DispatchWorkItem {
                 if process.isRunning {
                     logger.warning("Terminating timed-out process: \(commandDescription)")

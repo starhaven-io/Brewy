@@ -53,7 +53,6 @@ struct ServicesView: View {
         isLoading = true
         let fetched = await brewService.fetchServices()
         services = fetched
-        // Update selected service with fresh data if it's still in the list
         if let selected = selectedService {
             selectedService = fetched.first { $0.id == selected.id }
         }

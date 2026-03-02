@@ -25,13 +25,13 @@ extension BrewService {
     func fetchServices() async -> [BrewServiceItem] {
         let brewPath = CommandRunner.resolvedBrewPath(preferred: customBrewPath)
 
-        let infoResult = await CommandRunner.run(["services", "info", "--all", "--json"], brewPath: brewPath)
+        let infoResult = await commandRunner.run(["services", "info", "--all", "--json"], brewPath: brewPath)
         if infoResult.success {
             let services = ServicesParser.parseJSON(infoResult.output)
             if !services.isEmpty { return services }
         }
 
-        let listResult = await CommandRunner.run(["services", "list", "--json"], brewPath: brewPath)
+        let listResult = await commandRunner.run(["services", "list", "--json"], brewPath: brewPath)
         guard listResult.success else {
             logger.warning("Failed to fetch services: \(listResult.output.prefix(200))")
             return []
@@ -53,7 +53,7 @@ extension BrewService {
 
     func cleanupServices() async -> CommandResult {
         let brewPath = CommandRunner.resolvedBrewPath(preferred: customBrewPath)
-        let result = await CommandRunner.run(["services", "cleanup"], brewPath: brewPath)
+        let result = await commandRunner.run(["services", "cleanup"], brewPath: brewPath)
         if !result.success {
             logger.warning("Services cleanup failed: \(result.output.prefix(200))")
         }
@@ -63,11 +63,11 @@ extension BrewService {
     private func runServiceCommand(_ arguments: [String], asSudo: Bool) async -> CommandResult {
         let brewPath = CommandRunner.resolvedBrewPath(preferred: customBrewPath)
         if asSudo {
-            return await CommandRunner.runExecutable(
+            return await commandRunner.runExecutable(
                 "/usr/bin/sudo",
                 arguments: [brewPath] + arguments
             )
         }
-        return await CommandRunner.run(arguments, brewPath: brewPath)
+        return await commandRunner.run(arguments, brewPath: brewPath)
     }
 }
