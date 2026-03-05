@@ -122,6 +122,24 @@ enum CommandRunner {
 
     // MARK: - Private
 
+    private static func buildEnvironment(brewPath: String) -> [String: String] {
+        var env = ProcessInfo.processInfo.environment
+        let brewBin = URL(fileURLWithPath: brewPath).deletingLastPathComponent().path
+        let brewPrefix = URL(fileURLWithPath: brewBin).deletingLastPathComponent().path
+        let brewSbin = brewPrefix + "/sbin"
+
+        let currentPath = env["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin"
+        var pathComponents = currentPath.components(separatedBy: ":")
+
+        // Ensure brew's bin and sbin directories are in PATH
+        for dir in [brewSbin, brewBin] where !pathComponents.contains(dir) {
+            pathComponents.insert(dir, at: 0)
+        }
+
+        env["PATH"] = pathComponents.joined(separator: ":")
+        return env
+    }
+
     private static func executeProcess(
         arguments: [String],
         brewPath: String,
@@ -134,6 +152,7 @@ enum CommandRunner {
 
         process.executableURL = URL(fileURLWithPath: brewPath)
         process.arguments = arguments
+        process.environment = buildEnvironment(brewPath: brewPath)
         process.standardOutput = stdoutPipe
         process.standardError = stderrPipe
 

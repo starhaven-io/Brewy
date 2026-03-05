@@ -196,7 +196,7 @@ struct BrewJSONParsingTests {
             "casks": [
                 {
                     "name": "discord",
-                    "installed_versions": "0.0.290",
+                    "installed_versions": ["0.0.290"],
                     "current_version": "0.0.295"
                 }
             ]
@@ -267,6 +267,26 @@ struct BrewJSONParsingTests {
             "casks": [
                 {
                     "name": "slack"
+                }
+            ]
+        }
+        """
+        let data = try #require(json.data(using: .utf8))
+        let response = try JSONDecoder().decode(BrewOutdatedResponse.self, from: data)
+        let casks = try #require(response.casks)
+        #expect(casks[0].toPackage() == nil)
+    }
+
+    @Test("OutdatedCaskJSON returns nil when installed_versions is empty array")
+    func outdatedCaskEmptyVersions() throws {
+        let json = """
+        {
+            "formulae": [],
+            "casks": [
+                {
+                    "name": "slack",
+                    "installed_versions": [],
+                    "current_version": "4.0"
                 }
             ]
         }

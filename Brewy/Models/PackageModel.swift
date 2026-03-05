@@ -492,7 +492,7 @@ struct OutdatedFormulaJSON: Decodable {
 
 struct OutdatedCaskJSON: Decodable {
     let name: String
-    let installedVersions: String?
+    let installedVersions: [String]?
     let currentVersion: String?
 
     enum CodingKeys: String, CodingKey {
@@ -503,16 +503,16 @@ struct OutdatedCaskJSON: Decodable {
 
     func toPackage() -> BrewPackage? {
         guard let currentVersion,
-              let installedVersions else { return nil }
+              let installedVersion = installedVersions?.first else { return nil }
         return BrewPackage(
             id: "cask-\(name)",
             name: name,
-            version: installedVersions,
+            version: installedVersion,
             description: "",
             homepage: "",
             isInstalled: true,
             isOutdated: true,
-            installedVersion: installedVersions,
+            installedVersion: installedVersion,
             latestVersion: currentVersion,
             source: .cask,
             pinned: false,
