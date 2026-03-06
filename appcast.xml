@@ -3,22 +3,24 @@
     <channel>
         <title>Brewy</title>
         <item>
-            <title>0.8.0</title>
-            <pubDate>Mon, 02 Mar 2026 05:19:18 +0000</pubDate>
-            <sparkle:version>11</sparkle:version>
-            <sparkle:shortVersionString>0.8.0</sparkle:shortVersionString>
+            <title>0.9.0</title>
+            <pubDate>Fri, 06 Mar 2026 00:33:35 +0000</pubDate>
+            <sparkle:version>12</sparkle:version>
+            <sparkle:shortVersionString>0.9.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
             <description><![CDATA[<h2>What&#x27;s New</h2>
 <ul>
-  <li>add read-only Mac App Store support</li>
-  <li>add Homebrew services manager UI</li>
-  <li>add advanced package actions: reinstall, fetch, link, unlink</li>
-  <li>add saved package groups/watchlists</li>
-  <li>add command history and retry for package actions</li>
-  <li>add dry-run previews for cleanup and autoremove</li>
-  <li>add homepage button to Discover detail view</li>
+  <li>add CommandRunning protocol for testability and optimize refresh</li>
+</ul>
+<h2>Fixes</h2>
+<ul>
+  <li>correct outdated cask JSON parsing and process PATH environment</li>
+</ul>
+<h2>Under the Hood</h2>
+<ul>
+  <li>extract BrewService extensions and shared views</li>
 </ul>]]></description>
-            <enclosure url="https://github.com/p-linnane/Brewy/releases/download/0.8.0/Brewy-0.8.0.zip" length="5556939" type="application/octet-stream" sparkle:edSignature="+evYaIv3o7ZmbquyGCVAti8cY1p/ZQvaD/q8g3C3U7N/RitqrD9i4ecSX06LDxpCihQBJa5BCAnYEASeSvQJAw=="/>
+            <enclosure url="https://github.com/p-linnane/Brewy/releases/download/0.9.0/Brewy-0.9.0.zip" length="5562614" type="application/octet-stream" sparkle:edSignature="m2jhNKklihKFi3RwBOLYj/3yJON2R/ut0KOtRsxdhljrh1snIdMdIPTT8MPCXH4cmnWhvD5YexSEAbW9z2glBQ=="/>
         </item>
     </channel>
 </rss>
