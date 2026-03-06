@@ -3,24 +3,16 @@
     <channel>
         <title>Brewy</title>
         <item>
-            <title>0.9.0</title>
-            <pubDate>Fri, 06 Mar 2026 00:33:35 +0000</pubDate>
-            <sparkle:version>12</sparkle:version>
-            <sparkle:shortVersionString>0.9.0</sparkle:shortVersionString>
+            <title>0.9.1</title>
+            <pubDate>Fri, 06 Mar 2026 18:40:44 +0000</pubDate>
+            <sparkle:version>13</sparkle:version>
+            <sparkle:shortVersionString>0.9.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>What&#x27;s New</h2>
+            <description><![CDATA[<h2>Fixes</h2>
 <ul>
-  <li>add CommandRunning protocol for testability and optimize refresh</li>
-</ul>
-<h2>Fixes</h2>
-<ul>
-  <li>correct outdated cask JSON parsing and process PATH environment</li>
-</ul>
-<h2>Under the Hood</h2>
-<ul>
-  <li>extract BrewService extensions and shared views</li>
+  <li>handle duplicate mas ID 0 for TestFlight apps</li>
 </ul>]]></description>
-            <enclosure url="https://github.com/p-linnane/Brewy/releases/download/0.9.0/Brewy-0.9.0.zip" length="5562614" type="application/octet-stream" sparkle:edSignature="m2jhNKklihKFi3RwBOLYj/3yJON2R/ut0KOtRsxdhljrh1snIdMdIPTT8MPCXH4cmnWhvD5YexSEAbW9z2glBQ=="/>
+            <enclosure url="https://github.com/p-linnane/Brewy/releases/download/0.9.1/Brewy-0.9.1.zip" length="5561524" type="application/octet-stream" sparkle:edSignature="tz2xKzHvlYFVcK+7hASd5qoF3zMgy14cP+46mGvRLC5Vl73vLzHzrPRHx6iNYd/5fjuJ2C+XopO77yHXaUf3Dg=="/>
         </item>
     </channel>
 </rss>
