@@ -1,6 +1,8 @@
 # Clean build artifacts
 clean:
-    rm -rf DerivedData
+    xcodebuild clean \
+        -project Brewy.xcodeproj \
+        -scheme Brewy
 
 # Build the app with xcodebuild
 build:
