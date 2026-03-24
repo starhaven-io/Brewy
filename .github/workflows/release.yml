@@ -20,11 +20,13 @@ jobs:
   build:
     name: Build
     runs-on: macos-latest
-    environment: release
+    environment:
+      name: release
+      deployment: false
     outputs:
       tag: ${{ steps.version.outputs.tag }}
+      build_number: ${{ steps.version.outputs.build_number }}
       artifact_name: "Brewy-${{ steps.version.outputs.tag }}.zip"
-      build_number: ${{ steps.build_number.outputs.build_number }}
     permissions:
       contents: write # required to create tag
       attestations: write # required to generate build provenance attestations
@@ -46,6 +48,8 @@ jobs:
             exit 1
           fi
           echo "tag=${TAG}" >> "${GITHUB_OUTPUT}"
+          BUILD_NUMBER=$(grep -m1 'CURRENT_PROJECT_VERSION' Brewy.xcodeproj/project.pbxproj | sed 's/.*= *//;s/ *;.*//')
+          echo "build_number=${BUILD_NUMBER}" >> "${GITHUB_OUTPUT}"
           echo "TAG=${TAG}" >> "${GITHUB_ENV}"
 
       - name: Create tag
@@ -99,13 +103,6 @@ jobs:
             CODE_SIGN_IDENTITY="Developer ID Application" \
             DEVELOPMENT_TEAM="${DEVELOPMENT_TEAM}"
 
-      - name: Extract build number
-        id: build_number
-        run: |
-          BUILD_NUMBER=$(/usr/libexec/PlistBuddy -c "Print :ApplicationProperties:CFBundleVersion" \
-            "${RUNNER_TEMP}/Brewy.xcarchive/Info.plist")
-          echo "build_number=${BUILD_NUMBER}" >> "${GITHUB_OUTPUT}"
-
       - name: Export
         run: |
           cat > "${RUNNER_TEMP}/ExportOptions.plist" << EOF
@@ -149,11 +146,13 @@ jobs:
           name: "Brewy-${{ steps.version.outputs.tag }}.zip"
           path: "${{ runner.temp }}/Brewy-${{ steps.version.outputs.tag }}.zip"
 
-  upload:
-    name: Upload
+  release:
+    name: Release
     needs: build
     runs-on: macos-latest
-    environment: release
+    environment:
+      name: release
+      deployment: false
     permissions:
       contents: write # required to create GitHub releases
     env:
@@ -266,7 +265,7 @@ jobs:
 
   bump-cask:
     name: Bump Homebrew cask
-    needs: upload
+    needs: release
     runs-on: macos-latest
     environment: release
     permissions:
