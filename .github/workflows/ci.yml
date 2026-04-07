@@ -1,0 +1,227 @@
+name: CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+defaults:
+  run:
+    shell: bash -xeuo pipefail {0}
+
+concurrency:
+  group: "ci-${{ github.ref }}"
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  generate-matrix:
+    name: Generate matrix
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Generate CI matrix
+        id: matrix
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          EVENT_ACTION: ${{ github.event.action }}
+        run: |
+          MATRIX='[{"name":"Conventional Commits","check":"commits","runner":"ubuntu-slim","fetch_depth":"0"}'
+
+          # For title/body edits, only recheck conventional commits
+          if [[ "${EVENT_ACTION}" == "edited" ]]; then
+            echo "matrix=${MATRIX}]" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          CHANGED=$(git diff --name-only "${BASE_SHA}...HEAD")
+
+          # Swift changes: lint + sanitizer tests
+          if echo "${CHANGED}" | grep -qE '\.swift$|^Brewy\.xcodeproj/|^\.swiftlint\.yml$'; then
+            MATRIX+=',{"name":"Lint","check":"lint","runner":"macos-26"}'
+            MATRIX+=',{"name":"Test (Thread Sanitizer)","check":"test-tsan","runner":"macos-26","xcodebuild_flags":"-enableCodeCoverage YES -enableThreadSanitizer YES","result_bundle":"TestResults-TSAN"}'
+            MATRIX+=',{"name":"Test (Address Sanitizer)","check":"test-asan","runner":"macos-26","xcodebuild_flags":"-enableAddressSanitizer YES","result_bundle":"TestResults-ASAN"}'
+          fi
+
+          # Source changes: CodeQL (excludes xcodeproj-only changes like version bumps)
+          if echo "${CHANGED}" | grep -qE '^Brewy/|^BrewyTests/|^BrewyUITests/'; then
+            MATRIX+=',{"name":"CodeQL","check":"codeql","runner":"macos-26"}'
+          fi
+
+          # Workflow changes: Actions security audit
+          if echo "${CHANGED}" | grep -qE '^\.github/workflows/'; then
+            MATRIX+=',{"name":"zizmor","check":"zizmor","runner":"ubuntu-latest"}'
+          fi
+
+          echo "matrix=${MATRIX}]" >> "${GITHUB_OUTPUT}"
+
+  check:
+    name: ${{ matrix.name }}
+    needs: generate-matrix
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      pull-requests: read # required to fetch PR commits for conventional commit validation
+      security-events: write # required for CodeQL and zizmor SARIF uploads
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: ${{ matrix.fetch_depth || 1 }}
+          persist-credentials: false
+
+      # --- Conventional Commits ---
+
+      - name: Check PR title
+        if: matrix.check == 'commits'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          PATTERN='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore)(\(.+\))?: .+'
+          if [[ ! "${PR_TITLE}" =~ ${PATTERN} ]]; then
+            echo "::error::PR title '${PR_TITLE}' does not follow Conventional Commits."
+            echo ""
+            echo "Expected format: <type>(<scope>): <description>"
+            echo ""
+            echo "Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore"
+            echo ""
+            echo "Examples:"
+            echo "  feat: add Sparkle auto-update support"
+            echo "  fix(updater): resolve crash on empty appcast"
+            echo "  ci: automate appcast generation on release"
+            exit 1
+          fi
+
+      - name: Check commit messages
+        if: matrix.check == 'commits'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          PATTERN='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore)(\(.+\))?: .+'
+          FAILED=0
+          while IFS= read -r LINE; do
+            SHA="${LINE%% *}"
+            MSG="${LINE#* }"
+            if [[ "${MSG}" == Merge\ * ]]; then
+              continue
+            fi
+            if [[ ! "${MSG}" =~ ${PATTERN} ]]; then
+              echo "::error::Commit ${SHA} does not follow Conventional Commits: '${MSG}'"
+              FAILED=1
+            fi
+          done < <(git log --format="%h %s" "${BASE_SHA}..${HEAD_SHA}")
+
+          if [[ "${FAILED}" -eq 1 ]]; then
+            echo ""
+            echo "All commit messages must follow: <type>(<scope>): <description>"
+            echo "Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore"
+            exit 1
+          fi
+
+      # --- Lint ---
+
+      - name: Install lint tools
+        if: matrix.check == 'lint'
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: 1
+          HOMEBREW_NO_ENV_HINTS: 1
+        run: brew install swiftlint typos-cli
+
+      - name: SwiftLint
+        if: matrix.check == 'lint'
+        run: swiftlint --strict
+
+      - name: Typos
+        if: matrix.check == 'lint'
+        run: typos
+
+      # --- Tests ---
+
+      - name: Test
+        if: startsWith(matrix.check, 'test-')
+        env:
+          XCODEBUILD_FLAGS: ${{ matrix.xcodebuild_flags }}
+          RESULT_BUNDLE: ${{ matrix.result_bundle }}
+        run: |
+          xcodebuild test \
+            -project Brewy.xcodeproj \
+            -scheme Brewy \
+            -destination 'platform=macOS' \
+            ${XCODEBUILD_FLAGS} \
+            -resultBundlePath "${RESULT_BUNDLE}.xcresult" \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            EXCLUDED_ARCHS=x86_64
+
+      - name: Coverage Summary
+        if: always() && matrix.check == 'test-tsan'
+        run: xcrun xccov view --report --only-targets TestResults-TSAN.xcresult || true
+
+      - name: Upload Test Results
+        if: always() && startsWith(matrix.check, 'test-')
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: ${{ matrix.result_bundle }}
+          path: ${{ matrix.result_bundle }}.xcresult
+          retention-days: 14
+
+      # --- CodeQL ---
+
+      - name: Initialize CodeQL
+        if: matrix.check == 'codeql'
+        uses: github/codeql-action/init@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
+        with:
+          languages: swift
+          build-mode: manual
+
+      - name: Build for CodeQL
+        if: matrix.check == 'codeql'
+        run: |
+          xcodebuild \
+            -project Brewy.xcodeproj \
+            -scheme Brewy \
+            -destination 'generic/platform=macOS' \
+            -configuration Debug \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            EXCLUDED_ARCHS=x86_64 \
+            build
+
+      - name: CodeQL Analysis
+        if: matrix.check == 'codeql'
+        uses: github/codeql-action/analyze@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
+        with:
+          category: "/language:swift"
+
+      # --- zizmor ---
+
+      - name: Run zizmor
+        if: matrix.check == 'zizmor'
+        uses: zizmorcore/zizmor-action@71321a20a9ded102f6e9ce5718a2fcec2c4f70d8 # v0.5.2
+        with:
+          persona: pedantic
+
+  conclusion:
+    name: conclusion
+    needs: check
+    runs-on: ubuntu-slim
+    if: always()
+    steps:
+      - name: Result
+        env:
+          CHECK_RESULT: ${{ needs.check.result }}
+        run: test "${CHECK_RESULT}" = "success"

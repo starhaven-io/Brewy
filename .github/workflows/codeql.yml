@@ -8,16 +8,9 @@ on:
       - "Brewy/**"
       - "BrewyTests/**"
       - "BrewyUITests/**"
-  pull_request:
-    paths:
-      - "Brewy/**"
-      - "BrewyTests/**"
-      - "BrewyUITests/**"
-      - ".github/workflows/codeql.yml"
-
 concurrency:
   group: "codeql-${{ github.ref }}"
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: false
 
 defaults:
   run:
@@ -28,7 +21,7 @@ permissions: {}
 jobs:
   analyze:
     name: Analyze (Swift)
-    runs-on: macos-latest
+    runs-on: macos-26
     permissions:
       contents: read
       security-events: write # required to upload SARIF results
@@ -53,6 +46,7 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
+            EXCLUDED_ARCHS=x86_64 \
             build
 
       - name: Perform CodeQL Analysis

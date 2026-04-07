@@ -4,6 +4,9 @@
 # Appcast (lives on the appcast branch, not main)
 appcast.xml
 
+# Typos (override global gitignore)
+!_typos.toml
+
 # macOS
 .DS_Store
 
