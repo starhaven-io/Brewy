@@ -1,6 +1,7 @@
 excluded:
   - .build
   - Brewy.xcodeproj
+  - DerivedData
 
 opt_in_rules:
   # Performance

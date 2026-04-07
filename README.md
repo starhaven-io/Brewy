@@ -2,6 +2,9 @@
 
 <p align="center"><img src="assets/BrewyIcon.png" alt="Brewy icon" width="128"></p>
 
+[![CI](https://github.com/p-linnane/brewy/actions/workflows/ci.yml/badge.svg)](https://github.com/p-linnane/brewy/actions/workflows/ci.yml)
+[![License: AGPL-3.0-only](https://img.shields.io/badge/License-AGPL--3.0--only-blue.svg)](LICENSE)
+
 A native macOS app for managing [Homebrew](https://brew.sh) packages. Browse, search, install, and update formulae and casks — all without opening Terminal.
 
 ## Features

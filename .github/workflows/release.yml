@@ -19,7 +19,7 @@ env:
 jobs:
   build:
     name: Build
-    runs-on: macos-latest
+    runs-on: macos-26
     environment:
       name: release
       deployment: false
@@ -101,7 +101,8 @@ jobs:
             -archivePath "${RUNNER_TEMP}/Brewy.xcarchive" \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Developer ID Application" \
-            DEVELOPMENT_TEAM="${DEVELOPMENT_TEAM}"
+            DEVELOPMENT_TEAM="${DEVELOPMENT_TEAM}" \
+            EXCLUDED_ARCHS=x86_64
 
       - name: Export
         run: |
@@ -149,7 +150,7 @@ jobs:
   release:
     name: Release
     needs: build
-    runs-on: macos-latest
+    runs-on: macos-26
     environment:
       name: release
       deployment: false
@@ -266,7 +267,7 @@ jobs:
   bump-cask:
     name: Bump Homebrew cask
     needs: release
-    runs-on: macos-latest
+    runs-on: macos-26
     environment: release
     permissions:
       contents: read
