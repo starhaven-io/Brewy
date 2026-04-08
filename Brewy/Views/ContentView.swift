@@ -139,8 +139,8 @@ struct ContentView: View {
                 subtitle: "Choose a service from the list to view its details and controls."
             )
         } else if selectedCategory == .groups, let group = selectedGroupItem,
-                  brewService.packageGroups.contains(where: { $0.id == group.id }) {
-            GroupDetailView(group: brewService.packageGroups.first { $0.id == group.id }!)
+                  let currentGroup = brewService.packageGroups.first(where: { $0.id == group.id }) {
+            GroupDetailView(group: currentGroup)
                 .id(group.id)
                 .navigationSplitViewColumnWidth(ideal: 450)
         } else if selectedCategory == .groups {

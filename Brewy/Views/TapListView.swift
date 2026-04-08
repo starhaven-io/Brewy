@@ -253,8 +253,14 @@ struct TapDetailView: View {
                 LabeledContent("Name", value: tap.name)
                 if !tap.remote.isEmpty {
                     LabeledContent("Remote") {
-                        Link(tap.remote, destination: URL(string: tap.remote) ?? URL(string: "https://github.com")!)
-                            .foregroundStyle(.link)
+                        if let url = URL(string: tap.remote) {
+                            Link(tap.remote, destination: url)
+                                .foregroundStyle(.link)
+                        } else {
+                            Text(tap.remote)
+                                .foregroundStyle(.secondary)
+                                .textSelection(.enabled)
+                        }
                     }
                 }
                 LabeledContent("Official", value: tap.isOfficial ? "Yes" : "No")
