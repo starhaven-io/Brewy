@@ -113,6 +113,7 @@ private struct ServiceRow: View {
         Circle()
             .fill(statusColor)
             .frame(width: 8, height: 8)
+            .accessibilityLabel(statusAccessibilityLabel)
     }
 
     private var statusColor: Color {
@@ -121,6 +122,14 @@ private struct ServiceRow: View {
         if service.status == "scheduled" { return .blue }
         if service.loaded || service.status == "stopped" { return .yellow }
         return .secondary
+    }
+
+    private var statusAccessibilityLabel: String {
+        if service.running || service.status == "started" { return "Running" }
+        if service.status == "error" || (service.exitCode ?? 0) != 0 { return "Error" }
+        if service.status == "scheduled" { return "Scheduled" }
+        if service.loaded || service.status == "stopped" { return "Stopped" }
+        return "Unknown"
     }
 }
 
@@ -164,6 +173,7 @@ struct ServiceDetailView: View {
                     Circle()
                         .fill(statusColor)
                         .frame(width: 8, height: 8)
+                        .accessibilityHidden(true)
                     Text(service.statusLabel)
                         .foregroundStyle(statusColor)
                 }
