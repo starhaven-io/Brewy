@@ -68,12 +68,7 @@ private struct DiscoverRow: View {
     var onInstall: ((BrewPackage) async -> Void)?
 
     var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: package.isCask ? "macwindow" : "terminal")
-                .font(.title3)
-                .foregroundStyle(package.isCask ? .purple : .green)
-                .frame(width: 24)
-
+        HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(package.name)
@@ -91,13 +86,20 @@ private struct DiscoverRow: View {
                             .padding(.horizontal, 5)
                             .padding(.vertical, 1)
                             .background(.purple.opacity(0.12), in: .capsule)
+                    } else {
+                        Text("formula")
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundStyle(.green)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(.green.opacity(0.12), in: .capsule)
                     }
                 }
                 if !package.description.isEmpty {
                     Text(package.description)
-                        .font(.caption)
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                        .lineLimit(2)
                 }
             }
 
@@ -119,6 +121,6 @@ private struct DiscoverRow: View {
                 .controlSize(.small)
             }
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 4)
     }
 }

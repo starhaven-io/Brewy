@@ -23,6 +23,7 @@ struct BrewPackage: Identifiable, Hashable, Codable {
     let installedOnRequest: Bool
     let dependencies: [String]
 
+    var isFormula: Bool { source == .formula }
     var isCask: Bool { source == .cask }
     var isMas: Bool { source == .mas }
 
@@ -128,6 +129,12 @@ enum SidebarCategory: String, CaseIterable, Identifiable {
         case .maintenance: "wrench.and.screwdriver.fill"
         }
     }
+
+    static let packageCategories: [Self] = [
+        .installed, .formulae, .casks, .masApps, .outdated, .pinned, .leaves
+    ]
+    static let managementCategories: [Self] = [.taps, .services, .groups]
+    static let toolCategories: [Self] = [.history, .discover, .maintenance]
 }
 
 // MARK: - Package Group

@@ -7,8 +7,20 @@ struct SidebarView: View {
 
     var body: some View {
         List(selection: $selectedCategory) {
-            Section("Library") {
-                ForEach(SidebarCategory.allCases) { category in
+            Section("Packages") {
+                ForEach(SidebarCategory.packageCategories) { category in
+                    SidebarRow(category: category, count: count(for: category))
+                        .tag(category)
+                }
+            }
+            Section("Management") {
+                ForEach(SidebarCategory.managementCategories) { category in
+                    SidebarRow(category: category, count: count(for: category))
+                        .tag(category)
+                }
+            }
+            Section("Tools") {
+                ForEach(SidebarCategory.toolCategories) { category in
                     SidebarRow(category: category, count: count(for: category))
                         .tag(category)
                 }
@@ -102,11 +114,25 @@ private struct SidebarFooter: View {
                 if brewService.isLoading {
                     ProgressView()
                         .controlSize(.small)
+                } else if let lastUpdated = brewService.lastUpdated {
+                    Text(Self.relativeTime(since: lastUpdated))
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
                 }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
         }
         .background(.bar)
+    }
+
+    private static func relativeTime(since date: Date) -> String {
+        let minutes = Int(Date().timeIntervalSince(date) / 60)
+        if minutes < 1 { return "Just now" }
+        if minutes == 1 { return "1 min ago" }
+        if minutes < 60 { return "\(minutes) min ago" }
+        let hours = minutes / 60
+        if hours == 1 { return "1 hour ago" }
+        return "\(hours) hours ago"
     }
 }

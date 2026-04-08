@@ -102,13 +102,13 @@ private struct PackageHeader: View {
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 16) {
+        HStack(alignment: .top, spacing: 12) {
             ZStack {
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 10)
                     .fill(headerColor.opacity(0.1))
-                    .frame(width: 56, height: 56)
+                    .frame(width: 40, height: 40)
                 Image(systemName: headerIcon)
-                    .font(.title)
+                    .font(.title3)
                     .foregroundStyle(headerColor)
             }
 
@@ -139,14 +139,15 @@ private struct PackageHeader: View {
                         .font(.body)
                         .foregroundStyle(.secondary)
                 }
-                Text("Version \(package.version)")
+                Text("Version \(package.displayVersion)")
                     .font(.callout)
-                    .foregroundStyle(.tertiary)
+                    .foregroundColor(package.isOutdated ? .orange : .secondary)
                     .monospacedDigit()
             }
             Spacer()
         }
-        .padding()
+        .padding(.horizontal)
+        .padding(.vertical, 12)
     }
 }
 
@@ -322,7 +323,8 @@ private struct PackageInfoSection: View {
                 }
             }
         }
-        .padding()
+        .padding(.horizontal)
+        .padding(.vertical, 12)
     }
 }
 
@@ -334,6 +336,8 @@ private struct InfoField: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label)
                 .font(.caption)
+                .fontWeight(.medium)
+                .textCase(.uppercase)
                 .foregroundStyle(.secondary)
             Text(value)
                 .font(.callout)
@@ -431,7 +435,8 @@ private struct BrewInfoSection: View {
                 }
             }
         }
-        .padding()
+        .padding(.horizontal)
+        .padding(.vertical, 12)
     }
 }
 

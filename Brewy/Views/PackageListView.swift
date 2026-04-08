@@ -169,50 +169,41 @@ private struct PackageListToolbar: ToolbarContent {
     let outdatedPackages: [BrewPackage]
 
     var body: some ToolbarContent {
-        ToolbarItemGroup(placement: .primaryAction) {
-            if isOutdated {
-                if isSelecting {
-                    Button {
+        if isOutdated {
+            if isSelecting {
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Upgrade (\(selectedForUpgrade.count))") {
                         let toUpgrade = outdatedPackages.filter { selectedForUpgrade.contains($0.id) }
                         Task {
                             await brewService.upgradeSelected(packages: toUpgrade)
                             selectedForUpgrade.removeAll()
                             isSelecting = false
                         }
-                    } label: {
-                        Label("Upgrade Selected (\(selectedForUpgrade.count))", systemImage: "arrow.up.circle")
-                            .labelStyle(.titleAndIcon)
                     }
                     .disabled(selectedForUpgrade.isEmpty)
-
-                    Button {
+                }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
                         selectedForUpgrade.removeAll()
                         isSelecting = false
-                    } label: {
-                        Label("Cancel", systemImage: "xmark")
-                            .labelStyle(.titleAndIcon)
-                    }
-                } else {
-                    Button {
-                        isSelecting = true
-                    } label: {
-                        Label("Select Packages", systemImage: "checkmark.circle")
-                            .labelStyle(.titleAndIcon)
-                    }
-
-                    Button {
-                        Task { await brewService.upgradeAll() }
-                    } label: {
-                        Label("Upgrade All", systemImage: "arrow.triangle.2.circlepath")
-                            .labelStyle(.titleAndIcon)
                     }
                 }
-            } else if !brewService.outdatedPackages.isEmpty {
-                Button {
+            } else {
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Upgrade All") {
+                        Task { await brewService.upgradeAll() }
+                    }
+                }
+                ToolbarItem(placement: .secondaryAction) {
+                    Button("Select") {
+                        isSelecting = true
+                    }
+                }
+            }
+        } else if !brewService.outdatedPackages.isEmpty {
+            ToolbarItem(placement: .primaryAction) {
+                Button("Upgrade All") {
                     Task { await brewService.upgradeAll() }
-                } label: {
-                    Label("Upgrade All", systemImage: "arrow.triangle.2.circlepath")
-                        .labelStyle(.titleAndIcon)
                 }
             }
         }
@@ -228,8 +219,7 @@ private struct PackageRow: View {
     var onUpgrade: ((BrewPackage) async -> Void)?
 
     var body: some View {
-        HStack(spacing: 10) {
-            packageIcon
+        HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(package.name)
@@ -238,10 +228,11 @@ private struct PackageRow: View {
                     if showInstalledBadge, package.isInstalled {
                         InstalledBadge()
                     }
-                    if package.isCask {
+                    if package.isFormula {
+                        FormulaBadge()
+                    } else if package.isCask {
                         CaskBadge()
-                    }
-                    if package.isMas {
+                    } else if package.isMas {
                         MasBadge()
                     }
                     if package.pinned {
@@ -253,9 +244,9 @@ private struct PackageRow: View {
                 }
                 if !package.description.isEmpty {
                     Text(package.description)
-                        .font(.caption)
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                        .lineLimit(2)
                 }
             }
             Spacer()
@@ -273,30 +264,7 @@ private struct PackageRow: View {
                 .accessibilityLabel("Upgrade \(package.name)")
             }
         }
-        .padding(.vertical, 2)
-    }
-
-    private var packageIcon: some View {
-        Image(systemName: iconName)
-            .font(.title3)
-            .foregroundStyle(iconColor)
-            .frame(width: 24)
-    }
-
-    private var iconName: String {
-        switch package.source {
-        case .formula: "terminal"
-        case .cask: "macwindow"
-        case .mas: "app.badge.fill"
-        }
-    }
-
-    private var iconColor: Color {
-        switch package.source {
-        case .formula: .green
-        case .cask: .purple
-        case .mas: .pink
-        }
+        .padding(.vertical, 4)
     }
 
     private var versionLabel: some View {
@@ -323,6 +291,17 @@ private struct InstalledBadge: View {
             .font(.caption2)
             .foregroundStyle(.green)
             .accessibilityLabel("Installed")
+    }
+}
+
+private struct FormulaBadge: View {
+    var body: some View {
+        Text("formula")
+            .font(.system(size: 9, weight: .medium))
+            .foregroundStyle(.green)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 1)
+            .background(.green.opacity(0.12), in: .capsule)
     }
 }
 

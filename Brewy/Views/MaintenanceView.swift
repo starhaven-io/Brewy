@@ -174,7 +174,7 @@ struct MaintenanceView: View {
             configRow("Homebrew/core last updated", value: brewConfig?.coreTapLastCommit)
             configRow("Homebrew/cask last updated", value: brewConfig?.coreCaskTapLastCommit)
         } footer: {
-            Text("Fetches the newest version of Homebrew and all formulae from GitHub.")
+            Text("Fetches the newest version of Homebrew and all formulae, casks, and taps from GitHub.")
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
