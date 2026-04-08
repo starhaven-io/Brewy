@@ -71,7 +71,8 @@ final class BrewService {
     var packageGroups: [PackageGroup] = []
     var actionHistory: [ActionHistoryEntry] = []
 
-    private var tapsLoaded = false
+    var tapsLoaded = false
+    private var isRefreshing = false
     @ObservationIgnored private var isBatchingUpdates = false
     @ObservationIgnored var infoCache: [String: String] = [:]
 
@@ -171,7 +172,7 @@ final class BrewService {
         }
     }
 
-    private func saveToCache() {
+    func saveToCache() {
         guard let cacheURL = Self.cacheURL,
               ProcessInfo.processInfo.environment["XCTestBundlePath"] == nil else { return }
         let cached = CachedData(
@@ -209,6 +210,12 @@ final class BrewService {
     // MARK: - Homebrew CLI Interactions
 
     func refresh() async {
+        guard !isRefreshing else {
+            logger.info("Refresh already in progress, skipping")
+            return
+        }
+        isRefreshing = true
+        defer { isRefreshing = false }
         logger.info("Starting full refresh")
         let previousVersions = Dictionary(allInstalled.map { ($0.id, $0.version) }, uniquingKeysWith: { _, last in last })
         let hadCachedData = !installedFormulae.isEmpty || !installedCasks.isEmpty
@@ -259,13 +266,6 @@ final class BrewService {
         }
     }
 
-    func ensureTapsLoaded() async {
-        guard !tapsLoaded else { return }
-        tapsLoaded = true
-        installedTaps = await fetchTaps()
-        saveToCache()
-    }
-
     func search(query: String) async {
         guard !query.isEmpty else {
             searchResults = []
@@ -279,76 +279,6 @@ final class BrewService {
         guard !Task.isCancelled else { return }
         searchResults = results
         isLoading = false
-    }
-
-    func install(package: BrewPackage) async {
-        await performAction("install", package: package)
-    }
-
-    func uninstall(package: BrewPackage) async {
-        await performAction("uninstall", package: package)
-    }
-
-    func upgrade(package: BrewPackage) async {
-        await performAction("upgrade", package: package)
-    }
-
-    func upgradeAll() async {
-        await performBrewAction(["upgrade"], refreshAfter: true)
-    }
-
-    func pin(package: BrewPackage) async { await performAction("pin", package: package) }
-    func unpin(package: BrewPackage) async { await performAction("unpin", package: package) }
-    func reinstall(package: BrewPackage) async { await performAction("reinstall", package: package) }
-    func fetch(package: BrewPackage) async { await performAction("fetch", package: package) }
-    func link(package: BrewPackage) async { await performAction("link", package: package) }
-    func unlink(package: BrewPackage) async { await performAction("unlink", package: package) }
-
-    func updateHomebrew() async {
-        await performBrewAction(["update"], refreshAfter: true)
-    }
-
-    func cleanup() async {
-        await performBrewAction(["cleanup", "--prune=all"])
-    }
-
-    func addTap(name: String) async {
-        await performTapAction { await runTapCommand(["tap", name]) }
-    }
-
-    func removeTap(name: String) async {
-        await performTapAction { await runTapCommand(["untap", name]) }
-    }
-
-    func migrateTap(from oldName: String, to newName: String) async {
-        await performTapAction {
-            logger.info("Migrating tap \(oldName) → \(newName)")
-            guard await runTapCommand(["untap", oldName]) else { return false }
-            tapHealthStatuses.removeValue(forKey: oldName)
-            return await runTapCommand(["tap", newName])
-        }
-    }
-
-    private func performTapAction(_ action: () async -> Bool) async {
-        isPerformingAction = true
-        actionOutput = ""
-        lastError = nil
-        defer { isPerformingAction = false }
-        _ = await action()
-        tapsLoaded = false
-        await ensureTapsLoaded()
-        await refresh()
-    }
-
-    @discardableResult
-    private func runTapCommand(_ arguments: [String]) async -> Bool {
-        let result = await runBrewCommand(arguments)
-        actionOutput += actionOutput.isEmpty ? result.output : "\n" + result.output
-        if !result.success {
-            lastError = .commandFailed(command: arguments.first ?? "", output: result.output)
-        }
-        recordAction(arguments: arguments, packageName: nil, packageSource: nil, success: result.success, output: result.output)
-        return result.success
     }
 
     func upgradeSelected(packages: [BrewPackage]) async {

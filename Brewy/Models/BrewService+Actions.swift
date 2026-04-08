@@ -5,6 +5,39 @@ private let logger = Logger(subsystem: "io.linnane.brewy", category: "BrewServic
 
 extension BrewService {
 
+    // MARK: - Package Actions
+
+    func install(package: BrewPackage) async {
+        await performAction("install", package: package)
+    }
+
+    func uninstall(package: BrewPackage) async {
+        await performAction("uninstall", package: package)
+    }
+
+    func upgrade(package: BrewPackage) async {
+        await performAction("upgrade", package: package)
+    }
+
+    func upgradeAll() async {
+        await performBrewAction(["upgrade"], refreshAfter: true)
+    }
+
+    func pin(package: BrewPackage) async { await performAction("pin", package: package) }
+    func unpin(package: BrewPackage) async { await performAction("unpin", package: package) }
+    func reinstall(package: BrewPackage) async { await performAction("reinstall", package: package) }
+    func fetch(package: BrewPackage) async { await performAction("fetch", package: package) }
+    func link(package: BrewPackage) async { await performAction("link", package: package) }
+    func unlink(package: BrewPackage) async { await performAction("unlink", package: package) }
+
+    func updateHomebrew() async {
+        await performBrewAction(["update"], refreshAfter: true)
+    }
+
+    func cleanup() async {
+        await performBrewAction(["cleanup", "--prune=all"])
+    }
+
     // MARK: - Action Helpers
 
     func performBrewAction(_ arguments: [String], refreshAfter: Bool = false) async {

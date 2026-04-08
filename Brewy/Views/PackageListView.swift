@@ -74,6 +74,7 @@ struct PackageListView: View {
                 searchScope = .installed
                 searchText = ""
                 searchTask?.cancel()
+                selectedPackage = nil
             }
             .overlay {
                 if brewService.isLoading, displayedPackages.isEmpty {

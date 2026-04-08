@@ -26,10 +26,19 @@ struct SettingsView: View {
     @AppStorage("appTheme")
     private var appTheme = AppTheme.system.rawValue
 
+    private var isBrewPathValid: Bool {
+        FileManager.default.isExecutableFile(atPath: brewPath)
+    }
+
     var body: some View {
         Form {
             TextField("Homebrew Path:", text: $brewPath)
                 .help("Path to the brew executable")
+            if !brewPath.isEmpty, !isBrewPathValid {
+                Text("No executable found at this path.")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
 
             Picker("Auto-refresh:", selection: $autoRefreshInterval) {
                 Text("Off").tag(0)
