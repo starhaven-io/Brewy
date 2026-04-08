@@ -173,7 +173,7 @@ struct ContentView: View {
                 .id(package.id)
                 .navigationSplitViewColumnWidth(ideal: 450)
         } else {
-            EmptyStateView()
+            EmptyStateView(lastUpdated: brewService.lastUpdated)
                 .navigationSplitViewColumnWidth(ideal: 450)
         }
     }
@@ -196,11 +196,12 @@ private struct EmptyStateView: View {
     var icon: String = "shippingbox"
     var title: String = "Select a Package"
     var subtitle: String = "Choose a package from the list to view its details."
+    var lastUpdated: Date?
 
     var body: some View {
         VStack(spacing: 12) {
             Image(systemName: icon)
-                .font(.system(size: 48))
+                .font(.system(size: 40))
                 .foregroundStyle(.tertiary)
             Text(title)
                 .font(.title2)
@@ -208,7 +209,28 @@ private struct EmptyStateView: View {
             Text(subtitle)
                 .font(.callout)
                 .foregroundStyle(.tertiary)
+            if icon == "shippingbox" {
+                Text("\u{2318}R to refresh  \u{00B7}  \u{2318}U to upgrade all")
+                    .font(.caption)
+                    .foregroundStyle(.quaternary)
+                    .padding(.top, 4)
+            }
+            if let lastUpdated {
+                Text("Last refreshed \(Self.relativeTime(since: lastUpdated))")
+                    .font(.caption2)
+                    .foregroundStyle(.quaternary)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private static func relativeTime(since date: Date) -> String {
+        let minutes = Int(Date().timeIntervalSince(date) / 60)
+        if minutes < 1 { return "just now" }
+        if minutes == 1 { return "1 min ago" }
+        if minutes < 60 { return "\(minutes) min ago" }
+        let hours = minutes / 60
+        if hours == 1 { return "1 hour ago" }
+        return "\(hours) hours ago"
     }
 }
