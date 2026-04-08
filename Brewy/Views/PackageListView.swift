@@ -248,6 +248,7 @@ private struct PackageRow: View {
                         Image(systemName: "pin.fill")
                             .font(.caption2)
                             .foregroundStyle(.orange)
+                            .accessibilityLabel("Pinned")
                     }
                 }
                 if !package.description.isEmpty {
@@ -269,6 +270,7 @@ private struct PackageRow: View {
                 }
                 .buttonStyle(.plain)
                 .help("Upgrade \(package.name)")
+                .accessibilityLabel("Upgrade \(package.name)")
             }
         }
         .padding(.vertical, 2)
@@ -320,6 +322,7 @@ private struct InstalledBadge: View {
         Image(systemName: "checkmark.circle.fill")
             .font(.caption2)
             .foregroundStyle(.green)
+            .accessibilityLabel("Installed")
     }
 }
 

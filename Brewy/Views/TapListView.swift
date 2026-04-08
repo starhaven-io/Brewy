@@ -145,6 +145,7 @@ private struct TapHealthBadge: View {
             .padding(.horizontal, 5)
             .padding(.vertical, 1)
             .background(color.opacity(0.12), in: .capsule)
+            .accessibilityLabel("Tap status: \(label)")
     }
 }
 

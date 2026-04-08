@@ -46,6 +46,7 @@ private struct HistoryRow: View {
             Circle()
                 .fill(entry.status == .success ? Color.green : Color.red)
                 .frame(width: 8, height: 8)
+                .accessibilityLabel(entry.status == .success ? "Succeeded" : "Failed")
             VStack(alignment: .leading, spacing: 2) {
                 if let name = entry.packageName {
                     HStack(spacing: 6) {
@@ -106,6 +107,7 @@ struct HistoryDetailView: View {
                     Circle()
                         .fill(entry.status == .success ? Color.green : Color.red)
                         .frame(width: 8, height: 8)
+                        .accessibilityHidden(true)
                     Text(entry.status == .success ? "Success" : "Failed")
                         .foregroundStyle(entry.status == .success ? .green : .red)
                 }
