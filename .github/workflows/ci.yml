@@ -167,8 +167,8 @@ jobs:
             EXCLUDED_ARCHS=x86_64
 
       - name: Coverage Summary
-        if: always() && matrix.check == 'test-tsan'
-        run: xcrun xccov view --report --only-targets TestResults-TSAN.xcresult || true
+        if: success() && matrix.check == 'test-tsan'
+        run: xcrun xccov view --report --only-targets TestResults-TSAN.xcresult
 
       - name: Upload Test Results
         if: always() && startsWith(matrix.check, 'test-')

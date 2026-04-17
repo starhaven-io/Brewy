@@ -42,13 +42,18 @@ jobs:
       - name: Extract version from Xcode project
         id: version
         run: |
-          TAG=$(grep -m1 'MARKETING_VERSION' Brewy.xcodeproj/project.pbxproj | sed 's/.*= *//;s/ *;.*//')
+          SETTINGS=$(xcodebuild -project Brewy.xcodeproj -target Brewy -configuration Release -showBuildSettings 2>/dev/null)
+          TAG=$(echo "${SETTINGS}" | awk -F' = ' '/^[[:space:]]*MARKETING_VERSION[[:space:]]*=/ {print $2; exit}')
+          BUILD_NUMBER=$(echo "${SETTINGS}" | awk -F' = ' '/^[[:space:]]*CURRENT_PROJECT_VERSION[[:space:]]*=/ {print $2; exit}')
           if [[ -z "${TAG}" ]]; then
-            echo "::error::Could not extract MARKETING_VERSION from project.pbxproj"
+            echo "::error::Could not extract MARKETING_VERSION from Brewy target"
+            exit 1
+          fi
+          if [[ -z "${BUILD_NUMBER}" ]]; then
+            echo "::error::Could not extract CURRENT_PROJECT_VERSION from Brewy target"
             exit 1
           fi
           echo "tag=${TAG}" >> "${GITHUB_OUTPUT}"
-          BUILD_NUMBER=$(grep -m1 'CURRENT_PROJECT_VERSION' Brewy.xcodeproj/project.pbxproj | sed 's/.*= *//;s/ *;.*//')
           echo "build_number=${BUILD_NUMBER}" >> "${GITHUB_OUTPUT}"
           echo "TAG=${TAG}" >> "${GITHUB_ENV}"
 
@@ -194,9 +199,9 @@ jobs:
           ARTIFACT_NAME: ${{ needs.build.outputs.artifact_name }}
         run: |
           SPARKLE_KEY_FILE="${RUNNER_TEMP}/sparkle_private_key"
+          trap 'rm -f "${SPARKLE_KEY_FILE}"' EXIT
           echo "${SPARKLE_KEY}" > "${SPARKLE_KEY_FILE}"
           SIG_OUTPUT=$("${RUNNER_TEMP}/sparkle/bin/sign_update" "${ARTIFACT_NAME}" --ed-key-file "${SPARKLE_KEY_FILE}" 2>&1)
-          rm -f "${SPARKLE_KEY_FILE}"
           echo "SPARKLE_SIG=$(echo "${SIG_OUTPUT}" | grep -o 'sparkle:edSignature="[^"]*"' | cut -d'"' -f2)" >> "${GITHUB_ENV}"
           echo "SPARKLE_LENGTH=$(echo "${SIG_OUTPUT}" | grep -o 'length="[^"]*"' | cut -d'"' -f2)" >> "${GITHUB_ENV}"
 
@@ -245,7 +250,8 @@ jobs:
           export PUBDATE="$(date -u '+%a, %d %b %Y %H:%M:%S %z')"
           export DOWNLOAD_URL="https://github.com/${REPOSITORY}/releases/download/${TAG}/${ARTIFACT_NAME}"
           export RELEASE_NOTES_HTML="$(cat "${RUNNER_TEMP}/release_notes.html")"
-          envsubst < .github/appcast-template.xml > appcast.xml
+          envsubst '$TAG $PUBDATE $BUILD_NUMBER $DOWNLOAD_URL $SPARKLE_LENGTH $SPARKLE_SIG $RELEASE_NOTES_HTML' \
+            < .github/appcast-template.xml > appcast.xml
 
       - name: Push appcast
         env:
