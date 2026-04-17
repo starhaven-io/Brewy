@@ -22,9 +22,11 @@ opt_in_rules:
   # Modern Swift
   - direct_return
   - implicit_return
+  - prefer_key_path
   - prefer_self_in_static_references
   - prefer_self_type_over_type_of_self
   - prefer_zero_over_explicit_init
+  - redundant_self_in_closure
   - self_binding
   - shorthand_optional_binding
   - superfluous_else
@@ -41,6 +43,7 @@ opt_in_rules:
   - private_swiftui_state
   - return_value_from_void_function
   - unavailable_function
+  - unhandled_throwing_task
   - unowned_variable_capture
   - yoda_condition
 
@@ -58,6 +61,7 @@ opt_in_rules:
   - joined_default_parameter
   - legacy_multiple
   - modifier_order
+  - no_extension_access_modifier
   - number_separator
   - operator_usage_whitespace
   - redundant_nil_coalescing
