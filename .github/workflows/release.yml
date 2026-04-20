@@ -14,7 +14,7 @@ concurrency:
 permissions: {}
 
 env:
-  DEVELOPMENT_TEAM: ${{ secrets.DEVELOPMENT_TEAM }}
+  DEVELOPMENT_TEAM: ${{ vars.DEVELOPMENT_TEAM }}
 
 jobs:
   build:
