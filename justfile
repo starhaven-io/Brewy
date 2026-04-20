@@ -48,6 +48,10 @@ lint:
 typos:
     typos
 
+# Scan for unused code (uses .periphery.yml)
+periphery:
+    periphery scan
+
 # Check
 
 # Run all checks
@@ -80,6 +84,11 @@ check:
         run zizmor .github/workflows/
     else
         skip audit zizmor zizmor
+    fi
+    if command -v periphery &>/dev/null; then
+        run periphery scan --strict --disable-update-check
+    else
+        skip periphery periphery periphery
     fi
     run xcodebuild test \
         -project Brewy.xcodeproj \
