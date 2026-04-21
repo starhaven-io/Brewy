@@ -9,13 +9,6 @@ private let logger = Logger(subsystem: "io.linnane.brewy", category: "CommandRun
 struct CommandResult: Sendable {
     let output: String
     let success: Bool
-    let didTimeOut: Bool
-
-    init(output: String, success: Bool, didTimeOut: Bool = false) {
-        self.output = output
-        self.success = success
-        self.didTimeOut = didTimeOut
-    }
 }
 
 // MARK: - Thread-safe Value Containers
@@ -206,8 +199,7 @@ enum CommandRunner {
         if timedOut.isSet {
             return CommandResult(
                 output: "Command timed out after \(timeout).",
-                success: false,
-                didTimeOut: true
+                success: false
             )
         }
         let stdout = String(data: out, encoding: .utf8) ?? ""
