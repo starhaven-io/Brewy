@@ -38,7 +38,7 @@ test:
 
 # Audit GitHub Actions workflows
 audit:
-    zizmor .github/workflows/
+    zizmor --persona auditor .github/workflows/
 
 # Run SwiftLint
 lint:
@@ -81,7 +81,7 @@ check:
         skip typos typos typos-cli
     fi
     if command -v zizmor &>/dev/null; then
-        run zizmor .github/workflows/
+        run zizmor --persona auditor .github/workflows/
     else
         skip audit zizmor zizmor
     fi
