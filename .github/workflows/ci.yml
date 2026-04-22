@@ -212,9 +212,18 @@ jobs:
           done < <(find ./DerivedData/Build/Products -name '*.xctest' -type d -not -path '*.framework/*' -not -path '*.xctest/*')
           while IFS= read -r app; do
             name=$(basename "${app}" .app)
+            # Xcode Debug builds split the app into a launcher stub and a
+            # .debug.dylib that carries the instrumentation; prefer the dylib.
+            dylib="${app}/Contents/MacOS/${name}.debug.dylib"
             bin="${app}/Contents/MacOS/${name}"
-            [[ -f "${bin}" ]] || continue
-            if [[ -z "${FIRST}" ]]; then FIRST="${bin}"; else BINARY_ARGS+=(-object "${bin}"); fi
+            if [[ -f "${dylib}" ]]; then
+              candidate="${dylib}"
+            elif [[ -f "${bin}" ]]; then
+              candidate="${bin}"
+            else
+              continue
+            fi
+            if [[ -z "${FIRST}" ]]; then FIRST="${candidate}"; else BINARY_ARGS+=(-object "${candidate}"); fi
           done < <(find ./DerivedData/Build/Products -name '*.app' -type d -not -path '*.framework/*' -not -path '*.xctest/*' -not -name '*-Runner.app')
           if [[ -z "${FIRST}" ]]; then
             echo "::error::No instrumented binaries found under ./DerivedData/Build/Products"
