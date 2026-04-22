@@ -49,7 +49,7 @@ jobs:
           # Swift changes: lint + sanitizer tests
           if echo "${CHANGED}" | grep -qE '\.swift$|^Brewy\.xcodeproj/|^\.swiftlint\.yml$'; then
             MATRIX+=',{"name":"Lint","check":"lint","runner":"macos-26"}'
-            MATRIX+=',{"name":"Test (Thread Sanitizer)","check":"test-tsan","runner":"macos-26","xcodebuild_flags":"-enableCodeCoverage YES -enableThreadSanitizer YES","result_bundle":"TestResults-TSAN"}'
+            MATRIX+=',{"name":"Test (Thread Sanitizer)","check":"test-tsan","runner":"macos-26","xcodebuild_flags":"-enableCodeCoverage YES -enableThreadSanitizer YES","result_bundle":"TestResults-TSAN","environment":"codecov"}'
             MATRIX+=',{"name":"Test (Address Sanitizer)","check":"test-asan","runner":"macos-26","xcodebuild_flags":"-enableAddressSanitizer YES","result_bundle":"TestResults-ASAN"}'
           fi
 
@@ -69,6 +69,9 @@ jobs:
     name: ${{ matrix.name }}
     needs: generate-matrix
     runs-on: ${{ matrix.runner }}
+    environment:
+      name: ${{ matrix.environment }}
+      deployment: false
     # Cap at 45m: lint/commits finish in seconds, CodeQL runs ~20m, sanitizer
     # test jobs ~10m. Anything past this is a hang — fail fast instead of
     # burning up to 6h of the default runner budget.
@@ -276,7 +279,7 @@ jobs:
         if: matrix.check == 'zizmor'
         uses: zizmorcore/zizmor-action@b1d7e1fb5de872772f31590499237e7cce841e8e # v0.5.3
         with:
-          persona: pedantic
+          persona: auditor
 
   conclusion:
     name: conclusion
