@@ -65,6 +65,72 @@ struct MaintenanceTests {
         #expect(mock.executedCommands.contains(["update"]))
     }
 
+    @Test("updateHomebrew parses new formulae and casks into lastUpdateResult")
+    func updateHomebrewParsesNewPackages() async {
+        let mock = MockCommandRunner()
+        let (service, _) = makeService(mock: mock)
+        setupRefreshMock(mock)
+        let updateOutput = """
+        Updated Homebrew from abc123 to def456.
+        ==> New Formulae
+        new-tool: A new formula
+        another-tool: Another formula
+        ==> New Casks
+        new-app: A new cask
+        """
+        mock.setResult(for: ["update"], output: updateOutput)
+
+        await service.updateHomebrew()
+
+        let result = service.lastUpdateResult
+        #expect(result != nil)
+        #expect(result?.newFormulae.count == 2)
+        #expect(result?.newFormulae.first?.name == "new-tool")
+        #expect(result?.newCasks.count == 1)
+        #expect(result?.newCasks.first?.name == "new-app")
+        #expect(result?.totalCount == 3)
+        #expect(service.lastError == nil)
+    }
+
+    @Test("updateHomebrew records action history on success")
+    func updateHomebrewRecordsHistory() async {
+        let mock = MockCommandRunner()
+        let (service, _) = makeService(mock: mock)
+        setupRefreshMock(mock)
+        mock.setResult(for: ["update"], output: "Already up-to-date.")
+
+        await service.updateHomebrew()
+
+        #expect(service.actionHistory.contains { $0.arguments == ["update"] })
+        #expect(service.actionHistory.first?.status == .success)
+    }
+
+    @Test("updateHomebrew does not store result on failure")
+    func updateHomebrewFailure() async {
+        let mock = MockCommandRunner()
+        let (service, _) = makeService(mock: mock)
+        setupRefreshMock(mock)
+        mock.setResult(for: ["update"], output: "fatal: network error", success: false)
+
+        await service.updateHomebrew()
+
+        #expect(service.lastUpdateResult == nil)
+        #expect(service.actionHistory.first?.status == .failure)
+    }
+
+    @Test("updateHomebrew is reentrancy-guarded by isPerformingAction")
+    func updateHomebrewReentrancyGuard() async {
+        let mock = MockCommandRunner()
+        let (service, _) = makeService(mock: mock)
+        setupRefreshMock(mock)
+        mock.setResult(for: ["update"], output: "Already up-to-date.")
+        service.isPerformingAction = true
+
+        await service.updateHomebrew()
+
+        #expect(!mock.executedCommands.contains(["update"]))
+    }
+
     @Test("config parses brew config output")
     func configParsesOutput() async {
         let mock = MockCommandRunner()
