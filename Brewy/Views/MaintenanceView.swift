@@ -173,19 +173,13 @@ struct MaintenanceView: View {
         if let result = brewService.lastUpdateResult, !result.isEmpty {
             Section {
                 HStack(spacing: 8) {
-                    Label {
-                        Text("New since \(Self.relativeTime(since: result.timestamp))")
-                    } icon: {
-                        Image(systemName: "sparkles")
-                            .foregroundStyle(.yellow)
-                    }
-                    .font(.headline)
+                    Label("New since \(result.timestamp.formatted(.relative(presentation: .named)))", systemImage: "sparkles")
+                        .font(.headline)
                     Spacer()
                     Text("\(result.totalCount)")
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
                 }
-
                 if !result.newFormulae.isEmpty {
                     NewItemsList(title: "New Formulae", items: result.newFormulae)
                 }
@@ -197,12 +191,6 @@ struct MaintenanceView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-    }
-
-    private static func relativeTime(since date: Date) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .full
-        return formatter.localizedString(for: date, relativeTo: Date())
     }
 
     // MARK: - Helpers
@@ -258,14 +246,6 @@ struct MaintenanceView: View {
 private struct NewItemsList: View {
     let title: String
     let items: [BrewUpdateItem]
-    @State private var isExpanded = false
-
-    private static let collapsedLimit = 8
-
-    private var visibleItems: [BrewUpdateItem] {
-        if isExpanded || items.count <= Self.collapsedLimit { return items }
-        return Array(items.prefix(Self.collapsedLimit))
-    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -279,19 +259,8 @@ private struct NewItemsList: View {
                     .foregroundStyle(.tertiary)
                     .monospacedDigit()
             }
-
-            ForEach(visibleItems) { item in
+            ForEach(items) { item in
                 NewItemRow(item: item)
-            }
-
-            if items.count > Self.collapsedLimit {
-                Button {
-                    withAnimation { isExpanded.toggle() }
-                } label: {
-                    Text(isExpanded ? "Show fewer" : "Show all \(items.count)")
-                        .font(.caption)
-                }
-                .buttonStyle(.borderless)
             }
         }
     }
@@ -304,16 +273,11 @@ private struct NewItemRow: View {
     private var brewService
     let item: BrewUpdateItem
 
-    private var isInstalled: Bool {
-        brewService.installedNames.contains(item.name)
-    }
-
     var body: some View {
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
-                    Text(item.name)
-                        .font(.body)
+                    Text(item.name).font(.body)
                     sourceBadge
                 }
                 if let desc = item.description {
@@ -324,13 +288,13 @@ private struct NewItemRow: View {
                 }
             }
             Spacer()
-            if isInstalled {
+            if brewService.installedNames.contains(item.name) {
                 Text("Installed")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
                 Button {
-                    Task { await install() }
+                    Task { await brewService.install(package: item.asPlaceholderPackage()) }
                 } label: {
                     Label("Install", systemImage: "arrow.down.circle.fill")
                         .font(.caption)
@@ -351,24 +315,5 @@ private struct NewItemRow: View {
             .padding(.horizontal, 5)
             .padding(.vertical, 1)
             .background((isCask ? Color.purple : Color.green).opacity(0.12), in: .capsule)
-    }
-
-    private func install() async {
-        let placeholder = BrewPackage(
-            id: item.id,
-            name: item.name,
-            version: "",
-            description: item.description ?? "",
-            homepage: "",
-            isInstalled: false,
-            isOutdated: false,
-            installedVersion: nil,
-            latestVersion: nil,
-            source: item.source,
-            pinned: false,
-            installedOnRequest: false,
-            dependencies: []
-        )
-        await brewService.install(package: placeholder)
     }
 }

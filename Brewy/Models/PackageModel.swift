@@ -398,6 +398,25 @@ struct BrewUpdateItem: Identifiable, Hashable, Codable, Sendable {
     let source: PackageSource
 
     var id: String { "\(source.rawValue)-\(name)" }
+
+    /// Builds a minimal BrewPackage suitable for handing to brew install actions.
+    func asPlaceholderPackage() -> BrewPackage {
+        BrewPackage(
+            id: id,
+            name: name,
+            version: "",
+            description: description ?? "",
+            homepage: "",
+            isInstalled: false,
+            isOutdated: false,
+            installedVersion: nil,
+            latestVersion: nil,
+            source: source,
+            pinned: false,
+            installedOnRequest: false,
+            dependencies: []
+        )
+    }
 }
 
 struct BrewUpdateResult: Codable, Sendable {

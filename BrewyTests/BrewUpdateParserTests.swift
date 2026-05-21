@@ -155,6 +155,23 @@ struct BrewUpdateParserTests {
         #expect(!result.isEmpty)
     }
 
+    @Test("asPlaceholderPackage produces a BrewPackage matching the item")
+    func asPlaceholderPackageMatchesItem() {
+        let formulaItem = BrewUpdateItem(name: "wget", description: "File retriever", source: .formula)
+        let pkg = formulaItem.asPlaceholderPackage()
+        #expect(pkg.name == "wget")
+        #expect(pkg.source == .formula)
+        #expect(pkg.description == "File retriever")
+        #expect(!pkg.isInstalled)
+        #expect(!pkg.isOutdated)
+        #expect(pkg.id == formulaItem.id)
+
+        let caskWithoutDesc = BrewUpdateItem(name: "font-foo", description: nil, source: .cask)
+        let caskPkg = caskWithoutDesc.asPlaceholderPackage()
+        #expect(caskPkg.source == .cask)
+        #expect(caskPkg.description.isEmpty)
+    }
+
     @Test("Codable round-trip preserves all fields")
     func codableRoundTrip() throws {
         let original = BrewUpdateResult(
