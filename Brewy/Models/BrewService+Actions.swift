@@ -30,10 +30,6 @@ extension BrewService {
     func link(package: BrewPackage) async { await performAction("link", package: package) }
     func unlink(package: BrewPackage) async { await performAction("unlink", package: package) }
 
-    func updateHomebrew() async {
-        await performBrewAction(["update"], refreshAfter: true)
-    }
-
     func cleanup() async {
         await performBrewAction(["cleanup", "--prune=all"])
     }

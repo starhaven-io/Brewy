@@ -27,8 +27,9 @@ Brewy/
 │   │   ├── BrewService+History.swift       # Action history recording, persistence, retry, outdated merge helper
 │   │   ├── BrewService+Groups.swift        # User-created package group CRUD and persistence
 │   │   ├── BrewService+DryRun.swift        # Dry-run previews for autoremove and cleanup
+│   │   ├── BrewService+Updates.swift       # `brew update` orchestration, parses + persists new formulae/casks
 │   │   ├── BrewJSONTypes.swift             # Brew JSON v2 Codable response types (extracted from PackageModel)
-│   │   ├── PackageModel.swift              # Data models: BrewPackage, BrewTap, SidebarCategory, PackageGroup, ActionHistoryEntry, BrewServiceItem, BrewConfig, appcast parser
+│   │   ├── PackageModel.swift              # Data models: BrewPackage, BrewTap, SidebarCategory, PackageGroup, ActionHistoryEntry, BrewServiceItem, BrewConfig, BrewUpdateResult/Parser, appcast parser
 │   │   ├── CommandRunner.swift             # Process execution with timeout, cancellation, thread-safe pipe reading, CommandRunning protocol
 │   │   ├── MasService.swift                # Mac App Store integration via mas CLI (list, outdated, install)
 │   │   ├── ServicesService.swift           # Homebrew services management (fetch, start, stop, restart, cleanup)
@@ -60,7 +61,8 @@ Brewy/
 │   ├── GroupsAndMasTests.swift             # Package groups, Mac App Store parsing
 │   ├── HistoryTests.swift                  # Action history recording and retry
 │   ├── ServicesTests.swift                 # Services parsing and integration
-│   └── JSONAndServicesTests.swift          # JSON parsing edge cases and services
+│   ├── JSONAndServicesTests.swift          # JSON parsing edge cases and services
+│   └── BrewUpdateParserTests.swift         # `brew update` output parsing
 ├── BrewyUITests/
 │   └── SidebarNavigationUITests.swift      # UI tests for sidebar navigation
 ├── Brewy.xcodeproj/
@@ -107,12 +109,15 @@ The central service object that holds all app state and orchestrates brew CLI ca
 - `fetchPackageDetail(for:)` — cached single-package detail fetch
 - `config()` — parses `brew config` output
 - `info(for:)` — cached `brew info` output
+- `updateHomebrew()` — runs `brew update`, parses new formulae/casks into `lastUpdateResult`, persists, then refreshes
+- `loadLastUpdateResult()` — restores last `brew update` snapshot from disk on app launch
 
 **Caching:** JSON serialization to `~/Library/Application Support/Brewy/`:
 - `packageCache.json` — packages (formulae, casks, mas apps, outdated, taps). Tagged with `cacheSchemaVersion`; a version mismatch or decode failure deletes the file so the app doesn't silently launch into empty state after a schema change.
 - `tapHealthCache.json` — tap health statuses with 24-hour TTL
 - `packageGroups.json` — user-created package groups
 - `actionHistory.json` — action history (max 100 entries)
+- `lastUpdateResult.json` — last `brew update` parse result with new formulae/casks and timestamp
 
 ### CommandRunner
 
@@ -214,14 +219,15 @@ mas install ID                               # Install Mac App Store app
 - Tap health monitoring: detects archived, moved, and missing tap repositories via GitHub API
 - Tap migration: one-click migrate to a tap's new URL when it has moved
 - "What's New" view parsing Sparkle appcast XML
+- "New in Homebrew" section in Maintenance: parses `brew update` output, lists newly available formulae and casks since the last run with click-to-install actions
 - Sparkle auto-updates with EdDSA signing
 
 ## Testing
 
 - Framework: Swift Testing (`@Suite`, `@Test` macros)
-- ~200 test cases across 11 test files (10 unit test files + 1 test helpers)
+- ~210 test cases across 12 test files (11 unit test files + 1 test helpers)
 - `MockCommandRunner` and shared test helpers in `TestHelpers.swift`
-- Tests cover: derived state, reverse deps, leaves, pinned filtering, category routing, outdated merge logic, all JSON parsing, model equality/hashing, config parsing, appcast XML parsing, tap health status, package groups, Mac App Store parsing, action history, services, dry-run, retry, error handling, async refresh/search/upgrade flows, real-subprocess CommandRunner behavior (stdout/stderr drain, timeout, missing executable)
+- Tests cover: derived state, reverse deps, leaves, pinned filtering, category routing, outdated merge logic, all JSON parsing, model equality/hashing, config parsing, appcast XML parsing, tap health status, package groups, Mac App Store parsing, action history, services, dry-run, retry, error handling, `brew update` output parsing, async refresh/search/upgrade flows, real-subprocess CommandRunner behavior (stdout/stderr drain, timeout, missing executable)
 - UI tests: sidebar navigation
 - CI runs both Thread Sanitizer and Address Sanitizer
 - Code coverage reported via `xccov`

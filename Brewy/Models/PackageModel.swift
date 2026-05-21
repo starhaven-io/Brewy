@@ -389,3 +389,71 @@ struct BrewConfig {
         )
     }
 }
+
+// MARK: - Brew Update Result
+
+struct BrewUpdateItem: Identifiable, Hashable, Codable, Sendable {
+    let name: String
+    let description: String?
+    let source: PackageSource
+
+    var id: String { "\(source.rawValue)-\(name)" }
+}
+
+struct BrewUpdateResult: Codable, Sendable {
+    let newFormulae: [BrewUpdateItem]
+    let newCasks: [BrewUpdateItem]
+    let timestamp: Date
+    let rawOutput: String
+
+    var isEmpty: Bool { newFormulae.isEmpty && newCasks.isEmpty }
+    var totalCount: Int { newFormulae.count + newCasks.count }
+}
+
+enum BrewUpdateParser {
+    private static let formulaeHeader = "new formulae"
+    private static let casksHeader = "new casks"
+
+    static func parse(_ output: String, at timestamp: Date = Date()) -> BrewUpdateResult {
+        var newFormulae: [BrewUpdateItem] = []
+        var newCasks: [BrewUpdateItem] = []
+        var currentSection: PackageSource?
+
+        for rawLine in output.split(separator: "\n", omittingEmptySubsequences: false) {
+            let line = String(rawLine)
+            if line.hasPrefix("==>") {
+                let header = line.dropFirst(3).trimmingCharacters(in: .whitespaces).lowercased()
+                switch header {
+                case Self.formulaeHeader: currentSection = .formula
+                case Self.casksHeader: currentSection = .cask
+                default: currentSection = nil
+                }
+                continue
+            }
+            guard let section = currentSection else { continue }
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard !trimmed.isEmpty else { continue }
+            let item = parseItem(trimmed, source: section)
+            switch section {
+            case .formula: newFormulae.append(item)
+            case .cask: newCasks.append(item)
+            case .mas: break
+            }
+        }
+        return BrewUpdateResult(
+            newFormulae: newFormulae,
+            newCasks: newCasks,
+            timestamp: timestamp,
+            rawOutput: output
+        )
+    }
+
+    private static func parseItem(_ line: String, source: PackageSource) -> BrewUpdateItem {
+        guard let colonIndex = line.firstIndex(of: ":") else {
+            return BrewUpdateItem(name: line, description: nil, source: source)
+        }
+        let name = line[..<colonIndex].trimmingCharacters(in: .whitespaces)
+        let desc = line[line.index(after: colonIndex)...].trimmingCharacters(in: .whitespaces)
+        return BrewUpdateItem(name: name, description: desc.isEmpty ? nil : desc, source: source)
+    }
+}

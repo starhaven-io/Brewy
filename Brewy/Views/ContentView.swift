@@ -77,6 +77,7 @@ struct ContentView: View {
             brewService.loadTapHealthCache()
             brewService.loadGroups()
             brewService.loadHistory()
+            brewService.loadLastUpdateResult()
             let currentVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
             if !currentVersion.isEmpty, currentVersion != lastSeenVersion {
                 lastSeenVersion = currentVersion

@@ -85,6 +85,7 @@ final class BrewService {
     var tapHealthStatuses: [String: TapHealthStatus] = [:]
     var packageGroups: [PackageGroup] = []
     var actionHistory: [ActionHistoryEntry] = []
+    var lastUpdateResult: BrewUpdateResult?
 
     var tapsLoaded = false
     private var isRefreshing = false

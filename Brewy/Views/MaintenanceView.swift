@@ -18,6 +18,7 @@ struct MaintenanceView: View {
             orphansSection
             cacheSection
             homebrewUpdateSection
+            whatsNewSection
         }
         .formStyle(.grouped)
         .navigationTitle("Maintenance")
@@ -166,6 +167,44 @@ struct MaintenanceView: View {
         }
     }
 
+    // MARK: - What's New in Homebrew
+
+    @ViewBuilder private var whatsNewSection: some View {
+        if let result = brewService.lastUpdateResult, !result.isEmpty {
+            Section {
+                HStack(spacing: 8) {
+                    Label {
+                        Text("New since \(Self.relativeTime(since: result.timestamp))")
+                    } icon: {
+                        Image(systemName: "sparkles")
+                            .foregroundStyle(.yellow)
+                    }
+                    .font(.headline)
+                    Spacer()
+                    Text("\(result.totalCount)")
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+
+                if !result.newFormulae.isEmpty {
+                    NewItemsList(title: "New Formulae", items: result.newFormulae)
+                }
+                if !result.newCasks.isEmpty {
+                    NewItemsList(title: "New Casks", items: result.newCasks)
+                }
+            } footer: {
+                Text("Newly available packages from the last brew update.")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    private static func relativeTime(since date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        return formatter.localizedString(for: date, relativeTo: Date())
+    }
+
     // MARK: - Helpers
 
     private func loadCacheSize() async {
@@ -211,5 +250,125 @@ struct MaintenanceView: View {
 
     private func formattedSize(_ bytes: Int64) -> String {
         Self.sizeFormatter.string(fromByteCount: bytes)
+    }
+}
+
+// MARK: - New Items List
+
+private struct NewItemsList: View {
+    let title: String
+    let items: [BrewUpdateItem]
+    @State private var isExpanded = false
+
+    private static let collapsedLimit = 8
+
+    private var visibleItems: [BrewUpdateItem] {
+        if isExpanded || items.count <= Self.collapsedLimit { return items }
+        return Array(items.prefix(Self.collapsedLimit))
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(title)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text("\(items.count)")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .monospacedDigit()
+            }
+
+            ForEach(visibleItems) { item in
+                NewItemRow(item: item)
+            }
+
+            if items.count > Self.collapsedLimit {
+                Button {
+                    withAnimation { isExpanded.toggle() }
+                } label: {
+                    Text(isExpanded ? "Show fewer" : "Show all \(items.count)")
+                        .font(.caption)
+                }
+                .buttonStyle(.borderless)
+            }
+        }
+    }
+}
+
+// MARK: - New Item Row
+
+private struct NewItemRow: View {
+    @Environment(BrewService.self)
+    private var brewService
+    let item: BrewUpdateItem
+
+    private var isInstalled: Bool {
+        brewService.installedNames.contains(item.name)
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(item.name)
+                        .font(.body)
+                    sourceBadge
+                }
+                if let desc = item.description {
+                    Text(desc)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+            }
+            Spacer()
+            if isInstalled {
+                Text("Installed")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Button {
+                    Task { await install() }
+                } label: {
+                    Label("Install", systemImage: "arrow.down.circle.fill")
+                        .font(.caption)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(brewService.isPerformingAction)
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
+    @ViewBuilder private var sourceBadge: some View {
+        let isCask = item.source == .cask
+        Text(isCask ? "cask" : "formula")
+            .font(.system(size: 9, weight: .medium))
+            .foregroundStyle(isCask ? .purple : .green)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 1)
+            .background((isCask ? Color.purple : Color.green).opacity(0.12), in: .capsule)
+    }
+
+    private func install() async {
+        let placeholder = BrewPackage(
+            id: item.id,
+            name: item.name,
+            version: "",
+            description: item.description ?? "",
+            homepage: "",
+            isInstalled: false,
+            isOutdated: false,
+            installedVersion: nil,
+            latestVersion: nil,
+            source: item.source,
+            pinned: false,
+            installedOnRequest: false,
+            dependencies: []
+        )
+        await brewService.install(package: placeholder)
     }
 }
