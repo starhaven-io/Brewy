@@ -12,6 +12,7 @@ final class SidebarNavigationUITests: XCTestCase {
         continueAfterFailure = false
         app = XCUIApplication()
         app.launchArguments += ["-NSConstraintBasedLayoutVisualizeMutuallyExclusiveConstraints", "YES"]
+        app.launchEnvironment["BREWY_UI_TESTING"] = "1"
         app.launch()
     }
 

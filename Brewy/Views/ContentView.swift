@@ -78,6 +78,9 @@ struct ContentView: View {
             brewService.loadGroups()
             brewService.loadHistory()
             brewService.loadLastUpdateResult()
+            // Skip non-deterministic startup work under UI tests: real `brew` subprocesses
+            // hang the runner, and the WhatsNew sheet's modal AX hierarchy hides the sidebar.
+            guard ProcessInfo.processInfo.environment["BREWY_UI_TESTING"] != "1" else { return }
             let currentVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
             if !currentVersion.isEmpty, currentVersion != lastSeenVersion {
                 lastSeenVersion = currentVersion
