@@ -1,0 +1,14 @@
+#!/bin/sh
+# Enforce DCO sign-off on every local commit.
+# Commit messages must carry a "Signed-off-by:" trailer — add one with `git commit -s`.
+#
+# Enable this hook once per clone with: just install-hooks
+# (sets core.hooksPath to this directory).
+
+msg_file="$1"
+
+if ! grep -qE '^Signed-off-by: .+ <.+@.+>' "$msg_file"; then
+    echo "commit-msg hook: missing DCO sign-off." >&2
+    echo "  Re-run with 'git commit -s' to add a Signed-off-by trailer." >&2
+    exit 1
+fi

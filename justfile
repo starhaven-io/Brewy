@@ -19,6 +19,12 @@ clean:
         -project Brewy.xcodeproj \
         -scheme Brewy
 
+# Setup
+
+# Install git hooks (enables DCO sign-off enforcement via .githooks)
+install-hooks:
+    git config core.hooksPath .githooks
+
 # Test
 
 # Run unit tests (skips UI tests that require code signing locally)
