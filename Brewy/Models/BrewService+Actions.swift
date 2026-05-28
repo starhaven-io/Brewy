@@ -132,7 +132,10 @@ extension BrewService {
         if let cached = infoCache[package.id] { return cached }
         let command = package.isCask ? ["info", "--cask", package.name] : ["info", package.name]
         let result = await runBrewCommand(command)
-        infoCache[package.id] = result.output
+        // Don't cache failures: a transient error would otherwise stick until the version changes.
+        if result.success {
+            infoCache[package.id] = result.output
+        }
         return result.output
     }
 }

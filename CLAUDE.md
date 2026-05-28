@@ -255,7 +255,7 @@ Common types: `feat`, `fix`, `refactor`, `docs`, `ci`, `chore`
 
 All commits must:
 - Use `git commit -s` for DCO sign-off
-- Include a `Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>` trailer when authored with Claude (the local pre-commit hook checks for this)
+- Include a `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>` trailer when authored with Claude (the local pre-commit hook checks for this)
 
 PRs are squash-merged with the PR number appended, e.g. `feat: add test suite with CI, sanitizers, and code coverage (#38)`.
 

@@ -190,9 +190,11 @@ enum CommandRunner {
         }
 
         let (stdoutData, stderrData) = drainPipesInParallel(stdout: stdoutPipe, stderr: stderrPipe)
-        let timedOut = scheduleTimeout(for: process, after: timeout, commandDescription: commandDescription)
+        let (timedOut, timeoutWork) = scheduleTimeout(for: process, after: timeout, commandDescription: commandDescription)
 
         process.waitUntilExit()
+        // Process finished; cancel the pending timeout so it can't fire later.
+        timeoutWork.cancel()
         let out = stdoutData.wait()
         let err = stderrData.wait()
 
@@ -222,7 +224,7 @@ enum CommandRunner {
         for process: Process,
         after timeout: Duration,
         commandDescription: String
-    ) -> LockedFlag {
+    ) -> (flag: LockedFlag, work: DispatchWorkItem) {
         let timedOut = LockedFlag()
         let timeoutWork = DispatchWorkItem { [weak process] in
             guard let process, process.isRunning else { return }
@@ -241,7 +243,7 @@ enum CommandRunner {
             deadline: .now() + dispatchInterval(from: timeout),
             execute: timeoutWork
         )
-        return timedOut
+        return (timedOut, timeoutWork)
     }
 }
 

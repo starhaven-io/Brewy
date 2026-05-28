@@ -276,12 +276,14 @@ final class BrewService {
         async let outdated = fetchOutdatedPackages()
         async let masApps = fetchInstalledMasApps()
         async let masOutdated = fetchOutdatedMasApps()
+        async let taps = fetchTaps()
 
         let fetchedFormulae = await formulae
         let fetchedCasks = await casks
         let fetchedOutdated = await outdated
         let fetchedMasApps = await masApps
         let fetchedMasOutdated = await masOutdated
+        let fetchedTaps = await taps
         let allOutdated = fetchedOutdated + fetchedMasOutdated
         let outdatedByID = Dictionary(allOutdated.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
 
@@ -298,7 +300,7 @@ final class BrewService {
             infoCache.removeValue(forKey: id)
         }
 
-        installedTaps = await fetchTaps()
+        installedTaps = fetchedTaps
         tapsLoaded = true
 
         let masCount = fetchedMasApps.count
@@ -320,12 +322,12 @@ final class BrewService {
         }
 
         isLoading = true
+        defer { isLoading = false }
         lastError = nil
 
         let results = await performSearch(query: query)
         guard !Task.isCancelled else { return }
         searchResults = results
-        isLoading = false
     }
 
     func upgradeSelected(packages: [BrewPackage]) async {
