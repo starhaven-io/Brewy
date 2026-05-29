@@ -43,6 +43,22 @@ struct BrewPackage: Identifiable, Hashable, Codable {
     }
 }
 
+// MARK: - Dependency Tree
+
+/// A node in a recursive dependency tree.
+/// `id` is a path-based string so the same package can appear in multiple branches
+/// (diamond dependencies) without collisions.
+struct DependencyTreeNode: Identifiable, Hashable {
+    let id: String
+    let name: String
+    let isInstalled: Bool
+    let installedOnRequest: Bool
+    /// True if walking further would re-enter an ancestor in the same chain.
+    let isCycle: Bool
+    /// `nil` marks a leaf with no further children to disclose.
+    let children: [Self]?
+}
+
 struct BrewTap: Identifiable, Hashable, Codable {
     let name: String
     let remote: String

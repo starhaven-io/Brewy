@@ -57,6 +57,30 @@ struct CaskJSON: Decodable {
     let installed: String?
     let desc: String?
     let homepage: String?
+    let dependencies: [String]
+
+    enum CodingKeys: String, CodingKey {
+        case token, version, installed, desc, homepage
+        case dependsOn = "depends_on"
+    }
+
+    private struct DependsOn: Decodable {
+        let formula: [String]?
+        let cask: [String]?
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        token = try container.decode(String.self, forKey: .token)
+        version = try container.decodeIfPresent(String.self, forKey: .version)
+        installed = try container.decodeIfPresent(String.self, forKey: .installed)
+        desc = try container.decodeIfPresent(String.self, forKey: .desc)
+        homepage = try container.decodeIfPresent(String.self, forKey: .homepage)
+        // `depends_on` is usually an object but brew sometimes emits an empty array; tolerate
+        // either shape so a cask never fails to decode over its dependency field.
+        let deps = try? container.decodeIfPresent(DependsOn.self, forKey: .dependsOn)
+        dependencies = (deps?.formula ?? []) + (deps?.cask ?? [])
+    }
 
     func toPackage() -> BrewPackage {
         let latest = version ?? "unknown"
@@ -74,7 +98,7 @@ struct CaskJSON: Decodable {
             source: .cask,
             pinned: false,
             installedOnRequest: true,
-            dependencies: []
+            dependencies: dependencies
         )
     }
 }

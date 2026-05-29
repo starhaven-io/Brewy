@@ -29,6 +29,9 @@ struct PackageDetailView: View {
                 if !package.isMas {
                     Divider()
                         .padding(.horizontal)
+                    DependencyTreeSection(package: displayPackage)
+                    Divider()
+                        .padding(.horizontal)
                     BrewInfoSection(info: detailedInfo, isLoading: isLoadingInfo)
                 }
             }
@@ -36,7 +39,8 @@ struct PackageDetailView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(.background)
-        .task(id: package.id) {
+        // Keyed on version too, so the info reloads after an in-place upgrade (id alone is stable).
+        .task(id: [package.id, package.installedVersion ?? ""]) {
             guard !package.isMas else { return }
             enrichedPackage = nil
             detailedInfo = ""
@@ -284,8 +288,6 @@ private struct ActionBar: View {
 // MARK: - Package Info
 
 private struct PackageInfoSection: View {
-    @Environment(BrewService.self)
-    private var brewService
     let package: BrewPackage
 
     private var packageTypeName: String {
@@ -317,13 +319,6 @@ private struct PackageInfoSection: View {
 
             if !package.dependencies.isEmpty {
                 DependencyTags(label: "Dependencies", packages: package.dependencies)
-            }
-
-            if !package.installedOnRequest {
-                let dependents = brewService.dependents(of: package.name)
-                if !dependents.isEmpty {
-                    DependencyTags(label: "Required by", packages: dependents.map(\.name))
-                }
             }
         }
         .padding(.horizontal)

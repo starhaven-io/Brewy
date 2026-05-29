@@ -161,6 +161,44 @@ struct BrewJSONParsingTests {
         #expect(pkg.id == "cask-firefox")
     }
 
+    @Test("CaskJSON decodes depends_on formula and cask into dependencies")
+    func caskDependsOnDecoded() throws {
+        let json = """
+        {
+            "formulae": [],
+            "casks": [
+                {
+                    "token": "some-app",
+                    "version": "1.0",
+                    "depends_on": { "formula": ["openssl@3"], "cask": ["other-app"], "macos": { ">=": ["12"] } }
+                }
+            ]
+        }
+        """
+        let data = try #require(json.data(using: .utf8))
+        let response = try JSONDecoder().decode(BrewInfoResponse.self, from: data)
+        let cask = try #require(response.casks?.first)
+        #expect(cask.toPackage().dependencies == ["openssl@3", "other-app"])
+    }
+
+    @Test("CaskJSON tolerates an empty-array depends_on without failing to decode")
+    func caskDependsOnEmptyArrayShape() throws {
+        // Brew sometimes emits `"depends_on": []` instead of an object; the cask must still decode.
+        let json = """
+        {
+            "formulae": [],
+            "casks": [
+                { "token": "no-deps", "version": "1.0", "depends_on": [] }
+            ]
+        }
+        """
+        let data = try #require(json.data(using: .utf8))
+        let response = try JSONDecoder().decode(BrewInfoResponse.self, from: data)
+        let cask = try #require(response.casks?.first)
+        #expect(cask.toPackage().dependencies.isEmpty)
+        #expect(cask.toPackage().name == "no-deps")
+    }
+
     @Test("OutdatedFormulaJSON parses correctly")
     func outdatedFormulaJSON() throws {
         let json = """
