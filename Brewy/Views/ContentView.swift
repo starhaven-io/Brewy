@@ -99,6 +99,9 @@ struct ContentView: View {
             }
         }
         .onChange(of: selectedCategory) {
+            // Cleared here (not in PackageListView, which is torn down when switching to a
+            // non-package category like Discover and would leave a stale detail showing).
+            selectedPackage = nil
             selectedTap = nil
             selectedServiceItem = nil
             selectedGroupItem = nil

@@ -82,6 +82,22 @@ struct RefreshTests {
         #expect(service.lastError != nil)
     }
 
+    @Test("refresh preserves the previously loaded list when a fetch transiently fails")
+    func refreshPreservesPreviousOnFailure() async {
+        let mock = MockCommandRunner()
+        let (service, _) = makeService(mock: mock)
+        setupRefreshMock(mock)
+        await service.refresh()
+        #expect(service.installedFormulae.count == 1)
+
+        // A transient formula-fetch failure must not blank out the good list already on screen.
+        mock.setResult(for: ["info", "--installed", "--json=v2"], output: "Error", success: false)
+        await service.refresh()
+
+        #expect(service.installedFormulae.count == 1)
+        #expect(service.lastError != nil)
+    }
+
     @Test("refresh invalidates info cache when versions change")
     func refreshInvalidatesInfoCache() async {
         let mock = MockCommandRunner()
@@ -224,6 +240,9 @@ struct SearchTests {
 
         let names = service.searchResults.map(\.name)
         #expect(!names.contains("==>"))
+        // The header word itself must not survive tokenization as a phantom package.
+        #expect(!names.contains("Formulae"))
+        #expect(!names.contains("Casks"))
         #expect(names.contains("test-formula"))
         #expect(names.contains("test-cask"))
     }

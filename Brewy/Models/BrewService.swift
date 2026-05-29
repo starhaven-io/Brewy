@@ -9,21 +9,12 @@ private let logger = Logger(subsystem: "io.linnane.brewy", category: "BrewServic
 // MARK: - Error Types
 
 enum BrewError: LocalizedError {
-    case brewNotFound(path: String)
     case commandFailed(command: String, output: String)
-    case parseFailed(command: String)
-    case commandTimedOut(command: String)
 
     var errorDescription: String? {
         switch self {
-        case .brewNotFound(let path):
-            return "Homebrew not found at \(path)"
         case .commandFailed(let command, let output):
             return Self.summarize(command: command, output: output)
-        case .parseFailed(let command):
-            return "Failed to parse output from: brew \(command)"
-        case .commandTimedOut(let command):
-            return "Command timed out: brew \(command)"
         }
     }
 
@@ -278,9 +269,11 @@ final class BrewService {
         async let masOutdated = fetchOutdatedMasApps()
         async let taps = fetchTaps()
 
-        let fetchedFormulae = await formulae
-        let fetchedCasks = await casks
-        let fetchedOutdated = await outdated
+        // Preserve the previously loaded list when a fetch fails (nil) rather than clobbering it
+        // to empty — a transient `brew` failure shouldn't blank out (and then cache) good data.
+        let fetchedFormulae = await formulae ?? installedFormulae
+        let fetchedCasks = await casks ?? installedCasks
+        let fetchedOutdated = await outdated ?? outdatedPackages
         let fetchedMasApps = await masApps
         let fetchedMasOutdated = await masOutdated
         let fetchedTaps = await taps

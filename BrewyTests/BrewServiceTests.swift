@@ -276,28 +276,10 @@ struct SidebarCategoryTests {
 @Suite("BrewError")
 struct BrewErrorTests {
 
-    @Test("brewNotFound includes path in description")
-    func brewNotFoundDescription() {
-        let error = BrewError.brewNotFound(path: "/opt/homebrew/bin/brew")
-        #expect(error.errorDescription?.contains("/opt/homebrew/bin/brew") == true)
-    }
-
     @Test("commandFailed uses output as description")
     func commandFailedDescription() {
         let error = BrewError.commandFailed(command: "install wget", output: "Error: wget already installed")
         #expect(error.errorDescription == "Error: wget already installed")
-    }
-
-    @Test("parseFailed includes command in description")
-    func parseFailedDescription() {
-        let error = BrewError.parseFailed(command: "info --json=v2")
-        #expect(error.errorDescription?.contains("info --json=v2") == true)
-    }
-
-    @Test("commandTimedOut includes command in description")
-    func commandTimedOutDescription() {
-        let error = BrewError.commandTimedOut(command: "install gcc")
-        #expect(error.errorDescription?.contains("install gcc") == true)
     }
 }
 

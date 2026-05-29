@@ -75,7 +75,7 @@ struct PackageListView: View {
                 searchScope = .installed
                 searchText = ""
                 searchTask?.cancel()
-                selectedPackage = nil
+                // selectedPackage is cleared centrally in ContentView.onChange(of: selectedCategory).
             }
             .overlay {
                 if brewService.isLoading, packages.isEmpty {

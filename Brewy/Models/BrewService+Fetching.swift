@@ -7,13 +7,15 @@ extension BrewService {
 
     // MARK: - Fetch Installed Packages
 
-    func fetchInstalledFormulae() async -> [BrewPackage] {
+    /// Returns `nil` when the brew command fails so the caller can keep the previously loaded list
+    /// instead of clobbering it to empty; a successful-but-empty response still returns `[]`.
+    func fetchInstalledFormulae() async -> [BrewPackage]? {
         let result = await runBrewCommand(["info", "--installed", "--json=v2"])
         guard result.success, let data = result.output.data(using: .utf8) else {
             if !result.success {
                 lastError = .commandFailed(command: "info --installed", output: result.output)
             }
-            return []
+            return result.success ? [] : nil
         }
 
         return await Task.detached(priority: .userInitiated) {
@@ -27,13 +29,13 @@ extension BrewService {
         }.value
     }
 
-    func fetchInstalledCasks() async -> [BrewPackage] {
+    func fetchInstalledCasks() async -> [BrewPackage]? {
         let result = await runBrewCommand(["info", "--installed", "--cask", "--json=v2"])
         guard result.success, let data = result.output.data(using: .utf8) else {
             if !result.success {
                 lastError = .commandFailed(command: "info --installed --cask", output: result.output)
             }
-            return []
+            return result.success ? [] : nil
         }
 
         return await Task.detached(priority: .userInitiated) {
@@ -47,13 +49,13 @@ extension BrewService {
         }.value
     }
 
-    func fetchOutdatedPackages() async -> [BrewPackage] {
+    func fetchOutdatedPackages() async -> [BrewPackage]? {
         let result = await runBrewCommand(["outdated", "--json=v2"])
         guard result.success, let data = result.output.data(using: .utf8) else {
             if !result.success {
                 lastError = .commandFailed(command: "outdated", output: result.output)
             }
-            return []
+            return result.success ? [] : nil
         }
 
         return await Task.detached(priority: .userInitiated) {
@@ -107,7 +109,10 @@ extension BrewService {
 
             let prefix = source == .cask ? "cask" : "formula"
             for line in result.output.split(separator: "\n") {
-                for token in line.split(whereSeparator: \.isWhitespace) where !token.hasPrefix("==>") {
+                // Skip section headers like "==> Formulae" / "==> Casks" wholesale; otherwise the
+                // header word ("Formulae"/"Casks") survives tokenization as a phantom package.
+                if line.hasPrefix("==>") { continue }
+                for token in line.split(whereSeparator: \.isWhitespace) {
                     let name = String(token)
                     packages.append(BrewPackage(
                         id: "\(prefix)-search-\(name)",
