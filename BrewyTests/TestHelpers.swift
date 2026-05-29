@@ -8,9 +8,16 @@ final class MockCommandRunner: CommandRunning, @unchecked Sendable {
     private let lock = NSLock()
     private var _results: [[String]: CommandResult] = [:]
     private var _executedCommands: [[String]] = []
+    private var _executedExecutables: [(path: String, arguments: [String])] = []
 
     var executedCommands: [[String]] {
         lock.withLock { _executedCommands }
+    }
+
+    /// Records the executable/brew path alongside arguments so tests can assert *which* binary ran
+    /// (brew vs mas vs sudo) — `executedCommands` keys on arguments alone.
+    var executedExecutables: [(path: String, arguments: [String])] {
+        lock.withLock { _executedExecutables }
     }
 
     func setResult(for arguments: [String], output: String, success: Bool = true) {
@@ -22,6 +29,7 @@ final class MockCommandRunner: CommandRunning, @unchecked Sendable {
     func run(_ arguments: [String], brewPath: String, timeout: Duration) async -> CommandResult {
         lock.withLock {
             _executedCommands.append(arguments)
+            _executedExecutables.append((path: brewPath, arguments: arguments))
             return _results[arguments] ?? CommandResult(output: "", success: false)
         }
     }
@@ -29,6 +37,7 @@ final class MockCommandRunner: CommandRunning, @unchecked Sendable {
     func runExecutable(_ executablePath: String, arguments: [String], timeout: Duration) async -> CommandResult {
         lock.withLock {
             _executedCommands.append(arguments)
+            _executedExecutables.append((path: executablePath, arguments: arguments))
             return _results[arguments] ?? CommandResult(output: "", success: false)
         }
     }

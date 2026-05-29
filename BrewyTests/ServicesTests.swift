@@ -165,3 +165,47 @@ struct ServicesParsingTests {
         #expect(loadedNotRunning.isHealthy == false)
     }
 }
+
+// MARK: - Services Control
+
+@Suite("BrewService Services Control")
+@MainActor
+struct BrewServiceServicesControlTests {
+
+    @Test("startService issues `services start <name>` via brew")
+    func startServiceCommand() async {
+        let mock = MockCommandRunner()
+        let (service, _) = makeService(mock: mock)
+
+        _ = await service.startService("redis")
+
+        let last = mock.executedExecutables.last
+        #expect(last?.arguments == ["services", "start", "redis"])
+        #expect(last?.path.hasSuffix("brew") == true)
+    }
+
+    @Test("stopService and restartService issue the matching verbs")
+    func stopAndRestartCommands() async {
+        let mock = MockCommandRunner()
+        let (service, _) = makeService(mock: mock)
+
+        _ = await service.stopService("redis")
+        #expect(mock.executedExecutables.last?.arguments == ["services", "stop", "redis"])
+
+        _ = await service.restartService("redis")
+        #expect(mock.executedExecutables.last?.arguments == ["services", "restart", "redis"])
+    }
+
+    @Test("asSudo routes through /usr/bin/sudo with the brew path prefixed")
+    func startServiceAsSudo() async {
+        let mock = MockCommandRunner()
+        let (service, _) = makeService(mock: mock)
+
+        _ = await service.startService("redis", asSudo: true)
+
+        let last = mock.executedExecutables.last
+        #expect(last?.path == "/usr/bin/sudo")
+        #expect(last?.arguments.first?.hasSuffix("brew") == true)
+        #expect(Array(last?.arguments.dropFirst() ?? []) == ["services", "start", "redis"])
+    }
+}
