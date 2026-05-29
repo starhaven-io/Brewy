@@ -11,7 +11,7 @@ A native macOS app for managing [Homebrew](https://brew.sh) packages. Browse, se
 
 - Browse installed formulae and casks, including pinned packages and leaves
 - Discover and search all Homebrew/core and Homebrew/cask packages
-- View package details, dependencies, and reverse dependencies
+- View package details, dependencies, and a recursive dependency tree (what pulled a package in, and what it pulls in)
 - Install, uninstall, upgrade, reinstall, pin, and unpin packages
 - Upgrade all outdated packages at once, or select specific packages to upgrade
 - Mac App Store integration via [`mas`](https://github.com/mas-cli/mas) (browse installed apps, check for updates)
@@ -50,7 +50,7 @@ You can also grab the latest release from the [GitHub releases page](https://git
 
 ## Contributing
 
-Contributions are welcome. Feel free to open a pull request.
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the development setup, local checks, and commit conventions.
 
 ## Acknowledgements
 

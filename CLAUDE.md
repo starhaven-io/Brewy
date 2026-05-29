@@ -26,8 +26,10 @@ Brewy/
 │   │   ├── BrewService+PackageDetail.swift # Single-package detail fetching
 │   │   ├── BrewService+History.swift       # Action history recording, persistence, retry, outdated merge helper
 │   │   ├── BrewService+Groups.swift        # User-created package group CRUD and persistence
+│   │   ├── BrewService+Taps.swift          # Tap add/remove/migrate orchestration and lazy tap loading
 │   │   ├── BrewService+DryRun.swift        # Dry-run previews for autoremove and cleanup
 │   │   ├── BrewService+Updates.swift       # `brew update` orchestration, parses + persists new formulae/casks
+│   │   ├── BrewService+DependencyTree.swift # Recursive forward/reverse dependency-tree walks (depth + node-budget bounded)
 │   │   ├── BrewJSONTypes.swift             # Brew JSON v2 Codable response types (extracted from PackageModel)
 │   │   ├── PackageModel.swift              # Data models: BrewPackage, BrewTap, SidebarCategory, PackageGroup, ActionHistoryEntry, BrewServiceItem, BrewConfig, BrewUpdateResult/Parser, appcast parser
 │   │   ├── CommandRunner.swift             # Process execution with timeout, cancellation, thread-safe pipe reading, CommandRunning protocol
@@ -38,7 +40,8 @@ Brewy/
 │       ├── ContentView.swift               # NavigationSplitView (3-column), toolbar, state management
 │       ├── SidebarView.swift               # Category list (13 categories, see SidebarCategory enum)
 │       ├── PackageListView.swift           # Package list with search, selection toggles for bulk upgrade
-│       ├── PackageDetailView.swift         # Detail pane: info, dependencies, reverse deps, actions
+│       ├── PackageDetailView.swift         # Detail pane: info, dependencies, dependency tree, actions
+│       ├── DependencyTreeView.swift        # Collapsible "Pulled in by" / "Pulls in" dependency trees
 │       ├── DiscoverView.swift              # Search all of Homebrew (formulae + casks)
 │       ├── GroupsView.swift                # Custom package groups with CRUD UI
 │       ├── HistoryView.swift               # Action history with review and retry
@@ -62,7 +65,8 @@ Brewy/
 │   ├── HistoryTests.swift                  # Action history recording and retry
 │   ├── ServicesTests.swift                 # Services parsing and integration
 │   ├── JSONAndServicesTests.swift          # JSON parsing edge cases and services
-│   └── BrewUpdateParserTests.swift         # `brew update` output parsing
+│   ├── BrewUpdateParserTests.swift         # `brew update` output parsing
+│   └── DependencyTreeTests.swift           # Dependency-tree walks: chains, diamonds, cycles, depth/node bounds
 ├── BrewyUITests/
 │   └── SidebarNavigationUITests.swift      # UI tests for sidebar navigation
 ├── Brewy.xcodeproj/
@@ -125,7 +129,7 @@ Static enum that executes `Process` (brew CLI and other executables) with:
 - `CommandRunning` protocol for dependency injection and testability
 - Configurable timeout (default 5 minutes) with sub-second precision preserved
 - Parallel stdout/stderr drain via dedicated `PipeReader` instances so large output on either stream can't deadlock the subprocess
-- Two-stage timeout termination: SIGTERM first, then SIGKILL after a 3s grace period; `CommandResult.didTimeOut` distinguishes timeouts from other failures
+- Two-stage timeout termination: SIGTERM first, then SIGKILL after a 3s grace period. A timeout surfaces as a failed `CommandResult` whose `output` notes the timeout — there is no separate timeout flag or `BrewError` case
 - `LockedData` (NSLock-backed) and `LockedFlag` accumulators for thread-safe output collection
 - Brew path resolution: preferred path → `/usr/local/bin/brew` fallback
 - `runExecutable(_:arguments:)` — generic executable runner for external tools (mas, sudo, du)
@@ -210,6 +214,7 @@ mas install ID                               # Install Mac App Store app
 - Bulk upgrade: select specific outdated packages to upgrade
 - Reverse dependency computation for installed packages
 - Leaves detection (formulae with no reverse dependencies)
+- Dependency tree in package detail: recursive "Pulled in by" (reverse) and "Pulls in" (forward) trees with cycle detection, bounded by a depth limit and node budget
 - Mac App Store integration via `mas` CLI (browse installed apps, check for updates)
 - Homebrew services management (start, stop, restart, cleanup)
 - Custom package groups: create, edit, delete groups and organize packages into them
@@ -225,9 +230,9 @@ mas install ID                               # Install Mac App Store app
 ## Testing
 
 - Framework: Swift Testing (`@Suite`, `@Test` macros)
-- ~210 test cases across 12 test files (11 unit test files + 1 test helpers)
+- ~230 test cases across 13 test files (12 unit test files + 1 test helpers)
 - `MockCommandRunner` and shared test helpers in `TestHelpers.swift`
-- Tests cover: derived state, reverse deps, leaves, pinned filtering, category routing, outdated merge logic, all JSON parsing, model equality/hashing, config parsing, appcast XML parsing, tap health status, package groups, Mac App Store parsing, action history, services, dry-run, retry, error handling, `brew update` output parsing, async refresh/search/upgrade flows, real-subprocess CommandRunner behavior (stdout/stderr drain, timeout, missing executable)
+- Tests cover: derived state, reverse deps, leaves, pinned filtering, category routing, outdated merge logic, all JSON parsing, model equality/hashing, config parsing, appcast XML parsing, tap health status, package groups, Mac App Store parsing, action history, services, dry-run, retry, error handling, `brew update` output parsing, async refresh/search/upgrade flows, dependency-tree walks (chains, diamonds, cycles, depth/node bounds), services start/stop/restart dispatch (including sudo), real-subprocess CommandRunner behavior (stdout/stderr drain, timeout, missing executable)
 - UI tests: sidebar navigation
 - CI runs both Thread Sanitizer and Address Sanitizer
 - Code coverage reported via `xccov`
@@ -288,8 +293,15 @@ PRs are squash-merged with the PR number appended, e.g. `feat: add test suite wi
 - BrewService acts as both service layer and state container, split into focused extensions for maintainability
 - All brew interactions go through CommandRunner via the `CommandRunning` protocol (single execution path, testable)
 - JSON v2 API used for structured data; text output parsed for search results and config
+- Cask `depends_on` (formula + cask) is decoded into `BrewPackage.dependencies` so casks participate in reverse-dependency/leaves/dependency-tree computation; the decoder tolerates brew emitting `depends_on` as either an object or an empty array
 - Cache enables instant app launch with stale data, then background refresh
 - Derived state (reverse deps, leaves, pinned) computed eagerly via `invalidateDerivedState()`, with batch updates to avoid redundant recomputation
 - Search results tagged with `isInstalled` by cross-referencing `installedNames` set
 - Mac App Store packages use `mas-` prefixed IDs to avoid collisions with brew package IDs
 - Action history capped at 100 entries with automatic pruning
+
+## Gotchas / do-not-touch zones
+
+- The app is intentionally **not sandboxed** (`com.apple.security.app-sandbox = false`): it must exec arbitrary brew-installed binaries. Hardened Runtime is enabled with library validation on (all `RUNTIME_EXCEPTION_*` = NO), and the app ships via Developer ID + notarization, not the App Store. Do not add the sandbox entitlement — it breaks `brew` execution.
+- All CLI execution must keep going through `CommandRunner` with an **argument array** (`process.arguments`), never a shell string — this is what keeps package names injection-safe.
+- Release signing/notarization and the `appcast` branch are produced by `release.yml` (Sparkle EdDSA signing + build-provenance attestation on the notarized asset). Don't hand-edit `appcast.xml` or reorder the signing/attestation steps without understanding that flow.
