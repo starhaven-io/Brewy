@@ -196,16 +196,19 @@ struct BrewServiceServicesControlTests {
         #expect(mock.executedExecutables.last?.arguments == ["services", "restart", "redis"])
     }
 
-    @Test("asSudo routes through /usr/bin/sudo with the brew path prefixed")
+    @Test("asSudo runs brew via osascript with administrator privileges")
     func startServiceAsSudo() async {
         let mock = MockCommandRunner()
         let (service, _) = makeService(mock: mock)
 
         _ = await service.startService("redis", asSudo: true)
 
-        let last = mock.executedExecutables.last
-        #expect(last?.path == "/usr/bin/sudo")
-        #expect(last?.arguments.first?.hasSuffix("brew") == true)
-        #expect(Array(last?.arguments.dropFirst() ?? []) == ["services", "start", "redis"])
+        // osascript -e <privileged script> <brewPath> services start redis
+        let args = mock.executedExecutables.last?.arguments ?? []
+        #expect(mock.executedExecutables.last?.path == "/usr/bin/osascript")
+        #expect(args.first == "-e")
+        #expect(args.dropFirst().first?.contains("administrator privileges") == true)
+        #expect(args.dropFirst(2).first?.hasSuffix("brew") == true)
+        #expect(Array(args.suffix(3)) == ["services", "start", "redis"])
     }
 }

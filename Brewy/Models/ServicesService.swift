@@ -63,9 +63,20 @@ extension BrewService {
     private func runServiceCommand(_ arguments: [String], asSudo: Bool) async -> CommandResult {
         let brewPath = CommandRunner.resolvedBrewPath(preferred: customBrewPath)
         if asSudo {
+            // Run brew as root via the native admin auth dialog. Args pass through osascript's argv
+            // and are shell-quoted with `quoted form of`, so nothing is interpolated into the script.
+            let script = """
+            on run argv
+                set cmd to ""
+                repeat with arg in argv
+                    set cmd to cmd & quoted form of (arg as text) & " "
+                end repeat
+                do shell script cmd with administrator privileges
+            end run
+            """
             return await commandRunner.runExecutable(
-                "/usr/bin/sudo",
-                arguments: [brewPath] + arguments
+                "/usr/bin/osascript",
+                arguments: ["-e", script, brewPath] + arguments
             )
         }
         return await commandRunner.run(arguments, brewPath: brewPath)
