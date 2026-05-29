@@ -68,7 +68,8 @@ final class BrewService {
     var outdatedPackages: [BrewPackage] = []
     var installedTaps: [BrewTap] = []
     var searchResults: [BrewPackage] = []
-    var isLoading = false
+    private var loadingCount = 0
+    var isLoading: Bool { loadingCount > 0 }
     var isPerformingAction = false
     var actionOutput: String = ""
     var lastError: BrewError?
@@ -236,10 +237,9 @@ final class BrewService {
     }
 
     func checkTapHealth() async {
-        tapHealthStatuses = await TapHealthChecker.checkHealth(
-            taps: installedTaps,
-            existing: tapHealthStatuses
-        )
+        let updated = await TapHealthChecker.checkHealth(taps: installedTaps, existing: tapHealthStatuses)
+        guard !Task.isCancelled else { return }
+        tapHealthStatuses = updated
     }
 
     // MARK: - Homebrew CLI Interactions
@@ -254,12 +254,13 @@ final class BrewService {
         logger.info("Starting full refresh")
         let previousVersions = Dictionary(allInstalled.map { ($0.id, $0.version) }, uniquingKeysWith: { _, last in last })
         let hadCachedData = !installedFormulae.isEmpty || !installedCasks.isEmpty
-        if !hadCachedData {
-            isLoading = true
-        }
+        // Only show the spinner when there's no cached data yet; the counter keeps a concurrent
+        // search() from clearing it early (and vice versa).
+        let showsSpinner = !hadCachedData
+        if showsSpinner { loadingCount += 1 }
         lastError = nil
         defer {
-            isLoading = false
+            if showsSpinner { loadingCount -= 1 }
         }
 
         async let formulae = fetchInstalledFormulae()
@@ -300,8 +301,10 @@ final class BrewService {
         let outdatedCount = allOutdated.count
         logger.info("Refresh complete: \(fetchedFormulae.count) formulae, \(fetchedCasks.count) casks, \(masCount) mas, \(outdatedCount) outdated")
         saveToCache()
+        // Cancel any in-flight check unconditionally so a prior refresh's task can't overwrite
+        // tapHealthStatuses after the tap list has changed.
+        tapHealthTask?.cancel()
         if installedTaps.contains(where: { tapHealthStatuses[$0.name]?.isStale ?? true }) {
-            tapHealthTask?.cancel()
             tapHealthTask = Task { [weak self] in
                 await self?.checkTapHealth()
             }
@@ -314,8 +317,8 @@ final class BrewService {
             return
         }
 
-        isLoading = true
-        defer { isLoading = false }
+        loadingCount += 1
+        defer { loadingCount -= 1 }
         lastError = nil
 
         let results = await performSearch(query: query)
