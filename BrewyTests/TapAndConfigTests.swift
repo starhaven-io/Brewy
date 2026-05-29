@@ -289,7 +289,8 @@ struct AppcastParserTests {
         let data = try #require(xml.data(using: .utf8))
         let parser = AppcastParser()
         let release = try #require(parser.parse(data: data))
-        #expect(release.version == "0.1.0")
+        // Sparkle feeds list newest first, so the first item (0.2.0) is the one we want.
+        #expect(release.version == "0.2.0")
     }
 }
 

@@ -294,12 +294,15 @@ final class AppcastParser: NSObject, XMLParserDelegate {
     func parser(_ parser: XMLParser, didEndElement elementName: String,
                 namespaceURI: String?, qualifiedName: String?) {
         if elementName == "item" {
-            release = AppcastRelease(
-                title: currentTitle.trimmingCharacters(in: .whitespacesAndNewlines),
-                pubDate: currentPubDate.trimmingCharacters(in: .whitespacesAndNewlines),
-                version: currentVersion.trimmingCharacters(in: .whitespacesAndNewlines),
-                descriptionHTML: currentDescription.isEmpty ? nil : currentDescription
-            )
+            // Keep the first item; Sparkle feeds list newest first, so ignore older entries.
+            if release == nil {
+                release = AppcastRelease(
+                    title: currentTitle.trimmingCharacters(in: .whitespacesAndNewlines),
+                    pubDate: currentPubDate.trimmingCharacters(in: .whitespacesAndNewlines),
+                    version: currentVersion.trimmingCharacters(in: .whitespacesAndNewlines),
+                    descriptionHTML: currentDescription.isEmpty ? nil : currentDescription
+                )
+            }
             insideItem = false
         }
         currentElement = ""
