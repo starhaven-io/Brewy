@@ -92,6 +92,7 @@ private final class CheckForUpdatesViewModel {
 
     init(updater: SPUUpdater) {
         cancellable = updater.publisher(for: \.canCheckForUpdates)
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] value in
                 self?.canCheckForUpdates = value
             }
