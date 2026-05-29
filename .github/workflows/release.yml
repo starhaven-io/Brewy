@@ -29,8 +29,6 @@ jobs:
       artifact_name: "Brewy-${{ steps.version.outputs.tag }}.zip"
     permissions:
       contents: write # required to create tag
-      attestations: write # required to generate build provenance attestations
-      id-token: write # required to generate build provenance attestations
     env:
       TEMPORARY_CERTIFICATE_FILE: "brewy_developer_id_certificate.p12"
       TEMPORARY_KEYCHAIN_FILE: "brewy_signing.keychain-db"
@@ -69,7 +67,11 @@ jobs:
 
       - name: Create and unlock temporary macOS keychain
         run: |
+          # Disable xtrace for this step: the default `bash -xeuo` would otherwise trace the
+          # runtime-generated keychain password (not a registered secret, so unmasked) into the log.
+          set +x
           TEMPORARY_KEYCHAIN_PASSWORD="$(openssl rand -base64 20)"
+          echo "::add-mask::${TEMPORARY_KEYCHAIN_PASSWORD}"
           TEMPORARY_KEYCHAIN_PATH="${RUNNER_TEMP}/${TEMPORARY_KEYCHAIN_FILE}"
           security create-keychain -p "${TEMPORARY_KEYCHAIN_PASSWORD}" "${TEMPORARY_KEYCHAIN_PATH}"
           security set-keychain-settings -lut 21600 "${TEMPORARY_KEYCHAIN_PATH}"
@@ -141,11 +143,6 @@ jobs:
             "${RUNNER_TEMP}/export/Brewy.app" \
             "${RUNNER_TEMP}/Brewy-${TAG}.zip"
 
-      - name: Generate build provenance
-        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
-        with:
-          subject-path: "${{ runner.temp }}/Brewy-${{ steps.version.outputs.tag }}.zip"
-
       - name: Upload artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -161,6 +158,8 @@ jobs:
       deployment: false
     permissions:
       contents: write # required to create GitHub releases
+      attestations: write # required to attest the published (notarized + stapled) asset
+      id-token: write # required to generate build provenance attestations
     env:
       TAG: ${{ needs.build.outputs.tag }}
     steps:
@@ -186,10 +185,23 @@ jobs:
             "${RUNNER_TEMP}/staple/Brewy.app" \
             "${ARTIFACT_NAME}"
 
+      - name: Generate build provenance for the published asset
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        with:
+          # Attest the final notarized + stapled zip that is actually uploaded to the release, so
+          # `gh attestation verify` against the published download matches the attested digest.
+          subject-path: ${{ needs.build.outputs.artifact_name }}
+
       - name: Download Sparkle
+        env:
+          # Keep in lockstep with the Sparkle version pinned in Package.resolved; verify the
+          # download against a known SHA-256 before running sign_update against the private key.
+          SPARKLE_VERSION: "2.9.2"
+          SPARKLE_SHA256: "1cb340cbbef04c6c0d162078610c25e2221031d794a3449d89f2f56f4df77c95"
         run: |
-          curl -L -o "${RUNNER_TEMP}/sparkle.tar.xz" \
-            "https://github.com/sparkle-project/Sparkle/releases/download/2.8.1/Sparkle-2.8.1.tar.xz"
+          curl -fsSL -o "${RUNNER_TEMP}/sparkle.tar.xz" \
+            "https://github.com/sparkle-project/Sparkle/releases/download/${SPARKLE_VERSION}/Sparkle-${SPARKLE_VERSION}.tar.xz"
+          echo "${SPARKLE_SHA256}  ${RUNNER_TEMP}/sparkle.tar.xz" | shasum -a 256 -c -
           mkdir -p "${RUNNER_TEMP}/sparkle"
           tar xf "${RUNNER_TEMP}/sparkle.tar.xz" -C "${RUNNER_TEMP}/sparkle"
 
