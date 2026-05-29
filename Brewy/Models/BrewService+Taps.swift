@@ -28,9 +28,12 @@ extension BrewService {
         await performTapAction {
             logger.info("Migrating tap \(oldName) → \(newName)")
             guard await runTapCommand(["untap", oldName]) else { return false }
-            tapHealthStatuses.removeValue(forKey: oldName)
             let tapped = await runTapCommand(["tap", newName])
-            if !tapped {
+            if tapped {
+                // Drop the old tap's cached health only once the new tap is in place; on rollback
+                // it stays installed and keeps its status.
+                tapHealthStatuses.removeValue(forKey: oldName)
+            } else {
                 logger.warning("Rollback: re-adding \(oldName) after failure to add \(newName)")
                 _ = await runTapCommand(["tap", oldName])
             }
