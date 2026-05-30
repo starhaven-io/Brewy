@@ -177,8 +177,7 @@ struct BrewUpdateParserTests {
         let original = BrewUpdateResult(
             newFormulae: [BrewUpdateItem(name: "foo", description: "Foo lib", source: .formula)],
             newCasks: [BrewUpdateItem(name: "bar", description: nil, source: .cask)],
-            timestamp: Date(timeIntervalSince1970: 1_700_000_000),
-            rawOutput: "==> New Formulae\nfoo: Foo lib\n==> New Casks\nbar"
+            timestamp: Date(timeIntervalSince1970: 1_700_000_000)
         )
         let data = try JSONEncoder().encode(original)
         let decoded = try JSONDecoder().decode(BrewUpdateResult.self, from: data)

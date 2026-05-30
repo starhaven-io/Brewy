@@ -1,0 +1,3 @@
+#!/bin/sh
+# Runs the same checks as CI before pushing.
+just check

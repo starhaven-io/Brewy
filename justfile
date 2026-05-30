@@ -21,7 +21,7 @@ clean:
 
 # Setup
 
-# Install git hooks (enables DCO sign-off enforcement via .githooks)
+# Install git hooks (DCO sign-off + pre-push checks) — run once per clone
 install-hooks:
     git config core.hooksPath .githooks
 

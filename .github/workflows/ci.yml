@@ -61,7 +61,8 @@ jobs:
           if echo "${CHANGED}" | grep -qE '\.swift$|^Brewy\.xcodeproj/|^\.swiftlint\.yml$|^\.github/workflows/ci\.yml$'; then
             MATRIX+=',{"name":"Lint","check":"lint","runner":"macos-26"}'
             MATRIX+=',{"name":"Test (Thread Sanitizer)","check":"test-tsan","runner":"macos-26","xcodebuild_flags":"-enableCodeCoverage YES -enableThreadSanitizer YES","result_bundle":"TestResults-TSAN","environment":"codecov"}'
-            MATRIX+=',{"name":"Test (Address Sanitizer)","check":"test-asan","runner":"macos-26","xcodebuild_flags":"-enableAddressSanitizer YES","result_bundle":"TestResults-ASAN"}'
+            # UI test runner is incompatible with ASan (crashes at launch); TSan covers the UI tests.
+            MATRIX+=',{"name":"Test (Address Sanitizer)","check":"test-asan","runner":"macos-26","xcodebuild_flags":"-enableAddressSanitizer YES -skip-testing:BrewyUITests","result_bundle":"TestResults-ASAN"}'
           fi
 
           # Source changes: CodeQL (excludes xcodeproj-only changes like version bumps)

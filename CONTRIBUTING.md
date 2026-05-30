@@ -16,7 +16,7 @@ Optional tooling used by the checks below: `swiftlint`, `typos-cli`, `zizmor`, `
 ```sh
 git clone https://github.com/starhaven-io/Brewy.git
 cd Brewy
-just install-hooks   # enable the DCO sign-off commit hook (once per clone)
+just install-hooks   # enable git hooks: pre-push check + DCO sign-off (once per clone)
 open Brewy.xcodeproj
 ```
 
@@ -32,6 +32,8 @@ just periphery   # unused-code scan
 just audit       # GitHub Actions audit (zizmor)
 just check       # everything above
 ```
+
+Once you've run `just install-hooks`, the pre-push hook runs `just check` automatically on `git push`.
 
 CI builds with `SWIFT_TREAT_WARNINGS_AS_ERRORS=YES` and `SWIFT_STRICT_CONCURRENCY=complete`, runs SwiftLint in `--strict` mode, and exercises the test suite under both Thread and Address sanitizers. Warnings and lint violations fail the build, so a clean `just check` locally is the best way to avoid CI surprises.
 

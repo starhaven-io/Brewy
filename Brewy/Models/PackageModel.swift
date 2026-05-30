@@ -442,7 +442,6 @@ struct BrewUpdateResult: Codable, Sendable {
     let newFormulae: [BrewUpdateItem]
     let newCasks: [BrewUpdateItem]
     let timestamp: Date
-    let rawOutput: String
 
     var isEmpty: Bool { newFormulae.isEmpty && newCasks.isEmpty }
     var totalCount: Int { newFormulae.count + newCasks.count }
@@ -481,8 +480,7 @@ enum BrewUpdateParser {
         return BrewUpdateResult(
             newFormulae: newFormulae,
             newCasks: newCasks,
-            timestamp: timestamp,
-            rawOutput: output
+            timestamp: timestamp
         )
     }
 
