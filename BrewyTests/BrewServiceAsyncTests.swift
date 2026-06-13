@@ -98,6 +98,27 @@ struct RefreshTests {
         #expect(service.lastError != nil)
     }
 
+    @Test("refresh preserves the previously loaded lists when JSON parsing fails")
+    func refreshPreservesPreviousOnMalformedJSON() async {
+        let mock = MockCommandRunner()
+        let (service, _) = makeService(mock: mock)
+        setupRefreshMock(mock)
+        await service.refresh()
+
+        mock.setResult(for: ["info", "--installed", "--json=v2"], output: "not json")
+        mock.setResult(for: ["info", "--installed", "--cask", "--json=v2"], output: "not json")
+        mock.setResult(for: ["outdated", "--json=v2"], output: "not json")
+        mock.setResult(for: ["tap-info", "--json=v1", "--installed"], output: "not json")
+
+        await service.refresh()
+
+        #expect(service.installedFormulae.count == 1)
+        #expect(service.installedCasks.count == 1)
+        #expect(service.outdatedPackages.count == 1)
+        #expect(service.installedTaps.count == 1)
+        #expect(service.lastError != nil)
+    }
+
     @Test("refresh invalidates info cache when versions change")
     func refreshInvalidatesInfoCache() async {
         let mock = MockCommandRunner()

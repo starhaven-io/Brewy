@@ -274,10 +274,10 @@ final class BrewService {
         // to empty — a transient `brew` failure shouldn't blank out (and then cache) good data.
         let fetchedFormulae = await formulae ?? installedFormulae
         let fetchedCasks = await casks ?? installedCasks
-        let fetchedOutdated = await outdated ?? outdatedPackages
-        let fetchedMasApps = await masApps
-        let fetchedMasOutdated = await masOutdated
-        let fetchedTaps = await taps
+        let fetchedOutdated = await outdated ?? outdatedPackages.filter { $0.source != .mas }
+        let fetchedMasApps = await masApps ?? installedMasApps
+        let fetchedMasOutdated = await masOutdated ?? outdatedPackages.filter(\.isMas)
+        let fetchedTaps = await taps ?? installedTaps
         let allOutdated = fetchedOutdated + fetchedMasOutdated
         let outdatedByID = Dictionary(allOutdated.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
 

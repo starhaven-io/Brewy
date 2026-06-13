@@ -105,7 +105,7 @@ enum MasParser {
 
 extension BrewService {
 
-    func fetchInstalledMasApps() async -> [BrewPackage] {
+    func fetchInstalledMasApps() async -> [BrewPackage]? {
         let masPath = CommandRunner.resolvedMasPath()
         guard FileManager.default.isExecutableFile(atPath: masPath) else {
             isMasAvailable = false
@@ -116,19 +116,19 @@ extension BrewService {
         let result = await commandRunner.runExecutable(masPath, arguments: ["list"])
         guard result.success else {
             logger.warning("Failed to fetch installed mas apps")
-            return []
+            return nil
         }
         return MasParser.parseList(result.output)
     }
 
-    func fetchOutdatedMasApps() async -> [BrewPackage] {
+    func fetchOutdatedMasApps() async -> [BrewPackage]? {
         let masPath = CommandRunner.resolvedMasPath()
         guard FileManager.default.isExecutableFile(atPath: masPath) else { return [] }
 
         let result = await commandRunner.runExecutable(masPath, arguments: ["outdated"])
         guard result.success else {
             logger.warning("Failed to fetch outdated mas apps")
-            return []
+            return nil
         }
         return MasParser.parseOutdated(result.output)
     }

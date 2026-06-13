@@ -10,7 +10,7 @@ extension BrewService {
     func ensureTapsLoaded() async {
         guard !tapsLoaded else { return }
         tapsLoaded = true
-        installedTaps = await fetchTaps()
+        installedTaps = await fetchTaps() ?? installedTaps
         saveToCache()
     }
 

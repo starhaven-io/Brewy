@@ -18,15 +18,19 @@ extension BrewService {
             return result.success ? [] : nil
         }
 
-        return await Task.detached(priority: .userInitiated) {
+        let packages: [BrewPackage]? = await Task.detached(priority: .userInitiated) { () -> [BrewPackage]? in
             do {
                 let response = try JSONDecoder().decode(BrewInfoResponse.self, from: data)
                 return (response.formulae ?? []).map { $0.toPackage() }
             } catch {
                 logger.error("Failed to parse formulae JSON: \(error.localizedDescription)")
-                return []
+                return nil
             }
         }.value
+        if packages == nil {
+            lastError = .commandFailed(command: "info --installed --json=v2", output: "Failed to parse Homebrew formulae JSON.")
+        }
+        return packages
     }
 
     func fetchInstalledCasks() async -> [BrewPackage]? {
@@ -38,15 +42,19 @@ extension BrewService {
             return result.success ? [] : nil
         }
 
-        return await Task.detached(priority: .userInitiated) {
+        let packages: [BrewPackage]? = await Task.detached(priority: .userInitiated) { () -> [BrewPackage]? in
             do {
                 let response = try JSONDecoder().decode(BrewInfoResponse.self, from: data)
                 return (response.casks ?? []).map { $0.toPackage() }
             } catch {
                 logger.error("Failed to parse casks JSON: \(error.localizedDescription)")
-                return []
+                return nil
             }
         }.value
+        if packages == nil {
+            lastError = .commandFailed(command: "info --installed --cask --json=v2", output: "Failed to parse Homebrew casks JSON.")
+        }
+        return packages
     }
 
     func fetchOutdatedPackages() async -> [BrewPackage]? {
@@ -58,7 +66,7 @@ extension BrewService {
             return result.success ? [] : nil
         }
 
-        return await Task.detached(priority: .userInitiated) {
+        let packages: [BrewPackage]? = await Task.detached(priority: .userInitiated) { () -> [BrewPackage]? in
             do {
                 let response = try JSONDecoder().decode(BrewOutdatedResponse.self, from: data)
                 let formulae = (response.formulae ?? []).compactMap { $0.toPackage() }
@@ -66,29 +74,37 @@ extension BrewService {
                 return formulae + casks
             } catch {
                 logger.error("Failed to parse outdated JSON: \(error.localizedDescription)")
-                return []
+                return nil
             }
         }.value
+        if packages == nil {
+            lastError = .commandFailed(command: "outdated --json=v2", output: "Failed to parse Homebrew outdated JSON.")
+        }
+        return packages
     }
 
-    func fetchTaps() async -> [BrewTap] {
+    func fetchTaps() async -> [BrewTap]? {
         let result = await runBrewCommand(["tap-info", "--json=v1", "--installed"])
         guard result.success, let data = result.output.data(using: .utf8) else {
             if !result.success {
                 lastError = .commandFailed(command: "tap-info", output: result.output)
             }
-            return []
+            return result.success ? [] : nil
         }
 
-        return await Task.detached(priority: .userInitiated) {
+        let taps: [BrewTap]? = await Task.detached(priority: .userInitiated) { () -> [BrewTap]? in
             do {
                 let taps = try JSONDecoder().decode([TapJSON].self, from: data)
                 return taps.map { $0.toTap() }
             } catch {
                 logger.error("Failed to parse taps JSON: \(error.localizedDescription)")
-                return []
+                return nil
             }
         }.value
+        if taps == nil {
+            lastError = .commandFailed(command: "tap-info --json=v1 --installed", output: "Failed to parse Homebrew taps JSON.")
+        }
+        return taps
     }
 
     // MARK: - Search
