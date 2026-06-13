@@ -65,6 +65,11 @@ jobs:
             MATRIX+=',{"name":"Test (Address Sanitizer)","check":"test-asan","runner":"macos-26","xcodebuild_flags":"-enableAddressSanitizer YES -skip-testing:BrewyUITests","result_bundle":"TestResults-ASAN"}'
           fi
 
+          # Source or periphery-config changes: dead-code scan
+          if echo "${CHANGED}" | grep -qE '\.swift$|^Brewy\.xcodeproj/|^\.periphery\.yml$|^\.github/workflows/ci\.yml$'; then
+            MATRIX+=',{"name":"Periphery","check":"periphery","runner":"macos-26"}'
+          fi
+
           # Source changes: CodeQL (excludes xcodeproj-only changes like version bumps)
           if echo "${CHANGED}" | grep -qE '^Brewy/|^BrewyTests/|^BrewyUITests/'; then
             MATRIX+=',{"name":"CodeQL","check":"codeql","runner":"macos-26"}'
@@ -167,6 +172,23 @@ jobs:
       - name: Typos
         if: matrix.check == 'lint'
         run: typos
+
+      # --- Periphery (dead-code scan) ---
+
+      - name: Install Periphery
+        if: matrix.check == 'periphery'
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: 1
+          HOMEBREW_NO_ENV_HINTS: 1
+        run: brew install periphery
+
+      - name: Periphery
+        if: matrix.check == 'periphery'
+        # --no-superfluous-ignore-comments: CI's toolchain resolves the SwiftUI $-binding refs the
+        # local one misses, so it would otherwise flag the periphery:ignore comments as redundant.
+        run: |
+          periphery scan --strict --disable-update-check --no-superfluous-ignore-comments \
+            -- CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO EXCLUDED_ARCHS=x86_64
 
       # --- Tests ---
 

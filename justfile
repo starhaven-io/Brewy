@@ -92,7 +92,8 @@ check:
         skip audit zizmor zizmor
     fi
     if command -v periphery &>/dev/null; then
-        run periphery scan --strict --disable-update-check
+        # Match CI: tolerate periphery:ignore comments CI sees as redundant (SwiftUI $-binding refs).
+        run periphery scan --strict --disable-update-check --no-superfluous-ignore-comments
     else
         skip periphery periphery periphery
     fi
