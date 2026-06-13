@@ -294,10 +294,22 @@ struct CommandRunnerTests {
         #expect(path == "/bin/sh")
     }
 
-    @Test("resolvedBrewPath returns preferred path when neither exists")
-    func neitherExists() {
+    @Test("resolvedBrewPath falls back to a standard Homebrew path when preferred is missing")
+    func fallbackPath() {
         let path = CommandRunner.resolvedBrewPath(preferred: "/nonexistent/brew")
-        #expect(path == "/nonexistent/brew")
+        if FileManager.default.isExecutableFile(atPath: "/opt/homebrew/bin/brew") {
+            #expect(path == "/opt/homebrew/bin/brew")
+        } else if FileManager.default.isExecutableFile(atPath: "/usr/local/bin/brew") {
+            #expect(path == "/usr/local/bin/brew")
+        } else {
+            #expect(path == "/nonexistent/brew")
+        }
+    }
+
+    @Test("resolvedPrivilegedBrewPath rejects non-standard executables")
+    func privilegedPathRejectsNonStandardExecutable() {
+        let path = CommandRunner.resolvedPrivilegedBrewPath(preferred: "/bin/sh")
+        #expect(path == nil)
     }
 }
 

@@ -80,15 +80,24 @@ struct DefaultCommandRunner: CommandRunning {
 enum CommandRunner {
 
     static let defaultTimeout: Duration = .seconds(300)
+    private static let standardBrewPaths = ["/opt/homebrew/bin/brew", "/usr/local/bin/brew"]
 
     /// Grace period between SIGTERM and SIGKILL when a process exceeds its timeout.
     private static let killGracePeriod: Duration = .seconds(3)
 
     static func resolvedBrewPath(preferred: String) -> String {
-        let fallback = "/usr/local/bin/brew"
         if FileManager.default.isExecutableFile(atPath: preferred) { return preferred }
-        if FileManager.default.isExecutableFile(atPath: fallback) { return fallback }
+        for path in standardBrewPaths where FileManager.default.isExecutableFile(atPath: path) {
+            return path
+        }
         return preferred
+    }
+
+    static func resolvedPrivilegedBrewPath(preferred: String) -> String? {
+        if FileManager.default.isExecutableFile(atPath: preferred) {
+            return standardBrewPath(matching: preferred)
+        }
+        return standardBrewPaths.first { FileManager.default.isExecutableFile(atPath: $0) }
     }
 
     static func run(
@@ -153,6 +162,14 @@ enum CommandRunner {
 
         env["PATH"] = pathComponents.joined(separator: ":")
         return env
+    }
+
+    private static func standardBrewPath(matching path: String) -> String? {
+        let resolvedPath = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
+        return standardBrewPaths.first { standardPath in
+            FileManager.default.isExecutableFile(atPath: standardPath)
+                && URL(fileURLWithPath: standardPath).resolvingSymlinksInPath().path == resolvedPath
+        }
     }
 
     /// Convert a `Duration` into a `DispatchTimeInterval` that preserves sub-second precision.

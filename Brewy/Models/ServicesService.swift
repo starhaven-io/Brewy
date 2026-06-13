@@ -61,8 +61,13 @@ extension BrewService {
     }
 
     private func runServiceCommand(_ arguments: [String], asSudo: Bool) async -> CommandResult {
-        let brewPath = CommandRunner.resolvedBrewPath(preferred: customBrewPath)
         if asSudo {
+            guard let brewPath = CommandRunner.resolvedPrivilegedBrewPath(preferred: customBrewPath) else {
+                return CommandResult(
+                    output: "Run as root requires Homebrew at /opt/homebrew/bin/brew or /usr/local/bin/brew.",
+                    success: false
+                )
+            }
             // Run brew as root via the native admin auth dialog. Args pass through osascript's argv
             // and are shell-quoted with `quoted form of`, so nothing is interpolated into the script.
             let script = """
@@ -79,6 +84,7 @@ extension BrewService {
                 arguments: ["-e", script, brewPath] + arguments
             )
         }
+        let brewPath = CommandRunner.resolvedBrewPath(preferred: customBrewPath)
         return await commandRunner.run(arguments, brewPath: brewPath)
     }
 }
