@@ -34,10 +34,16 @@ A native macOS app for managing [Homebrew](https://brew.sh) packages. Browse, se
 
 ## Installation
 
-The best way to install Brewy is naturally with Homebrew:
+The best way to install Brewy is naturally with Homebrew. It's in [homebrew-cask](https://github.com/Homebrew/homebrew-cask):
 
 ```sh
 brew install brewy
+```
+
+…or from the [starhaven-io tap](https://github.com/starhaven-io/homebrew-tap):
+
+```sh
+brew install starhaven-io/tap/brewy
 ```
 
 You can also grab the latest release from the [GitHub releases page](https://github.com/starhaven-io/Brewy/releases).

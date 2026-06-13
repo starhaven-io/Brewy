@@ -10,6 +10,7 @@ Brewy is a native macOS GUI for managing Homebrew packages, written in Swift/Swi
 - **Only external dependency:** Sparkle via Swift Package Manager for auto-updates
 - **Bundle ID:** `io.linnane.brewy`
 - **License:** AGPL-3.0-only
+- **Distribution:** Homebrew — [homebrew-cask](https://github.com/Homebrew/homebrew-cask) (autobumped by BrewTestBot) and the [`starhaven-io/homebrew-tap`](https://github.com/starhaven-io/homebrew-tap) cask (bumped by `release.yml`)
 
 ## Repository structure
 
