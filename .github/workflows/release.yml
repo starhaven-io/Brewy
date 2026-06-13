@@ -196,8 +196,8 @@ jobs:
         env:
           # Keep in lockstep with the Sparkle version pinned in Package.resolved; verify the
           # download against a known SHA-256 before running sign_update against the private key.
-          SPARKLE_VERSION: "2.9.2"
-          SPARKLE_SHA256: "1cb340cbbef04c6c0d162078610c25e2221031d794a3449d89f2f56f4df77c95"
+          SPARKLE_VERSION: "2.9.3"
+          SPARKLE_SHA256: "74a07da821f92b79310009954c0e15f350173374a3abe39095b4fc5096916be6"
         run: |
           curl -fsSL -o "${RUNNER_TEMP}/sparkle.tar.xz" \
             "https://github.com/sparkle-project/Sparkle/releases/download/${SPARKLE_VERSION}/Sparkle-${SPARKLE_VERSION}.tar.xz"
