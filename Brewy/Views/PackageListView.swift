@@ -14,6 +14,7 @@ struct PackageListView: View {
     @State private var searchScope: SearchScope = .installed
     @State private var searchTask: Task<Void, Never>?
     @State private var isSearchPresented = false
+    // periphery:ignore - Read and written through toolbar and row-selection bindings.
     @State private var selectedForUpgrade: Set<String> = []
     @State private var isSelectingForUpgrade = false
 

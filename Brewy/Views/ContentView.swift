@@ -26,6 +26,7 @@ struct ContentView: View {
     @State private var selectedGroupItem: PackageGroup?
     @State private var selectedHistoryEntry: ActionHistoryEntry?
     @State private var servicesRefreshTrigger = 0
+    // periphery:ignore - Mutated through PackageListView's searchable binding.
     @State private var searchText = ""
     @State private var showWhatsNew = false
 

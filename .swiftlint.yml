@@ -26,7 +26,7 @@ opt_in_rules:
   - prefer_self_in_static_references
   - prefer_self_type_over_type_of_self
   - prefer_zero_over_explicit_init
-  - redundant_self_in_closure
+  - redundant_self
   - self_binding
   - shorthand_optional_binding
   - superfluous_else

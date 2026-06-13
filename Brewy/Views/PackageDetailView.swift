@@ -6,6 +6,7 @@ struct PackageDetailView: View {
     let package: BrewPackage
     @State private var detailedInfo: String = ""
     @State private var isLoadingInfo = false
+    // periphery:ignore - Read and written through ActionBar and confirmationDialog bindings.
     @State private var showUninstallConfirm = false
     @State private var enrichedPackage: BrewPackage?
 

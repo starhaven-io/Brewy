@@ -5,7 +5,9 @@ struct DependencyTreeSection: View {
     private var brewService
     let package: BrewPackage
 
+    // periphery:ignore - Read and written through DisclosureGroup's projected binding.
     @State private var pulledInExpanded = false
+    // periphery:ignore - Read and written through DisclosureGroup's projected binding.
     @State private var pullsInExpanded = false
     @State private var reverse: [DependencyTreeNode] = []
     @State private var forward: [DependencyTreeNode] = []
