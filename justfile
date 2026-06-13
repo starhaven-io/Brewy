@@ -10,6 +10,7 @@ build:
         CODE_SIGN_IDENTITY="" \
         CODE_SIGNING_REQUIRED=NO \
         CODE_SIGNING_ALLOWED=NO \
+        SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
         EXCLUDED_ARCHS=x86_64 \
         build
 
@@ -38,6 +39,7 @@ test:
         CODE_SIGN_IDENTITY="" \
         CODE_SIGNING_REQUIRED=NO \
         CODE_SIGNING_ALLOWED=NO \
+        SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
         EXCLUDED_ARCHS=x86_64
 
 # Lint
@@ -105,6 +107,7 @@ check:
         CODE_SIGN_IDENTITY="" \
         CODE_SIGNING_REQUIRED=NO \
         CODE_SIGNING_ALLOWED=NO \
+        SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
         EXCLUDED_ARCHS=x86_64
     if [ ${#skipped[@]} -gt 0 ]; then
         echo ""

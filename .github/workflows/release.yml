@@ -5,7 +5,7 @@ on:
 
 defaults:
   run:
-    shell: bash -xeuo pipefail {0}
+    shell: bash -euo pipefail {0}
 
 concurrency:
   group: release
@@ -67,8 +67,7 @@ jobs:
 
       - name: Create and unlock temporary macOS keychain
         run: |
-          # Disable xtrace for this step: the default `bash -xeuo` would otherwise trace the
-          # runtime-generated keychain password (not a registered secret, so unmasked) into the log.
+          # Keep xtrace disabled here: this password is generated at runtime and is not a registered secret.
           set +x
           TEMPORARY_KEYCHAIN_PASSWORD="$(openssl rand -base64 20)"
           echo "::add-mask::${TEMPORARY_KEYCHAIN_PASSWORD}"
@@ -109,6 +108,7 @@ jobs:
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Developer ID Application" \
             DEVELOPMENT_TEAM="${DEVELOPMENT_TEAM}" \
+            SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
             EXCLUDED_ARCHS=x86_64
 
       - name: Export
