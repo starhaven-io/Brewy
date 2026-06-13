@@ -73,7 +73,7 @@ Brewy/
 ├── .github/
 │   ├── workflows/
 │   │   ├── ci.yml                          # Unified PR checks: dynamic matrix runs lint, TSAN, ASAN, CodeQL, zizmor, Conventional Commits
-│   │   ├── release.yml                     # Manual dispatch: archive, sign, notarize, Sparkle EdDSA, appcast, GitHub release, auto-bump Homebrew cask
+│   │   ├── release.yml                     # Manual dispatch: archive, sign, notarize, Sparkle EdDSA, appcast, GitHub release, bump tap cask
 │   │   ├── codeql.yml                      # Scheduled CodeQL analysis (on-push/scheduled, separate from PR matrix)
 │   │   ├── pinprick-audit.yml              # Audits dependency permissions via pinprick
 │   │   └── zizmor.yml                      # Scheduled GitHub Actions security scanning
@@ -250,7 +250,7 @@ mas install ID                               # Install Mac App Store app
 6. Sign with Sparkle EdDSA key
 7. Create GitHub release with auto-generated + formatted notes
 8. Update appcast.xml on the `appcast` branch
-9. Auto-bump the Homebrew cask via `brew bump --open-pr --casks brewy`
+9. Open a version-bump PR for the cask in the `starhaven-io/homebrew-tap` tap (the `bump-cask` job, via `brew bump-cask-pr --no-fork`). Brewy is also published in `Homebrew/homebrew-cask`, which `BrewTestBot` autobumps independently from the Sparkle appcast.
 
 ## Commit conventions
 

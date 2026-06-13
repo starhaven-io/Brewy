@@ -281,3 +281,39 @@ jobs:
           git diff --cached --quiet && exit 0
           git commit -m "Update appcast for ${TAG}"
           git push origin appcast
+
+  bump-cask:
+    name: Bump tap cask
+    needs: [build, release]
+    runs-on: macos-26
+    environment:
+      name: release
+      deployment: false
+    permissions: {}
+    env:
+      VERSION: ${{ needs.build.outputs.tag }}
+    steps:
+      - name: Mint bot token for tap
+        id: tap-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: homebrew-tap
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Bump Homebrew cask
+        env:
+          HOMEBREW_GITHUB_API_TOKEN: ${{ steps.tap-token.outputs.token }}
+          HOMEBREW_NO_AUTO_UPDATE: 1
+          HOMEBREW_NO_ENV_HINTS: 1
+          APP_SLUG: ${{ steps.tap-token.outputs.app-slug }}
+        run: |
+          BOT_USER="${APP_SLUG}[bot]"
+          BOT_ID=$(GH_TOKEN="${HOMEBREW_GITHUB_API_TOKEN}" gh api "/users/${BOT_USER}" --jq .id)
+          export HOMEBREW_GIT_NAME="${BOT_USER}"
+          export HOMEBREW_GIT_EMAIL="${BOT_ID}+${BOT_USER}@users.noreply.github.com"
+          brew tap starhaven-io/homebrew-tap
+          brew bump-cask-pr --no-fork --version "${VERSION}" starhaven-io/tap/brewy
