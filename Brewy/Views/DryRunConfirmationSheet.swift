@@ -92,3 +92,21 @@ struct DryRunConfirmationSheet: View {
         }
     }
 }
+
+extension DryRunConfirmationSheet {
+    static func clearCache(
+        brewService: BrewService,
+        afterConfirm: @escaping @MainActor () async -> Void = {}
+    ) -> DryRunConfirmationSheet {
+        DryRunConfirmationSheet(
+            title: "Clear Download Cache?",
+            message: "The following cached downloads and old versions will be removed.",
+            confirmLabel: "Clear Cache",
+            dryRunAction: { await brewService.dryRunCleanup() },
+            confirmAction: {
+                await brewService.purgeCache()
+                await afterConfirm()
+            }
+        )
+    }
+}

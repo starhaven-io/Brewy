@@ -126,13 +126,7 @@ struct ContentView: View {
             WhatsNewView()
         }
         .sheet(isPresented: $showCleanupConfirm) {
-            DryRunConfirmationSheet(
-                title: "Clear Download Cache?",
-                message: "The following cached downloads and old versions will be removed.",
-                confirmLabel: "Clear Cache",
-                dryRunAction: { await brewService.dryRunCleanup() },
-                confirmAction: { await brewService.purgeCache() }
-            )
+            DryRunConfirmationSheet.clearCache(brewService: brewService)
         }
         .onReceive(NotificationCenter.default.publisher(for: .showWhatsNew)) { _ in
             showWhatsNew = true
