@@ -6,11 +6,12 @@ struct DryRunConfirmationSheet: View {
     let title: String
     let message: String
     let confirmLabel: String
-    let dryRunAction: @MainActor () async -> String
+    let dryRunAction: @MainActor () async -> CommandResult
     let confirmAction: @MainActor () async -> Void
 
     @State private var isLoadingPreview = true
     @State private var previewOutput = ""
+    @State private var previewSucceeded = false
 
     var body: some View {
         VStack(spacing: 16) {
@@ -31,13 +32,15 @@ struct DryRunConfirmationSheet: View {
                     Task { await confirmAction() }
                 }
                 .keyboardShortcut(.defaultAction)
-                .disabled(isLoadingPreview)
+                .disabled(isLoadingPreview || !previewSucceeded)
             }
         }
         .padding(20)
         .frame(width: 480)
         .task {
-            previewOutput = await dryRunAction()
+            let result = await dryRunAction()
+            previewOutput = result.output
+            previewSucceeded = result.success
             isLoadingPreview = false
         }
     }
@@ -53,6 +56,21 @@ struct DryRunConfirmationSheet: View {
             }
             .frame(maxWidth: .infinity, minHeight: 60)
             .background(.quaternary.opacity(0.5), in: .rect(cornerRadius: 8))
+        } else if !previewSucceeded {
+            VStack(alignment: .leading, spacing: 8) {
+                Label("Preview failed", systemImage: "exclamationmark.triangle.fill")
+                    .font(.callout)
+                    .foregroundStyle(.red)
+                if !previewOutput.isEmpty {
+                    Text(previewOutput)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                }
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.red.opacity(0.08), in: .rect(cornerRadius: 8))
         } else if previewOutput.isEmpty {
             Text("No specific files listed. The operation may still free up space.")
                 .font(.callout)

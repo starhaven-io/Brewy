@@ -90,7 +90,7 @@ struct PackageListView: View {
                     isOutdated: isOutdatedCategory,
                     isSelecting: $isSelectingForUpgrade,
                     selectedForUpgrade: $selectedForUpgrade,
-                    outdatedPackages: isOutdatedCategory ? packages : []
+                    outdatedPackages: isOutdatedCategory ? packages.filter { !$0.isMas } : []
                 )
             }
     }
@@ -103,10 +103,12 @@ struct PackageListView: View {
                 ForEach(packages) { package in
                     HStack {
                         if isOutdatedCategory, isSelectingForUpgrade {
-                            UpgradeSelectionToggle(
-                                packageID: package.id,
-                                selectedForUpgrade: $selectedForUpgrade
-                            )
+                            if !package.isMas {
+                                UpgradeSelectionToggle(
+                                    packageID: package.id,
+                                    selectedForUpgrade: $selectedForUpgrade
+                                )
+                            }
                         }
                         PackageRow(
                             package: package,
@@ -161,7 +163,7 @@ private struct PackageListToolbar: ToolbarContent {
     let outdatedPackages: [BrewPackage]
 
     var body: some ToolbarContent {
-        if isOutdated {
+        if isOutdated, !outdatedPackages.isEmpty {
             if isSelecting {
                 ToolbarItem(placement: .primaryAction) {
                     Button("Upgrade (\(selectedForUpgrade.count))") {
@@ -192,7 +194,7 @@ private struct PackageListToolbar: ToolbarContent {
                     }
                 }
             }
-        } else if !brewService.outdatedPackages.isEmpty {
+        } else if !brewService.homebrewOutdatedPackages.isEmpty {
             ToolbarItem(placement: .primaryAction) {
                 Button("Upgrade All") {
                     Task { await brewService.upgradeAll() }
@@ -265,7 +267,7 @@ private struct PackageRow: View {
             }
             Spacer()
             versionLabel
-            if showUpgradeButton, package.isOutdated {
+            if showUpgradeButton, package.isOutdated, !package.isMas {
                 Button {
                     Task { await onUpgrade?(package) }
                 } label: {

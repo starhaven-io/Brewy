@@ -60,6 +60,10 @@ extension BrewService {
     func performAction(_ action: String, package: BrewPackage) async {
         guard !package.isMas else {
             logger.warning("Cannot perform brew action \(action) on mas package \(package.name)")
+            lastError = .commandFailed(
+                command: action,
+                output: "Mac App Store apps are managed outside Homebrew. Open the App Store to update \(package.name)."
+            )
             return
         }
         guard !isPerformingAction else {

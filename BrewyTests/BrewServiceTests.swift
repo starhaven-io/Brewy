@@ -146,6 +146,18 @@ struct BrewServiceDerivedStateTests {
         #expect(service.packages(for: .maintenance).isEmpty)
     }
 
+    @Test("homebrewOutdatedPackages excludes Mac App Store apps")
+    func homebrewOutdatedPackagesExcludesMas() {
+        let service = BrewService()
+        let formula = makePackage(name: "wget", source: .formula, isOutdated: true)
+        let cask = makePackage(name: "firefox", source: .cask, isOutdated: true)
+        let mas = makePackage(name: "Xcode", source: .mas, isOutdated: true)
+
+        service.outdatedPackages = [formula, cask, mas]
+
+        #expect(service.homebrewOutdatedPackages.map(\.id) == [formula.id, cask.id])
+    }
+
     @Test("Derived state updates when formulae change")
     func derivedStateUpdatesOnMutation() {
         let service = BrewService()

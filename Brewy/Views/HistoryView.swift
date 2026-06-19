@@ -73,6 +73,7 @@ struct HistoryDetailView: View {
     @Environment(BrewService.self)
     private var brewService
     let entry: ActionHistoryEntry
+    @State private var showRetryConfirmation = false
 
     var body: some View {
         Form {
@@ -88,6 +89,14 @@ struct HistoryDetailView: View {
             if brewService.isPerformingAction {
                 ActionOverlay(output: brewService.actionOutput)
             }
+        }
+        .confirmationDialog("Retry Command?", isPresented: $showRetryConfirmation) {
+            Button("Retry", role: .destructive) {
+                Task { await brewService.retryAction(entry) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will re-run \(entry.displayCommand).")
         }
     }
 
@@ -148,7 +157,11 @@ struct HistoryDetailView: View {
     private var retrySection: some View {
         Section {
             Button("Retry", systemImage: "arrow.clockwise") {
-                Task { await brewService.retryAction(entry) }
+                if entry.isMutatingCommand {
+                    showRetryConfirmation = true
+                } else {
+                    Task { await brewService.retryAction(entry) }
+                }
             }
             .buttonStyle(.borderedProminent)
             .tint(.orange)

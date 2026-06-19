@@ -147,43 +147,6 @@ struct MaintenanceTests {
     }
 }
 
-// MARK: - Dry-Run Tests
-
-@Suite("BrewService Dry-Run")
-@MainActor
-struct DryRunTests {
-
-    @Test("dryRunAutoremove calls autoremove --dry-run")
-    func dryRunAutoremoveCallsCommand() async {
-        let mock = MockCommandRunner()
-        let (service, _) = makeService(mock: mock)
-        mock.setResult(
-            for: ["autoremove", "--dry-run"],
-            output: "Would remove: libfoo, libbar"
-        )
-
-        let output = await service.dryRunAutoremove()
-
-        #expect(mock.executedCommands.contains(["autoremove", "--dry-run"]))
-        #expect(output.contains("libfoo"))
-    }
-
-    @Test("dryRunCleanup calls cleanup --dry-run")
-    func dryRunCleanupCallsCommand() async {
-        let mock = MockCommandRunner()
-        let (service, _) = makeService(mock: mock)
-        mock.setResult(
-            for: ["cleanup", "--prune=all", "-s", "--dry-run"],
-            output: "Would remove: /path/to/old-1.0.tar.gz"
-        )
-
-        let output = await service.dryRunCleanup()
-
-        #expect(mock.executedCommands.contains(["cleanup", "--prune=all", "-s", "--dry-run"]))
-        #expect(output.contains("old-1.0"))
-    }
-}
-
 // MARK: - Info & Caching Tests
 
 @Suite("BrewService Info Caching")

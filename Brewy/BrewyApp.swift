@@ -53,9 +53,10 @@ struct BrewyApp: App {
                     Task { await brewService.upgradeAll() }
                 }
                 .keyboardShortcut("u", modifiers: .command)
+                .disabled(brewService.homebrewOutdatedPackages.isEmpty)
 
                 Button("Cleanup...") {
-                    Task { await brewService.cleanup() }
+                    NotificationCenter.default.post(name: .showCleanupPreview, object: nil)
                 }
             }
             CommandGroup(replacing: .help) {
@@ -124,12 +125,15 @@ private struct MenuBarView: View {
 
     var body: some View {
         let outdatedCount = brewService.outdatedPackages.count
+        let homebrewOutdatedCount = brewService.homebrewOutdatedPackages.count
 
         if outdatedCount > 0 {
             Text("\(outdatedCount) package\(outdatedCount == 1 ? "" : "s") outdated")
-            Divider()
-            Button("Upgrade All") {
-                Task { await brewService.upgradeAll() }
+            if homebrewOutdatedCount > 0 {
+                Divider()
+                Button("Upgrade Homebrew Packages") {
+                    Task { await brewService.upgradeAll() }
+                }
             }
         } else {
             Text("All packages up to date")
