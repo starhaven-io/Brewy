@@ -214,19 +214,50 @@ enum CommandRunner {
         timeoutWork.cancel()
         let out = stdoutData.wait()
         let err = stderrData.wait()
+        let stdout = String(data: out, encoding: .utf8) ?? ""
+        let stderr = String(data: err, encoding: .utf8) ?? ""
 
         if timedOut.isSet {
             return CommandResult(
-                output: "Command timed out after \(timeout).",
+                output: timeoutOutput(stdout: stdout, stderr: stderr, timeout: timeout),
                 success: false
             )
         }
-        let stdout = String(data: out, encoding: .utf8) ?? ""
-        let stderr = String(data: err, encoding: .utf8) ?? ""
         return CommandResult(
-            output: stdout.isEmpty ? stderr : stdout,
+            output: commandOutput(stdout: stdout, stderr: stderr, terminationStatus: process.terminationStatus),
             success: process.terminationStatus == 0
         )
+    }
+
+    private static func commandOutput(stdout: String, stderr: String, terminationStatus: Int32) -> String {
+        if terminationStatus == 0 {
+            return stdout.isEmpty ? stderr : stdout
+        }
+        let combined = combinedStreams(stdout: stdout, stderr: stderr)
+        return combined.isEmpty ? "Command failed with exit code \(terminationStatus)." : combined
+    }
+
+    private static func combinedStreams(stdout: String, stderr: String) -> String {
+        switch (stdout.isEmpty, stderr.isEmpty) {
+        case (true, true):
+            return ""
+        case (true, false):
+            return stderr
+        case (false, true):
+            return stdout
+        case (false, false):
+            let separator = stdout.hasSuffix("\n") || stderr.hasPrefix("\n") ? "" : "\n"
+            return stdout + separator + stderr
+        }
+    }
+
+    private static func timeoutOutput(stdout: String, stderr: String, timeout: Duration) -> String {
+        let partialOutput = combinedStreams(stdout: stdout, stderr: stderr)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !partialOutput.isEmpty else {
+            return "Command timed out after \(timeout)."
+        }
+        return "Command timed out after \(timeout).\n\(partialOutput)"
     }
 
     private static func drainPipesInParallel(stdout: Pipe, stderr: Pipe) -> (stdout: PipeReader, stderr: PipeReader) {
