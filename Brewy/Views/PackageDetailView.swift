@@ -193,7 +193,7 @@ private struct ActionBar: View {
                 notInstalledActionsMenu
             }
 
-            if !package.homepage.isEmpty, let url = URL(string: package.homepage) {
+            if let url = ExternalURLPolicy.url(from: package.homepage) {
                 Link(destination: url) {
                     Label(package.isMas ? "App Store" : "Homepage", systemImage: package.isMas ? "app.badge.fill" : "globe")
                 }

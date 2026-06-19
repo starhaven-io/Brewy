@@ -91,7 +91,7 @@ struct TapHealthStatus: Codable, Equatable {
     }
 
     static func parseGitHubRepo(from remote: String) -> (owner: String, repo: String)? {
-        guard let url = URL(string: remote),
+        guard let url = ExternalURLPolicy.url(from: remote),
               url.host == "github.com" || url.host == "www.github.com" else {
             return nil
         }

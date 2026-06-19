@@ -92,22 +92,6 @@ struct WhatsNewView: View {
         }
     }
 
-    // MARK: - HTML Rendering
-
-    private static func attributedString(from html: String) -> AttributedString? {
-        guard let data = html.data(using: .utf8),
-              let nsAttr = try? NSAttributedString(
-                data: data,
-                options: [
-                    .documentType: NSAttributedString.DocumentType.html,
-                    .characterEncoding: String.Encoding.utf8.rawValue
-                ],
-                documentAttributes: nil
-              )
-        else { return nil }
-        return try? AttributedString(nsAttr, including: \.swiftUI)
-    }
-
     // MARK: - Networking
 
     private func fetchLatestRelease() async {
@@ -115,7 +99,7 @@ struct WhatsNewView: View {
         errorMessage = nil
 
         guard let feedURL = Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String,
-              let url = URL(string: feedURL) else {
+              let url = ExternalURLPolicy.url(from: feedURL) else {
             errorMessage = "No update feed configured."
             isLoading = false
             return
@@ -137,7 +121,7 @@ struct WhatsNewView: View {
             release = loaded
 
             if let html = loaded?.descriptionHTML {
-                parsedNotes = Self.attributedString(from: html)
+                parsedNotes = ReleaseNotesHTML.attributedString(from: html)
             }
             if loaded == nil {
                 errorMessage = "No release notes found."

@@ -78,6 +78,12 @@ struct ParseGitHubRepoTests {
         #expect(result == nil)
     }
 
+    @Test("Returns nil for non-web GitHub-looking URLs")
+    func nonWebGitHubURL() {
+        #expect(TapHealthStatus.parseGitHubRepo(from: "file://github.com/Homebrew/homebrew-core") == nil)
+        #expect(TapHealthStatus.parseGitHubRepo(from: "javascript://github.com/Homebrew/homebrew-core") == nil)
+    }
+
     @Test("Returns nil for empty string")
     func emptyString() {
         let result = TapHealthStatus.parseGitHubRepo(from: "")

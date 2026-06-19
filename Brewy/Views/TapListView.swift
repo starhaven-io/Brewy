@@ -256,7 +256,7 @@ struct TapDetailView: View {
                 LabeledContent("Name", value: tap.name)
                 if !tap.remote.isEmpty {
                     LabeledContent("Remote") {
-                        if let url = URL(string: tap.remote) {
+                        if let url = ExternalURLPolicy.url(from: tap.remote) {
                             Link(tap.remote, destination: url)
                                 .foregroundStyle(.link)
                         } else {
@@ -356,7 +356,7 @@ private struct TapHealthWarningSection: View {
                     Text(warningMessage)
                         .font(.callout)
                     if let movedTo = healthStatus.movedTo,
-                       let url = URL(string: movedTo) {
+                       let url = ExternalURLPolicy.url(from: movedTo) {
                         Link("View new repository", destination: url)
                             .font(.callout)
                     }
