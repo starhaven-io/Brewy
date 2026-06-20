@@ -17,8 +17,23 @@ env:
   DEVELOPMENT_TEAM: ${{ vars.DEVELOPMENT_TEAM }}
 
 jobs:
+  validate-dispatch:
+    name: Validate dispatch
+    runs-on: ubuntu-slim
+    permissions: {}
+    steps:
+      - name: Require main branch
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [[ "${GITHUB_REF}" != "refs/heads/main" ]]; then
+            echo "::error::Release workflow must be dispatched from main, got ${REF_NAME}."
+            exit 1
+          fi
+
   build:
     name: Build
+    needs: validate-dispatch
     runs-on: macos-26
     environment:
       name: release
@@ -28,7 +43,7 @@ jobs:
       build_number: ${{ steps.version.outputs.build_number }}
       artifact_name: "Brewy-${{ steps.version.outputs.tag }}.zip"
     permissions:
-      contents: write # required to create tag
+      contents: read # required to checkout the release source
     env:
       TEMPORARY_CERTIFICATE_FILE: "brewy_developer_id_certificate.p12"
       TEMPORARY_KEYCHAIN_FILE: "brewy_signing.keychain-db"
@@ -54,16 +69,6 @@ jobs:
           echo "tag=${TAG}" >> "${GITHUB_OUTPUT}"
           echo "build_number=${BUILD_NUMBER}" >> "${GITHUB_OUTPUT}"
           echo "TAG=${TAG}" >> "${GITHUB_ENV}"
-
-      - name: Create tag
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPOSITORY: ${{ github.repository }}
-          COMMIT_SHA: ${{ github.sha }}
-        run: |
-          gh api "repos/${REPOSITORY}/git/refs" \
-            -f "ref=refs/tags/${TAG}" \
-            -f "sha=${COMMIT_SHA}"
 
       - name: Create and unlock temporary macOS keychain
         run: |
@@ -217,6 +222,16 @@ jobs:
           echo "SPARKLE_SIG=$(echo "${SIG_OUTPUT}" | grep -o 'sparkle:edSignature="[^"]*"' | cut -d'"' -f2)" >> "${GITHUB_ENV}"
           echo "SPARKLE_LENGTH=$(echo "${SIG_OUTPUT}" | grep -o 'length="[^"]*"' | cut -d'"' -f2)" >> "${GITHUB_ENV}"
 
+      - name: Create tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          gh api "repos/${REPOSITORY}/git/refs" \
+            -f "ref=refs/tags/${TAG}" \
+            -f "sha=${COMMIT_SHA}"
+
       - name: Create release with generated notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -259,10 +274,11 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           BUILD_NUMBER: ${{ needs.build.outputs.build_number }}
         run: |
-          export PUBDATE="$(date -u '+%a, %d %b %Y %H:%M:%S %z')"
-          export DOWNLOAD_URL="https://github.com/${REPOSITORY}/releases/download/${TAG}/${ARTIFACT_NAME}"
-          export RELEASE_NOTES_HTML="$(cat "${RUNNER_TEMP}/release_notes.html")"
-          envsubst '$TAG $PUBDATE $BUILD_NUMBER $DOWNLOAD_URL $SPARKLE_LENGTH $SPARKLE_SIG $RELEASE_NOTES_HTML' \
+          PUBDATE="$(date -u '+%a, %d %b %Y %H:%M:%S %z')"
+          DOWNLOAD_URL="https://github.com/${REPOSITORY}/releases/download/${TAG}/${ARTIFACT_NAME}"
+          RELEASE_NOTES_HTML="$(cat "${RUNNER_TEMP}/release_notes.html")"
+          export PUBDATE DOWNLOAD_URL RELEASE_NOTES_HTML
+          envsubst "\$TAG \$PUBDATE \$BUILD_NUMBER \$DOWNLOAD_URL \$SPARKLE_LENGTH \$SPARKLE_SIG \$RELEASE_NOTES_HTML" \
             < .github/appcast-template.xml > appcast.xml
 
       - name: Push appcast
