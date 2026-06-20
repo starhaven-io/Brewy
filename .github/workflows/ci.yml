@@ -37,7 +37,6 @@ jobs:
         id: matrix
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          EVENT_ACTION: ${{ github.event.action }}
           EVENT_NAME: ${{ github.event_name }}
         run: |
           # Push to main: run test-tsan so Codecov has a baseline for PR
@@ -49,12 +48,11 @@ jobs:
 
           MATRIX='[{"name":"Conventional Commits","check":"commits","runner":"ubuntu-slim","fetch_depth":"0"}'
 
-          # For title/body edits, only recheck conventional commits
-          if [[ "${EVENT_ACTION}" == "edited" ]]; then
-            echo "matrix=${MATRIX}]" >> "${GITHUB_OUTPUT}"
-            exit 0
-          fi
-
+          # `edited` (title/body/base) also runs the full path-derived matrix. The
+          # aggregate "conclusion" job is the only required status check, so it must
+          # certify every relevant leg for the current commit. Collapsing to a
+          # commits-only matrix on `edited` lets a green run overwrite a prior failing
+          # one on the same SHA, bypassing tests, lint, CodeQL and the rest.
           CHANGED=$(git diff --name-only "${BASE_SHA}...HEAD")
 
           # Swift or CI workflow changes: lint + sanitizer tests
@@ -198,12 +196,16 @@ jobs:
           XCODEBUILD_FLAGS: ${{ matrix.xcodebuild_flags }}
           RESULT_BUNDLE: ${{ matrix.result_bundle }}
         run: |
+          EXTRA_XCODEBUILD_FLAGS=()
+          if [[ -n "${XCODEBUILD_FLAGS}" ]]; then
+            read -r -a EXTRA_XCODEBUILD_FLAGS <<< "${XCODEBUILD_FLAGS}"
+          fi
           xcodebuild test \
             -project Brewy.xcodeproj \
             -scheme Brewy \
             -destination 'platform=macOS' \
             -derivedDataPath ./DerivedData \
-            ${XCODEBUILD_FLAGS} \
+            "${EXTRA_XCODEBUILD_FLAGS[@]}" \
             -resultBundlePath "${RESULT_BUNDLE}.xcresult" \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \

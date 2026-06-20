@@ -5,6 +5,8 @@ on:
 
 defaults:
   run:
+    # No -x: this workflow handles signing/notarization secrets, Sparkle
+    # signing secrets, generated keychain passwords, and short-lived app tokens.
     shell: bash -euo pipefail {0}
 
 concurrency:
