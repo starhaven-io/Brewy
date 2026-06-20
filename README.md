@@ -54,6 +54,18 @@ You can also grab the latest release from the [GitHub releases page](https://git
 2. Open `Brewy.xcodeproj` in Xcode
 3. Build and run (Cmd+R)
 
+For local verification, install the optional tools listed in [CONTRIBUTING.md](CONTRIBUTING.md) and run:
+
+```sh
+just check
+```
+
+## Security model
+
+Brewy is intentionally not sandboxed: it needs to execute the user's Homebrew installation and manage packages, casks, taps, and services on the local machine. CLI execution is centralized through `CommandRunner`, which invokes binaries with argument arrays rather than shell strings.
+
+Destructive maintenance operations show Homebrew dry-run previews before they can run. Metadata links from package data, tap data, and release notes are restricted to `http` and `https` URLs before Brewy opens them externally.
+
 ## Contributing
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the development setup, local checks, and commit conventions.
