@@ -86,6 +86,28 @@ struct CommandRunnerProcessTests {
         )
         #expect(result.success)
         #expect(result.output.contains("stdout-line"))
+        #expect(!result.output.contains("stderr-line"))
+    }
+
+    @Test("runExecutable includes stderr on failure when stdout exists")
+    func failureCombinesStdoutAndStderr() async {
+        let result = await CommandRunner.runExecutable(
+            "/bin/sh",
+            arguments: ["-c", "echo stdout-line; echo stderr-line >&2; exit 2"]
+        )
+        #expect(!result.success)
+        #expect(result.output.contains("stdout-line"))
+        #expect(result.output.contains("stderr-line"))
+    }
+
+    @Test("runExecutable reports the exit code when failure has no output")
+    func failureWithNoOutputReportsExitCode() async {
+        let result = await CommandRunner.runExecutable(
+            "/bin/sh",
+            arguments: ["-c", "exit 3"]
+        )
+        #expect(!result.success)
+        #expect(result.output.contains("exit code 3"))
     }
 
     @Test("runExecutable times out a long-running process")
@@ -99,6 +121,18 @@ struct CommandRunnerProcessTests {
         let elapsed = ContinuousClock.now - start
         #expect(!result.success)
         #expect(elapsed < .seconds(15))
+    }
+
+    @Test("runExecutable includes partial output on timeout")
+    func timeoutIncludesPartialOutput() async {
+        let result = await CommandRunner.runExecutable(
+            "/bin/sh",
+            arguments: ["-c", "echo before-timeout; sleep 30"],
+            timeout: .seconds(1)
+        )
+        #expect(!result.success)
+        #expect(result.output.contains("Command timed out"))
+        #expect(result.output.contains("before-timeout"))
     }
 
     @Test("runExecutable handles missing executable gracefully")
