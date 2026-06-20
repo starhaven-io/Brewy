@@ -156,6 +156,10 @@ final class BrewService {
         }
     }
 
+    var homebrewOutdatedPackages: [BrewPackage] {
+        outdatedPackages.filter { !$0.isMas }
+    }
+
     // MARK: - Cache
 
     nonisolated static let cacheDirectory: URL? = {

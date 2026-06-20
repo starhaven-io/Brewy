@@ -32,16 +32,9 @@ struct MaintenanceView: View {
             )
         }
         .sheet(isPresented: $showClearCacheConfirm) {
-            DryRunConfirmationSheet(
-                title: "Clear Download Cache?",
-                message: "The following cached downloads and old versions will be removed.",
-                confirmLabel: "Clear Cache",
-                dryRunAction: { await brewService.dryRunCleanup() },
-                confirmAction: {
-                    await brewService.purgeCache()
-                    await loadCacheSize()
-                }
-            )
+            DryRunConfirmationSheet.clearCache(brewService: brewService) {
+                await loadCacheSize()
+            }
         }
         .task {
             async let cacheTask: () = loadCacheSize()

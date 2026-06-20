@@ -326,6 +326,7 @@ struct PackageActionTests {
         await service.install(package: pkg)
 
         #expect(mock.executedCommands.isEmpty)
+        #expect(service.lastError != nil)
     }
 
     @Test("uninstall calls brew uninstall")

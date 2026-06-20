@@ -30,10 +30,6 @@ extension BrewService {
     func link(package: BrewPackage) async { await performAction("link", package: package) }
     func unlink(package: BrewPackage) async { await performAction("unlink", package: package) }
 
-    func cleanup() async {
-        await performBrewAction(["cleanup", "--prune=all"])
-    }
-
     // MARK: - Action Helpers
 
     func performBrewAction(_ arguments: [String], refreshAfter: Bool = false) async {
@@ -60,6 +56,10 @@ extension BrewService {
     func performAction(_ action: String, package: BrewPackage) async {
         guard !package.isMas else {
             logger.warning("Cannot perform brew action \(action) on mas package \(package.name)")
+            lastError = .commandFailed(
+                command: action,
+                output: "Mac App Store apps are managed outside Homebrew. Open the App Store to update \(package.name)."
+            )
             return
         }
         guard !isPerformingAction else {

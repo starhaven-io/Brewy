@@ -2,6 +2,7 @@ import SwiftUI
 
 extension Notification.Name {
     static let showWhatsNew = Notification.Name("showWhatsNew")
+    static let showCleanupPreview = Notification.Name("showCleanupPreview")
 }
 
 // MARK: - Package Navigation Environment
@@ -29,6 +30,7 @@ struct ContentView: View {
     // periphery:ignore - Mutated through PackageListView's searchable binding.
     @State private var searchText = ""
     @State private var showWhatsNew = false
+    @State private var showCleanupConfirm = false
 
     var body: some View {
         NavigationSplitView {
@@ -123,8 +125,14 @@ struct ContentView: View {
         .sheet(isPresented: $showWhatsNew) {
             WhatsNewView()
         }
+        .sheet(isPresented: $showCleanupConfirm) {
+            DryRunConfirmationSheet.clearCache(brewService: brewService)
+        }
         .onReceive(NotificationCenter.default.publisher(for: .showWhatsNew)) { _ in
             showWhatsNew = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .showCleanupPreview)) { _ in
+            showCleanupConfirm = true
         }
     }
 

@@ -91,12 +91,7 @@ extension BrewService {
             output: result.output
         )
 
-        let mutatingCommands: Set<String> = [
-            "install", "uninstall", "upgrade", "reinstall",
-            "link", "unlink", "autoremove", "cleanup", "update",
-            "tap", "untap"
-        ]
-        if let cmd = entry.arguments.first, mutatingCommands.contains(cmd) {
+        if entry.isMutatingCommand {
             await refresh()
         }
     }

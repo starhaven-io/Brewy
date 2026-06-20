@@ -121,6 +121,26 @@ struct ActionHistoryEntryTests {
         #expect(entry.isRetryable == false)
     }
 
+    @Test("isMutatingCommand is true for mutating commands")
+    func isMutatingCommandForMutations() {
+        let entry = ActionHistoryEntry(
+            id: UUID(), command: "cleanup", arguments: ["cleanup", "--prune=all"],
+            packageName: nil, packageSource: nil,
+            status: .failure, output: "Error", timestamp: Date()
+        )
+        #expect(entry.isMutatingCommand)
+    }
+
+    @Test("isMutatingCommand is false for read-only commands")
+    func isMutatingCommandForReadOnly() {
+        let entry = ActionHistoryEntry(
+            id: UUID(), command: "doctor", arguments: ["doctor"],
+            packageName: nil, packageSource: nil,
+            status: .failure, output: "Warning", timestamp: Date()
+        )
+        #expect(entry.isMutatingCommand == false)
+    }
+
     @Test("Status raw values encode correctly")
     func statusRawValues() {
         #expect(ActionHistoryEntry.Status.success.rawValue == "success")
