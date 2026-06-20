@@ -18,5 +18,5 @@ appcast.xml
 *.xccheckout
 *.xcscmblueprint
 build/
-DerivedData/
+DerivedData*/
 xcuserdata/

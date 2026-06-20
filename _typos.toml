@@ -1,2 +1,2 @@
 [files]
-extend-exclude = ["*.xcodeproj/**"]
+extend-exclude = ["*.xcodeproj/**", "DerivedData*/**"]
