@@ -45,12 +45,14 @@ struct MasSetupView: View {
                 }
             }
 
-            Link(destination: URL(string: "https://github.com/mas-cli/mas")!) {
-                Label("Learn more about mas", systemImage: "globe")
-                    .font(.callout)
+            if let masURL = ExternalURLPolicy.url(from: "https://github.com/mas-cli/mas") {
+                Link(destination: masURL) {
+                    Label("Learn more about mas", systemImage: "globe")
+                        .font(.callout)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(.background)
