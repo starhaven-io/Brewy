@@ -1,0 +1,7 @@
+# Configuration for https://github.com/lycheeverse/lychee
+# Checks links in README.md and CONTRIBUTING.md.
+# Run: `just lychee`.
+
+max_concurrency = 20
+timeout = 20
+max_retries = 3

@@ -1,25 +1,24 @@
-# Claude Code
+# Local machine/editor/agent state
 .claude/
-
-# Codex
 .codex/
-
-# Appcast (lives on the appcast branch, not main)
-appcast.xml
-
-# Typos (override global gitignore)
-!_typos.toml
-
-# macOS
 .DS_Store
+.vscode/
+
+# Build outputs
+.build/
+build/
+DerivedData*/
 
 # Swift Package Manager
-.build/
 .swiftpm/
 
 # Xcode
 *.xccheckout
 *.xcscmblueprint
-build/
-DerivedData*/
 xcuserdata/
+
+# Tooling
+!_typos.toml
+
+# Appcast (lives on the appcast branch, not main)
+appcast.xml

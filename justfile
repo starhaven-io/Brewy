@@ -60,6 +60,10 @@ typos:
 periphery:
     periphery scan
 
+# Check README and CONTRIBUTING links
+lychee:
+    lychee --config lychee.toml README.md CONTRIBUTING.md
+
 # Check
 
 # Run all checks
