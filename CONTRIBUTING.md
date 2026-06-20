@@ -51,7 +51,7 @@ CI builds with `SWIFT_TREAT_WARNINGS_AS_ERRORS=YES` and `SWIFT_STRICT_CONCURRENC
 
 ## Architecture
 
-See [CLAUDE.md](CLAUDE.md) for a map of the codebase, the `BrewService` architecture, the brew CLI commands used, and the gotchas / do-not-touch zones (notably: the app is intentionally unsandboxed, and all CLI calls must go through `CommandRunner` with an argument array).
+See [AGENTS.md](AGENTS.md) for a map of the codebase, the `BrewService` architecture, the brew CLI commands used, and the gotchas / do-not-touch zones (notably: the app is intentionally unsandboxed, and all CLI calls must go through `CommandRunner` with an argument array).
 
 ## License
 
