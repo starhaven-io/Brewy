@@ -1,6 +1,9 @@
 # Claude Code
 .claude/
 
+# Codex
+.codex/
+
 # Appcast (lives on the appcast branch, not main)
 appcast.xml
 

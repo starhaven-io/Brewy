@@ -1,0 +1,67 @@
+# Agent Instructions for Brewy
+
+Most importantly, run `just check` to verify file edits before pushing or opening a PR. If that is too broad for the current change, run the relevant focused checks and explain what was skipped.
+
+Brewy is a native macOS GUI for managing Homebrew packages. It is written in Swift/SwiftUI, uses MVVM with `@Observable` and SwiftUI environment injection, and targets macOS 15.0+ on Apple Silicon. The only external app dependency is Sparkle through Swift Package Manager.
+
+Please follow these guidelines when contributing.
+
+## Code Standards
+
+### Required Before Each Commit
+
+- Run `swiftlint --strict` for Swift style.
+- Run `typos` for spelling.
+- Run `xcodebuild test -project Brewy.xcodeproj -scheme Brewy -destination 'platform=macOS' -only-testing:BrewyTests -skip-testing:BrewyUITests` for unit tests. Use a derived data path outside the repository, such as `/private/tmp/brewy-deriveddata`, when running from automation.
+- Run `zizmor --persona auditor .github/workflows/` after workflow edits.
+- Shortcut: `just check` runs the normal local gate.
+
+### Development Flow
+
+- Keep changes scoped and follow the existing SwiftUI/MVVM style.
+- Add or update Swift Testing tests for behavior changes.
+- Prefer focused tests while iterating, then run the broader relevant gate.
+- Keep user-facing copy concise and macOS-native.
+- Keep comments minimal; prefer self-documenting names and small helpers.
+- Use `OSLog` for logging, not print statements.
+- Use structured APIs and Codable models for Homebrew JSON instead of parsing text when Homebrew provides JSON.
+- Preserve Swift strict-concurrency expectations; `BrewService` is `@MainActor`.
+
+### Commit Style
+
+- Use Conventional Commits: `type(scope): description`.
+- Sign off every commit with `git commit -s`. DCO is enforced by the `.githooks/commit-msg` hook; run `just install-hooks` once per clone to enable it.
+- When an AI agent co-authored the change, add a `Co-Authored-By: <agent> <model> <email>` trailer after `Signed-off-by` (e.g. `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`).
+- Never commit directly to `main`; use a feature branch and PR.
+
+## Repository Structure
+
+- `Brewy/BrewyApp.swift`: app entry point, window commands, menu bar extra, Sparkle updater.
+- `Brewy/Models/BrewService*.swift`: central state container and Homebrew orchestration split by responsibility.
+- `Brewy/Models/CommandRunner.swift`: the single process-execution path for `brew`, `mas`, `du`, `osascript`, and other executables.
+- `Brewy/Models/BrewJSONTypes.swift`: Homebrew JSON v2 Codable response types.
+- `Brewy/Models/MasService.swift`: Mac App Store integration through `mas`.
+- `Brewy/Models/ServicesService.swift`: Homebrew services parsing and control.
+- `Brewy/Models/TapHealthChecker.swift`: GitHub API tap health checks for archived, moved, and missing taps.
+- `Brewy/Views/`: SwiftUI views for navigation, lists, details, services, groups, history, settings, maintenance, taps, and release notes.
+- `BrewyTests/`: Swift Testing unit tests and shared `MockCommandRunner` helpers.
+- `BrewyUITests/`: sidebar navigation UI tests.
+- `.github/workflows/ci.yml`: PR/push checks with dynamic matrix.
+- `.github/workflows/release.yml`: manual release workflow for archive, signing, notarization, Sparkle signing, appcast, GitHub release, and tap cask bump.
+- `justfile`: local development commands.
+
+## Key Guidelines
+
+1. The app is intentionally not sandboxed. Do not add the macOS app sandbox entitlement; Brewy must execute the user's Homebrew installation and manage local packages. Hardened Runtime stays enabled with library validation on, and the app ships via Developer ID + notarization (not the App Store); do not relax those settings.
+2. All CLI execution must go through `CommandRunner` or the `CommandRunning` protocol with argument arrays. Never build shell command strings from package names or tap names.
+3. Treat package, tap, appcast, and other external metadata as untrusted. Only open external URLs through `ExternalURLPolicy`.
+4. Keep destructive actions behind previews or confirmations. Cleanup and autoremove should use dry-run previews before execution.
+5. Mac App Store apps are read through `mas`; do not route MAS upgrades through `brew upgrade`. MAS packages use `mas-`-prefixed IDs to avoid collisions with brew package IDs.
+6. Keep cache schema changes explicit. `packageCache.json` is versioned and decode failures should not silently launch into incorrect state.
+7. Preserve derived-state invalidation when changing installed package mutations, reverse dependencies, leaves, pinned packages, or outdated merges.
+8. Keep dependency-tree walks bounded by depth and node budget, with cycle detection.
+9. Release workflow tags should be created by `gh release create --target` only after the notarized/stapled asset is ready. Do not create tags early in the build job.
+10. Do not hand-edit `appcast.xml` on `main`; it is generated by the release workflow and pushed to the `appcast` branch.
+11. Keep Sparkle download verification and EdDSA signing in lockstep with `Package.resolved`.
+12. PR descriptions should be short summaries only; no test-plan sections, generated-by footers, or tool-attribution footers.
+13. The cask `depends_on` decoder tolerates brew emitting it as either an object or an empty array. Preserve that tolerance when changing `BrewJSONTypes`/`PackageModel` decoding so casks keep participating in reverse-dependency, leaves, and dependency-tree computation.
