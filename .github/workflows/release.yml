@@ -315,5 +315,6 @@ jobs:
           BOT_ID=$(GH_TOKEN="${HOMEBREW_GITHUB_API_TOKEN}" gh api "/users/${BOT_USER}" --jq .id)
           export HOMEBREW_GIT_NAME="${BOT_USER}"
           export HOMEBREW_GIT_EMAIL="${BOT_ID}+${BOT_USER}@users.noreply.github.com"
-          brew tap starhaven-io/homebrew-tap
+          brew tap starhaven-io/tap
+          brew trust starhaven-io/tap
           brew bump-cask-pr --no-fork --version "${VERSION}" starhaven-io/tap/brewy
