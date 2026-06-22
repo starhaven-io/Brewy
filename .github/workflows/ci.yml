@@ -75,7 +75,7 @@ jobs:
 
           # Workflow changes: Actions security audit
           if echo "${CHANGED}" | grep -qE '^\.github/workflows/'; then
-            MATRIX+=',{"name":"zizmor","check":"zizmor","runner":"ubuntu-latest"}'
+            MATRIX+=',{"name":"zizmor","check":"zizmor","runner":"ubuntu-24.04"}'
           fi
 
           echo "matrix=${MATRIX}]" >> "${GITHUB_OUTPUT}"
