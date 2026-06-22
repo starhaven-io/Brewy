@@ -21,7 +21,7 @@ permissions: {}
 jobs:
   audit:
     name: Audit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       security-events: write # required to upload SARIF results
