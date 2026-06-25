@@ -7,8 +7,17 @@ extension Notification.Name {
 
 // MARK: - Package Navigation Environment
 
+// A manual EnvironmentKey instead of @Entry: the macro rejects closure-typed
+// defaults as non-comparable, which SWIFT_TREAT_WARNINGS_AS_ERRORS turns into a build error.
+private struct SelectPackageKey: EnvironmentKey {
+    static let defaultValue: @MainActor @Sendable (String) -> Void = { _ in }
+}
+
 extension EnvironmentValues {
-    @Entry var selectPackage: @MainActor @Sendable (String) -> Void = { _ in }
+    var selectPackage: @MainActor @Sendable (String) -> Void {
+        get { self[SelectPackageKey.self] }
+        set { self[SelectPackageKey.self] = newValue }
+    }
 }
 
 struct ContentView: View {
