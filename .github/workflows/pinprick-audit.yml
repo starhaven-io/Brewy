@@ -12,10 +12,6 @@ concurrency:
   group: "pinprick-audit-${{ github.ref }}"
   cancel-in-progress: true
 
-defaults:
-  run:
-    shell: bash -xeuo pipefail {0}
-
 permissions: {}
 
 jobs:
