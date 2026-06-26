@@ -42,10 +42,10 @@ private struct HistoryRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Circle()
-                .fill(entry.status == .success ? Color.green : Color.red)
-                .frame(width: 8, height: 8)
-                .accessibilityLabel(entry.status == .success ? "Succeeded" : "Failed")
+            BrewyStatusDot(
+                color: entry.status == .success ? .green : .red,
+                label: entry.status == .success ? "Succeeded" : "Failed"
+            )
             VStack(alignment: .leading, spacing: 2) {
                 if let name = entry.packageName {
                     HStack(spacing: 6) {
@@ -112,10 +112,11 @@ struct HistoryDetailView: View {
             }
             LabeledContent("Status") {
                 HStack(spacing: 6) {
-                    Circle()
-                        .fill(entry.status == .success ? Color.green : Color.red)
-                        .frame(width: 8, height: 8)
-                        .accessibilityHidden(true)
+                    BrewyStatusDot(
+                        color: entry.status == .success ? .green : .red,
+                        label: entry.status == .success ? "Succeeded" : "Failed"
+                    )
+                    .accessibilityHidden(true)
                     Text(entry.status == .success ? "Success" : "Failed")
                         .foregroundStyle(entry.status == .success ? .green : .red)
                 }
@@ -164,7 +165,7 @@ struct HistoryDetailView: View {
                 }
             }
             .buttonStyle(.borderedProminent)
-            .tint(.orange)
+            .tint(Color.brewyAccent)
             .disabled(brewService.isPerformingAction)
         } footer: {
             Text("Re-runs the same command: \(entry.displayCommand)")

@@ -74,7 +74,7 @@ private struct TapRow: View {
                     if let healthStatus, healthStatus.status != .healthy, healthStatus.status != .unknown {
                         TapHealthBadge(status: healthStatus.status)
                     } else if isOfficialTap, healthStatus?.status == .healthy {
-                        TapBadge(text: "official", color: .teal)
+                        BrewyStatusBadge("official", systemImage: "checkmark.seal.fill", color: .teal)
                     }
                 }
                 if !tap.remote.isEmpty {
@@ -85,30 +85,13 @@ private struct TapRow: View {
                 }
             }
             Spacer()
-            Text("\(tap.formulaNames.count + tap.caskTokens.count)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
+            BrewyCountBadge(count: tap.formulaNames.count + tap.caskTokens.count)
         }
         .padding(.vertical, 2)
     }
 }
 
 // MARK: - Tap Badges
-
-private struct TapBadge: View {
-    let text: String
-    let color: Color
-
-    var body: some View {
-        Text(text)
-            .font(.system(size: 9, weight: .medium))
-            .foregroundStyle(color)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background(color.opacity(0.12), in: .capsule)
-    }
-}
 
 private struct TapHealthBadge: View {
     let status: TapHealthStatus.Status
@@ -141,12 +124,7 @@ private struct TapHealthBadge: View {
     }
 
     var body: some View {
-        Label(label, systemImage: icon)
-            .font(.system(size: 9, weight: .medium))
-            .foregroundStyle(color)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background(color.opacity(0.12), in: .capsule)
+        BrewyStatusBadge(label, systemImage: icon, color: color)
             .accessibilityLabel("Tap status: \(label)")
     }
 }

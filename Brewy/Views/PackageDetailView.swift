@@ -85,61 +85,21 @@ struct PackageDetailView: View {
 private struct PackageHeader: View {
     let package: BrewPackage
 
-    private var headerIcon: String {
-        switch package.source {
-        case .formula: "terminal.fill"
-        case .cask: "macwindow"
-        case .mas: "app.badge.fill"
-        }
-    }
-
-    private var headerColor: Color {
-        switch package.source {
-        case .formula: .green
-        case .cask: .purple
-        case .mas: .pink
-        }
-    }
-
-    private var sourceBadgeText: String {
-        switch package.source {
-        case .formula: "Formula"
-        case .cask: "Cask"
-        case .mas: "Mac App Store"
-        }
-    }
-
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(headerColor.opacity(0.1))
-                    .frame(width: 40, height: 40)
-                Image(systemName: headerIcon)
-                    .font(.title3)
-                    .foregroundStyle(headerColor)
-            }
+            PackageSourceIcon(source: package.source, size: 44)
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
                     Text(package.name)
                         .font(.title2)
                         .bold()
-                    Text(sourceBadgeText)
-                        .font(.caption)
-                        .foregroundStyle(headerColor)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(headerColor.opacity(0.12), in: .capsule)
+                    PackageSourceBadge(source: package.source, style: .full)
                     if package.pinned {
-                        Label("Pinned", systemImage: "pin.fill")
-                            .font(.caption)
-                            .foregroundStyle(.orange)
+                        BrewyStatusBadge("Pinned", systemImage: "pin.fill", color: .brewyAccent)
                     }
                     if package.isOutdated {
-                        Label("Update Available", systemImage: "arrow.up.circle.fill")
-                            .font(.caption)
-                            .foregroundStyle(.orange)
+                        BrewyStatusBadge("Update Available", systemImage: "arrow.up.circle.fill", color: .brewyAccent)
                     }
                 }
                 if !package.description.isEmpty {
@@ -149,7 +109,7 @@ private struct PackageHeader: View {
                 }
                 Text("Version \(package.displayVersion)")
                     .font(.callout)
-                    .foregroundColor(package.isOutdated ? .orange : .secondary)
+                    .foregroundStyle(package.isOutdated ? Color.brewyAccent : Color.secondary)
                     .monospacedDigit()
             }
             Spacer()
@@ -182,7 +142,7 @@ private struct ActionBar: View {
                         Task { await brewService.upgrade(package: package) }
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(.orange)
+                    .tint(Color.brewyAccent)
                 }
                 installedActionsMenu
             } else {
@@ -232,7 +192,7 @@ private struct ActionBar: View {
 
     private var installedActionsMenu: some View {
         Menu {
-            if !package.isCask {
+            if package.isFormula {
                 if package.pinned {
                     Button("Unpin", systemImage: "pin.slash") {
                         Task { await brewService.unpin(package: package) }
@@ -249,7 +209,7 @@ private struct ActionBar: View {
             Button("Fetch", systemImage: "arrow.down.to.line") {
                 Task { await brewService.fetch(package: package) }
             }
-            if !package.isCask {
+            if package.isFormula {
                 Divider()
                 Button("Link", systemImage: "link") {
                     showLinkConfirm = true
@@ -292,11 +252,7 @@ private struct PackageInfoSection: View {
     let package: BrewPackage
 
     private var packageTypeName: String {
-        switch package.source {
-        case .formula: "Formula"
-        case .cask: "Cask"
-        case .mas: "Mac App Store"
-        }
+        package.source.brewyDisplayName
     }
 
     var body: some View {

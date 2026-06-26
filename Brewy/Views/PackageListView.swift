@@ -101,7 +101,7 @@ struct PackageListView: View {
                 emptyContent
             } else {
                 ForEach(packages) { package in
-                    HStack {
+                    HStack(spacing: 10) {
                         if isOutdatedCategory, isSelectingForUpgrade {
                             if !package.isMas {
                                 UpgradeSelectionToggle(
@@ -235,27 +235,23 @@ private struct PackageRow: View {
     var onUpgrade: ((BrewPackage) async -> Void)?
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
+            PackageSourceIcon(source: package.source, size: 28)
+
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(package.name)
                         .font(.body)
-                        .bold()
+                        .fontWeight(.semibold)
                     if showInstalledBadge, package.isInstalled {
-                        InstalledBadge()
-                    }
-                    if package.isFormula {
-                        FormulaBadge()
-                    } else if package.isCask {
-                        CaskBadge()
-                    } else if package.isMas {
-                        MasBadge()
-                    }
-                    if package.pinned {
-                        Image(systemName: "pin.fill")
+                        Image(systemName: "checkmark.circle.fill")
                             .font(.caption2)
-                            .foregroundStyle(.orange)
-                            .accessibilityLabel("Pinned")
+                            .foregroundStyle(.green)
+                            .accessibilityLabel("Installed")
+                    }
+                    PackageSourceBadge(source: package.source)
+                    if package.pinned {
+                        BrewyStatusBadge("pinned", systemImage: "pin.fill", color: .brewyAccent)
                     }
                 }
                 if !package.description.isEmpty {
@@ -273,7 +269,7 @@ private struct PackageRow: View {
                 } label: {
                     Image(systemName: "arrow.up.circle.fill")
                         .font(.title3)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(Color.brewyAccent)
                 }
                 .buttonStyle(.plain)
                 .help("Upgrade \(package.name)")
@@ -288,7 +284,7 @@ private struct PackageRow: View {
             if package.isOutdated {
                 Label(package.displayVersion, systemImage: "arrow.up.circle.fill")
                     .font(.caption)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Color.brewyAccent)
             } else if !package.version.isEmpty {
                 Text(package.version)
                     .font(.caption)
@@ -296,49 +292,5 @@ private struct PackageRow: View {
                     .monospacedDigit()
             }
         }
-    }
-}
-
-// MARK: - Badges
-
-private struct InstalledBadge: View {
-    var body: some View {
-        Image(systemName: "checkmark.circle.fill")
-            .font(.caption2)
-            .foregroundStyle(.green)
-            .accessibilityLabel("Installed")
-    }
-}
-
-private struct FormulaBadge: View {
-    var body: some View {
-        Text("formula")
-            .font(.system(size: 9, weight: .medium))
-            .foregroundStyle(.green)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background(.green.opacity(0.12), in: .capsule)
-    }
-}
-
-private struct CaskBadge: View {
-    var body: some View {
-        Text("cask")
-            .font(.system(size: 9, weight: .medium))
-            .foregroundStyle(.purple)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background(.purple.opacity(0.12), in: .capsule)
-    }
-}
-
-private struct MasBadge: View {
-    var body: some View {
-        Text("mas")
-            .font(.system(size: 9, weight: .medium))
-            .foregroundStyle(.pink)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background(.pink.opacity(0.12), in: .capsule)
     }
 }

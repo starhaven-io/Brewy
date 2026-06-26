@@ -65,10 +65,7 @@ private struct GroupRow: View {
                     .bold()
             }
             Spacer()
-            Text("\(brewService.packages(in: group).count)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
+            BrewyCountBadge(count: brewService.packages(in: group).count)
         }
         .padding(.vertical, 2)
     }
@@ -238,7 +235,7 @@ struct GroupDetailView: View {
                         Task { await brewService.upgradeSelected(packages: outdated) }
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(.orange)
+                    .tint(Color.brewyAccent)
                 }
             }
         }
@@ -252,37 +249,17 @@ private struct GroupPackageRow: View {
     let onNavigate: () -> Void
     let onRemove: () -> Void
 
-    private var iconName: String {
-        switch package.source {
-        case .formula: "terminal"
-        case .cask: "macwindow"
-        case .mas: "app.badge.fill"
-        }
-    }
-
-    private var iconColor: Color {
-        switch package.source {
-        case .formula: .green
-        case .cask: .purple
-        case .mas: .pink
-        }
-    }
-
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: iconName)
-                .font(.title3)
-                .foregroundStyle(iconColor)
-                .frame(width: 24)
+            PackageSourceIcon(source: package.source, size: 28)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(package.name)
                         .font(.body)
                         .fontWeight(.medium)
+                    PackageSourceBadge(source: package.source)
                     if package.isOutdated {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .font(.caption2)
-                            .foregroundStyle(.orange)
+                        BrewyStatusBadge("update", systemImage: "arrow.up.circle.fill", color: .brewyAccent)
                     }
                 }
                 if !package.version.isEmpty {
