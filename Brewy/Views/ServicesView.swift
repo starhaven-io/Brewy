@@ -80,6 +80,29 @@ struct ServicesView: View {
 
 // MARK: - Service Row
 
+private struct ServiceStatusPresentation {
+    let color: Color
+    let accessibilityLabel: String
+}
+
+extension BrewServiceItem {
+    fileprivate var statusPresentation: ServiceStatusPresentation {
+        if running || status == "started" {
+            return ServiceStatusPresentation(color: .green, accessibilityLabel: "Running")
+        }
+        if status == "error" || (exitCode ?? 0) != 0 {
+            return ServiceStatusPresentation(color: .red, accessibilityLabel: "Error")
+        }
+        if status == "scheduled" {
+            return ServiceStatusPresentation(color: .blue, accessibilityLabel: "Scheduled")
+        }
+        if loaded || status == "stopped" {
+            return ServiceStatusPresentation(color: .yellow, accessibilityLabel: "Stopped")
+        }
+        return ServiceStatusPresentation(color: .secondary, accessibilityLabel: "Unknown")
+    }
+}
+
 private struct ServiceRow: View {
     let service: BrewServiceItem
 
@@ -93,7 +116,7 @@ private struct ServiceRow: View {
                 HStack(spacing: 6) {
                     Text(service.statusLabel)
                         .font(.caption)
-                        .foregroundStyle(statusColor)
+                        .foregroundStyle(service.statusPresentation.color)
                     if let user = service.user {
                         Text("·")
                             .font(.caption)
@@ -118,26 +141,10 @@ private struct ServiceRow: View {
     }
 
     @ViewBuilder private var statusIndicator: some View {
-        Circle()
-            .fill(statusColor)
-            .frame(width: 8, height: 8)
-            .accessibilityLabel(statusAccessibilityLabel)
-    }
-
-    private var statusColor: Color {
-        if service.running || service.status == "started" { return .green }
-        if service.status == "error" || (service.exitCode ?? 0) != 0 { return .red }
-        if service.status == "scheduled" { return .blue }
-        if service.loaded || service.status == "stopped" { return .yellow }
-        return .secondary
-    }
-
-    private var statusAccessibilityLabel: String {
-        if service.running || service.status == "started" { return "Running" }
-        if service.status == "error" || (service.exitCode ?? 0) != 0 { return "Error" }
-        if service.status == "scheduled" { return "Scheduled" }
-        if service.loaded || service.status == "stopped" { return "Stopped" }
-        return "Unknown"
+        BrewyStatusDot(
+            color: service.statusPresentation.color,
+            label: service.statusPresentation.accessibilityLabel
+        )
     }
 }
 
@@ -184,12 +191,13 @@ struct ServiceDetailView: View {
         Section {
             LabeledContent("Status") {
                 HStack(spacing: 6) {
-                    Circle()
-                        .fill(statusColor)
-                        .frame(width: 8, height: 8)
+                    BrewyStatusDot(
+                        color: service.statusPresentation.color,
+                        label: service.statusPresentation.accessibilityLabel
+                    )
                         .accessibilityHidden(true)
                     Text(service.statusLabel)
-                        .foregroundStyle(statusColor)
+                        .foregroundStyle(service.statusPresentation.color)
                 }
             }
 
@@ -249,7 +257,7 @@ struct ServiceDetailView: View {
                     } label: {
                         Label("Restart", systemImage: "arrow.clockwise")
                     }
-                    .tint(.orange)
+                    .tint(Color.brewyAccent)
                 } else {
                     Button {
                         Task { await performAction { await brewService.startService(service.name, asSudo: useSudo) } }
@@ -315,16 +323,6 @@ struct ServiceDetailView: View {
         } header: {
             Label("Paths", systemImage: "folder")
         }
-    }
-
-    // MARK: - Helpers
-
-    private var statusColor: Color {
-        if service.running || service.status == "started" { return .green }
-        if service.status == "error" || (service.exitCode ?? 0) != 0 { return .red }
-        if service.status == "scheduled" { return .blue }
-        if service.loaded || service.status == "stopped" { return .yellow }
-        return .secondary
     }
 
     private func performAction(_ action: @MainActor () async -> CommandResult) async {

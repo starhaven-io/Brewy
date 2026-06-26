@@ -1,5 +1,143 @@
 import SwiftUI
 
+// MARK: - Shared Visual Primitives
+
+extension Color {
+    static var brewyAccent: Color { .orange }
+}
+
+extension PackageSource {
+    var brewyDisplayName: String {
+        switch self {
+        case .formula: "Formula"
+        case .cask: "Cask"
+        case .mas: "Mac App Store"
+        }
+    }
+
+    var brewyShortName: String {
+        switch self {
+        case .formula: "formula"
+        case .cask: "cask"
+        case .mas: "mas"
+        }
+    }
+
+    var brewySymbolName: String {
+        switch self {
+        case .formula: "terminal.fill"
+        case .cask: "macwindow"
+        case .mas: "app.badge.fill"
+        }
+    }
+
+    var brewyTint: Color {
+        switch self {
+        case .formula: .green
+        case .cask: .indigo
+        case .mas: .pink
+        }
+    }
+}
+
+enum PackageSourceBadgeStyle {
+    case short
+    case full
+}
+
+struct PackageSourceBadge: View {
+    let source: PackageSource
+    var style: PackageSourceBadgeStyle = .short
+
+    private var text: String {
+        switch style {
+        case .short: source.brewyShortName
+        case .full: source.brewyDisplayName
+        }
+    }
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 9, weight: .semibold))
+            .foregroundStyle(source.brewyTint)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 1)
+            .background(source.brewyTint.opacity(0.12), in: .capsule)
+            .accessibilityLabel(source.brewyDisplayName)
+    }
+}
+
+struct PackageSourceIcon: View {
+    let source: PackageSource
+    var size: CGFloat = 28
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: min(size * 0.28, 8), style: .continuous)
+                .fill(source.brewyTint.opacity(0.12))
+            Image(systemName: source.brewySymbolName)
+                .font(.system(size: max(size * 0.48, 12), weight: .semibold))
+                .foregroundStyle(source.brewyTint)
+        }
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)
+    }
+}
+
+struct BrewyStatusBadge: View {
+    let title: String
+    let systemImage: String?
+    let color: Color
+
+    init(_ title: String, systemImage: String? = nil, color: Color) {
+        self.title = title
+        self.systemImage = systemImage
+        self.color = color
+    }
+
+    var body: some View {
+        HStack(spacing: 3) {
+            if let systemImage {
+                Image(systemName: systemImage)
+                    .font(.caption2)
+            }
+            Text(title)
+        }
+        .font(.system(size: 9, weight: .semibold))
+        .foregroundStyle(color)
+        .padding(.horizontal, 5)
+        .padding(.vertical, 1)
+        .background(color.opacity(0.12), in: .capsule)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+struct BrewyCountBadge: View {
+    let count: Int
+
+    var body: some View {
+        Text("\(count)")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .monospacedDigit()
+            .padding(.horizontal, 6)
+            .padding(.vertical, 1)
+            .background(.quaternary.opacity(0.6), in: .capsule)
+    }
+}
+
+struct BrewyStatusDot: View {
+    let color: Color
+    let label: String
+
+    var body: some View {
+        Circle()
+            .fill(color)
+            .frame(width: 8, height: 8)
+            .accessibilityLabel(label)
+    }
+}
+
 // MARK: - Flow Layout
 
 struct FlowLayout: Layout {

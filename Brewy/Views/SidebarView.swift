@@ -45,10 +45,7 @@ private struct SidebarRow: View {
                 Text(category.rawValue)
                 Spacer()
                 if let count {
-                    Text("\(count)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
+                    BrewyCountBadge(count: count)
                 }
             }
         } icon: {
@@ -74,9 +71,9 @@ private struct SidebarRow: View {
         switch category {
         case .installed: .blue
         case .formulae: .green
-        case .casks: .purple
+        case .casks: .indigo
         case .masApps: .pink
-        case .outdated: .orange
+        case .outdated: .brewyAccent
         case .pinned: .red
         case .leaves: .mint
         case .taps: .teal
@@ -84,7 +81,7 @@ private struct SidebarRow: View {
         case .groups: .brown
         case .history: .secondary
         case .discover: .cyan
-        case .maintenance: .indigo
+        case .maintenance: .purple
         }
     }
 }

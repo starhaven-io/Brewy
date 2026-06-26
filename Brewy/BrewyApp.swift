@@ -34,8 +34,11 @@ struct BrewyApp: App {
             ContentView()
                 .environment(brewService)
                 .preferredColorScheme(preferredColorScheme ?? systemColorScheme)
+                .frame(minWidth: 920, minHeight: 620)
         }
         .windowStyle(.automatic)
+        .windowToolbarStyle(.unified)
+        .windowResizability(.contentMinSize)
         .defaultSize(width: 960, height: 640)
         .commands {
             CommandGroup(after: .appInfo) {
@@ -77,7 +80,7 @@ struct BrewyApp: App {
             let count = brewService.outdatedPackages.count
             Label(
                 count > 0 ? "\(count)" : "Brewy",
-                systemImage: count > 0 ? "mug.fill" : "mug"
+                systemImage: count > 0 ? "shippingbox.fill" : "shippingbox"
             )
         }
     }

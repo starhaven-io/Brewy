@@ -271,7 +271,7 @@ private struct NewItemRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(item.name).font(.body)
-                    sourceBadge
+                    PackageSourceBadge(source: item.source)
                 }
                 if let desc = item.description {
                     Text(desc)
@@ -298,15 +298,5 @@ private struct NewItemRow: View {
             }
         }
         .padding(.vertical, 2)
-    }
-
-    @ViewBuilder private var sourceBadge: some View {
-        let isCask = item.source == .cask
-        Text(isCask ? "cask" : "formula")
-            .font(.system(size: 9, weight: .medium))
-            .foregroundStyle(isCask ? .purple : .green)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background((isCask ? Color.purple : Color.green).opacity(0.12), in: .capsule)
     }
 }

@@ -75,32 +75,21 @@ private struct DiscoverRow: View {
     var onInstall: ((BrewPackage) async -> Void)?
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
+            PackageSourceIcon(source: package.source, size: 28)
+
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(package.name)
                         .font(.body)
-                        .bold()
+                        .fontWeight(.semibold)
                     if package.isInstalled {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.caption2)
                             .foregroundStyle(.green)
+                            .accessibilityLabel("Installed")
                     }
-                    if package.isCask {
-                        Text("cask")
-                            .font(.system(size: 9, weight: .medium))
-                            .foregroundStyle(.purple)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 1)
-                            .background(.purple.opacity(0.12), in: .capsule)
-                    } else {
-                        Text("formula")
-                            .font(.system(size: 9, weight: .medium))
-                            .foregroundStyle(.green)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 1)
-                            .background(.green.opacity(0.12), in: .capsule)
-                    }
+                    PackageSourceBadge(source: package.source)
                 }
                 if !package.description.isEmpty {
                     Text(package.description)
