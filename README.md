@@ -75,6 +75,10 @@ Destructive maintenance operations show Homebrew dry-run previews before they ca
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the development setup, local checks, and commit conventions.
 
+## Acknowledgements
+
+Thanks to [@bevanjkay](https://github.com/bevanjkay) for the classic app icon idea.
+
 ## License
 
 This project is licensed under the [GNU Affero General Public License v3.0](LICENSE) (`AGPL-3.0-only`).

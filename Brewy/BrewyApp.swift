@@ -13,6 +13,8 @@ struct BrewyApp: App {
 
     @AppStorage("appTheme")
     private var appTheme = AppTheme.system.rawValue
+    @AppStorage("appIcon")
+    private var appIcon = AppIconSelection.current.rawValue
 
     // HACK: there is a known color scheme bug in SwiftUI where passing `nil` to `.preferredColorScheme`
     // doesn't change the color of some elements:
@@ -34,6 +36,9 @@ struct BrewyApp: App {
             ContentView()
                 .environment(brewService)
                 .preferredColorScheme(preferredColorScheme ?? systemColorScheme)
+                .onChange(of: appIcon, initial: true) {
+                    AppIconSelection.apply(rawValue: appIcon)
+                }
                 .frame(minWidth: 920, minHeight: 620)
         }
         .windowStyle(.automatic)
