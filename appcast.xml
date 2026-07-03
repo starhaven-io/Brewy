@@ -3,20 +3,16 @@
     <channel>
         <title>Brewy</title>
         <item>
-            <title>0.14.0</title>
-            <pubDate>Fri, 26 Jun 2026 06:46:13 +0000</pubDate>
-            <sparkle:version>20</sparkle:version>
-            <sparkle:shortVersionString>0.14.0</sparkle:shortVersionString>
+            <title>0.15.0</title>
+            <pubDate>Fri, 03 Jul 2026 00:28:04 +0000</pubDate>
+            <sparkle:version>21</sparkle:version>
+            <sparkle:shortVersionString>0.15.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
             <description><![CDATA[<h2>What&#x27;s New</h2>
 <ul>
-  <li>visual polish, new app icon, and docs refresh</li>
-</ul>
-<h2>Fixes</h2>
-<ul>
-  <li>use a manual EnvironmentKey for selectPackage</li>
+  <li>add app icon switcher</li>
 </ul>]]></description>
-            <enclosure url="https://github.com/starhaven-io/Brewy/releases/download/0.14.0/Brewy-0.14.0.zip" length="3717633" type="application/octet-stream" sparkle:edSignature="Y//O/E19rOeC0rE2IleMx4kcA2AwMnfTFND7eBFb37qrw2fYS/KIc1Qu5YpdvD2mf3iUOrKe1Rn0pTkb2WfmCw=="/>
+            <enclosure url="https://github.com/starhaven-io/Brewy/releases/download/0.15.0/Brewy-0.15.0.zip" length="4558726" type="application/octet-stream" sparkle:edSignature="bPUsW5wIYX7T83tVCIiE4v0NuMxFD6eXdEwZ5DnvmWF2KYlvNUUroqejywk57S3jLYQawOhesGjXamxCZKj0AQ=="/>
         </item>
     </channel>
 </rss>
