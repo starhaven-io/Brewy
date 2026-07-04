@@ -5,6 +5,7 @@ struct TapListView: View {
     private var brewService
     @Binding var selectedTap: BrewTap?
     @State private var showAddSheet = false
+    @State private var tapPendingRemoval: BrewTap?
 
     var body: some View {
         List(selection: $selectedTap) {
@@ -20,9 +21,7 @@ struct TapListView: View {
                         .tag(tap)
                         .contextMenu {
                             Button("Remove Tap", role: .destructive) {
-                                let name = tap.name
-                                if selectedTap?.name == name { selectedTap = nil }
-                                Task { await brewService.removeTap(name: name) }
+                                tapPendingRemoval = tap
                             }
                         }
                 }
@@ -41,6 +40,27 @@ struct TapListView: View {
         }
         .sheet(isPresented: $showAddSheet) {
             AddTapSheet()
+        }
+        .confirmationDialog(
+            "Remove Tap?",
+            isPresented: Binding(
+                get: { tapPendingRemoval != nil },
+                set: { if !$0 { tapPendingRemoval = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: tapPendingRemoval
+        ) { tap in
+            Button("Remove Tap", role: .destructive) {
+                let name = tap.name
+                if selectedTap?.name == name { selectedTap = nil }
+                tapPendingRemoval = nil
+                Task { await brewService.removeTap(name: name) }
+            }
+            Button("Cancel", role: .cancel) {
+                tapPendingRemoval = nil
+            }
+        } message: { _ in
+            Text("This removes the tap repository from your Homebrew installation.")
         }
         .overlay {
             if brewService.isLoading, brewService.installedTaps.isEmpty {
@@ -211,6 +231,7 @@ struct TapDetailView: View {
     @Environment(BrewService.self)
     private var brewService
     let tap: BrewTap
+    @State private var showRemoveConfirmation = false
 
     private var installedFormulae: [BrewPackage] {
         let names = Set(tap.formulaNames)
@@ -224,6 +245,23 @@ struct TapDetailView: View {
 
     private var healthStatus: TapHealthStatus? {
         brewService.tapHealthStatuses[tap.name]
+    }
+
+    private var installedPackageCount: Int {
+        installedFormulae.count + installedCasks.count
+    }
+
+    private var removeConfirmationMessage: String {
+        if installedPackageCount > 0 {
+            let packageLabel = installedPackageCount == 1 ? "package" : "packages"
+            let verb = installedPackageCount == 1 ? "is" : "are"
+            let pronoun = installedPackageCount == 1 ? "that package" : "those packages"
+            return """
+            Homebrew will refuse to remove this tap while \(installedPackageCount) \(packageLabel) \
+            from it \(verb) installed. Uninstall \(pronoun) first.
+            """
+        }
+        return "This removes the tap repository from your Homebrew installation."
     }
 
     var body: some View {
@@ -269,12 +307,20 @@ struct TapDetailView: View {
 
             Section {
                 Button("Remove Tap", role: .destructive) {
-                    Task { await brewService.removeTap(name: tap.name) }
+                    showRemoveConfirmation = true
                 }
             }
         }
         .formStyle(.grouped)
         .navigationTitle(tap.name)
+        .confirmationDialog("Remove \(tap.name)?", isPresented: $showRemoveConfirmation, titleVisibility: .visible) {
+            Button("Remove Tap", role: .destructive) {
+                Task { await brewService.removeTap(name: tap.name) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(removeConfirmationMessage)
+        }
     }
 }
 
@@ -286,6 +332,7 @@ private struct TapHealthWarningSection: View {
     let tap: BrewTap
     let healthStatus: TapHealthStatus
     @State private var showMigrateConfirmation = false
+    @State private var showRemoveConfirmation = false
 
     private var movedToTapName: String? {
         guard let movedTo = healthStatus.movedTo else { return nil }
@@ -364,7 +411,15 @@ private struct TapHealthWarningSection: View {
             }
 
             Button("Remove Tap", role: .destructive) {
-                Task { await brewService.removeTap(name: tap.name) }
+                showRemoveConfirmation = true
+            }
+            .confirmationDialog("Remove \(tap.name)?", isPresented: $showRemoveConfirmation, titleVisibility: .visible) {
+                Button("Remove Tap", role: .destructive) {
+                    Task { await brewService.removeTap(name: tap.name) }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This removes the tap repository from your Homebrew installation.")
             }
         }
     }

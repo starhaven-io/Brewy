@@ -6,6 +6,7 @@ struct ServicesView: View {
     @State private var services: [BrewServiceItem] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var showCleanupConfirmation = false
     @Binding var selectedService: BrewServiceItem?
     var refreshTrigger: Int
 
@@ -33,7 +34,7 @@ struct ServicesView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
-                    Task { await cleanupServices() }
+                    showCleanupConfirmation = true
                 } label: {
                     Label("Cleanup", systemImage: "trash")
                 }
@@ -52,6 +53,18 @@ struct ServicesView: View {
             Button("OK") { errorMessage = nil }
         } message: { message in
             Text(message)
+        }
+        .confirmationDialog(
+            "Clean Up Stale Services?",
+            isPresented: $showCleanupConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Cleanup", role: .destructive) {
+                Task { await cleanupServices() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will remove stale Homebrew service files.")
         }
     }
 

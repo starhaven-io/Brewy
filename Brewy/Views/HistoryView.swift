@@ -4,6 +4,7 @@ struct HistoryView: View {
     @Environment(BrewService.self)
     private var brewService
     @Binding var selectedEntry: ActionHistoryEntry?
+    @State private var showClearConfirmation = false
 
     var body: some View {
         List(selection: $selectedEntry) {
@@ -25,12 +26,20 @@ struct HistoryView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button("Clear History", systemImage: "trash") {
-                    selectedEntry = nil
-                    brewService.clearHistory()
+                    showClearConfirmation = true
                 }
                 .disabled(brewService.actionHistory.isEmpty)
                 .help("Clear all history")
             }
+        }
+        .confirmationDialog("Clear History?", isPresented: $showClearConfirmation, titleVisibility: .visible) {
+            Button("Clear History", role: .destructive) {
+                selectedEntry = nil
+                brewService.clearHistory()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will permanently clear Brewy's local action history.")
         }
     }
 }

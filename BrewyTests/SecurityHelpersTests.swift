@@ -61,3 +61,52 @@ struct ReleaseNotesHTMLTests {
         #expect(stripped.range(of: "src=", options: .caseInsensitive) == nil)
     }
 }
+
+@Suite("BrewService Safety Guardrails")
+@MainActor
+struct BrewServiceSafetyGuardrailTests {
+
+    @Test("search inserts option separator before query")
+    func searchUsesOptionSeparator() async {
+        let mock = MockCommandRunner()
+        let (service, _) = makeService(mock: mock)
+        mock.setResult(for: ["search", "--formula", "--", "--eval-all"], output: "safe-result")
+        mock.setResult(for: ["search", "--cask", "--", "--eval-all"], output: "")
+
+        await service.search(query: "--eval-all")
+
+        #expect(mock.executedCommands.contains(["search", "--formula", "--", "--eval-all"]))
+        #expect(mock.executedCommands.contains(["search", "--cask", "--", "--eval-all"]))
+    }
+
+    @Test("upgradeSelected excludes mas apps and reports App Store updates")
+    func upgradeSelectedReportsMasApps() async {
+        let mock = MockCommandRunner()
+        let (service, _) = makeService(mock: mock)
+        setupRefreshMock(mock)
+
+        let formula = makePackage(name: "wget", source: .formula)
+        let masApp = makePackage(name: "Xcode", source: .mas)
+        mock.setResult(for: ["upgrade", "wget"], output: "Upgraded wget")
+
+        await service.upgradeSelected(packages: [formula, masApp])
+
+        #expect(mock.executedCommands.contains(["upgrade", "wget"]))
+        #expect(!mock.executedCommands.contains { $0.contains("Xcode") })
+        #expect(service.lastError?.localizedDescription.contains("Mac App Store") == true)
+    }
+
+    @Test("upgradeAll reports outdated mas apps separately")
+    func upgradeAllReportsMasApps() async {
+        let mock = MockCommandRunner()
+        let (service, _) = makeService(mock: mock)
+        setupRefreshMock(mock)
+        service.outdatedPackages = [makePackage(name: "Xcode", source: .mas, isOutdated: true)]
+        mock.setResult(for: ["upgrade"], output: "All upgraded")
+
+        await service.upgradeAll()
+
+        #expect(mock.executedCommands.contains(["upgrade"]))
+        #expect(service.lastError?.localizedDescription.contains("Mac App Store") == true)
+    }
+}

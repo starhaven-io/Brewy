@@ -20,7 +20,11 @@ extension BrewService {
     }
 
     func upgradeAll() async {
+        let masOutdatedCount = outdatedPackages.filter(\.isMas).count
         await performBrewAction(["upgrade"], refreshAfter: true)
+        if masOutdatedCount > 0, lastError == nil {
+            lastError = .commandFailed(command: "upgrade", output: Self.masUpgradeMessage(count: masOutdatedCount))
+        }
     }
 
     func pin(package: BrewPackage) async { await performAction("pin", package: package) }
@@ -137,5 +141,12 @@ extension BrewService {
             infoCache[package.id] = result.output
         }
         return result.output
+    }
+
+    static func masUpgradeMessage(count: Int) -> String {
+        if count == 1 {
+            return "1 Mac App Store app must be updated in the App Store."
+        }
+        return "\(count) Mac App Store apps must be updated in the App Store."
     }
 }
