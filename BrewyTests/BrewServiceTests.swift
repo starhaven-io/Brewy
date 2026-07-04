@@ -293,6 +293,30 @@ struct BrewErrorTests {
         let error = BrewError.commandFailed(command: "install wget", output: "Error: wget already installed")
         #expect(error.errorDescription == "Error: wget already installed")
     }
+
+    @Test("commandFailed reports command when output is empty")
+    func commandFailedEmptyOutput() {
+        let error = BrewError.commandFailed(command: "install wget", output: " \n ")
+
+        #expect(error.errorDescription == "brew install wget failed.")
+    }
+
+    @Test("commandFailed summarizes the last six output lines")
+    func commandFailedUsesOutputTail() {
+        let output = (1...8).map { "line \($0)" }.joined(separator: "\n")
+        let error = BrewError.commandFailed(command: "install wget", output: output)
+
+        #expect(error.errorDescription == "line 3\nline 4\nline 5\nline 6\nline 7\nline 8")
+    }
+
+    @Test("commandFailed truncates long output tails")
+    func commandFailedTruncatesLongOutput() {
+        let longLine = String(repeating: "x", count: 900)
+        let error = BrewError.commandFailed(command: "install wget", output: longLine)
+
+        #expect(error.errorDescription?.first == "…")
+        #expect(error.errorDescription?.count == 801)
+    }
 }
 
 // MARK: - CommandRunner Tests

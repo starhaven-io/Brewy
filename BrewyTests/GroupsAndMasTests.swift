@@ -239,6 +239,17 @@ struct MasOutputParsingTests {
         #expect(packages.isEmpty)
     }
 
+    @Test("parseMasOutdated uses the same version when no arrow is present")
+    func parseMasOutdatedWithoutArrow() {
+        let output = "497799835 Xcode (16.0)\n"
+        let packages = MasParser.parseOutdated(output)
+
+        #expect(packages.count == 1)
+        #expect(packages[0].installedVersion == "16.0")
+        #expect(packages[0].latestVersion == "16.0")
+        #expect(packages[0].version == "16.0")
+    }
+
     @Test("parseMasList generates App Store homepage URLs")
     func parseMasListHomepage() {
         let output = "497799835 Xcode (15.4)\n"
