@@ -6,6 +6,13 @@
 # (sets core.hooksPath to this directory).
 
 msg_file="$1"
+subject=$(sed -n '1p' "$msg_file")
+
+case "$subject" in
+    fixup!\ *|squash!\ *|Merge\ *)
+        exit 0
+        ;;
+esac
 
 if ! grep -qE '^Signed-off-by: .+ <.+@.+>' "$msg_file"; then
     echo "commit-msg hook: missing DCO sign-off." >&2
