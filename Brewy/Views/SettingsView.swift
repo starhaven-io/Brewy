@@ -19,6 +19,8 @@ enum AppTheme: String, CaseIterable, Identifiable {
 struct SettingsView: View {
     @AppStorage("brewPath")
     private var brewPath = "/opt/homebrew/bin/brew"
+    @AppStorage("brewfilePath")
+    private var brewfilePath = ""
     @AppStorage("autoRefreshInterval")
     private var autoRefreshInterval = 0
     @AppStorage("showCasksByDefault")
@@ -32,6 +34,10 @@ struct SettingsView: View {
         FileManager.default.isExecutableFile(atPath: brewPath)
     }
 
+    private var isBrewfilePathValid: Bool {
+        brewfilePath.isEmpty || BrewfileDiscovery.resolve(overridePath: brewfilePath) != nil
+    }
+
     var body: some View {
         Form {
             TextField("Homebrew Path:", text: $brewPath)
@@ -41,6 +47,8 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.red)
             }
+
+            brewfileOverrideSetting
 
             Picker("Auto-refresh:", selection: $autoRefreshInterval) {
                 Text("Off").tag(0)
@@ -83,7 +91,38 @@ struct SettingsView: View {
         .onChange(of: appIcon, initial: true) {
             AppIconSelection.apply(rawValue: appIcon)
         }
-        .frame(width: 500, height: 330)
+        .frame(width: 560, height: 380)
+    }
+
+    private var brewfileOverrideSetting: some View {
+        Group {
+            LabeledContent("Brewfile:") {
+                HStack(spacing: 8) {
+                    TextField("Auto-detect", text: $brewfilePath)
+                        .textFieldStyle(.roundedBorder)
+                    Button("Choose", systemImage: "folder") {
+                        chooseBrewfile()
+                    }
+                    .help("Choose a Brewfile")
+                    Button("Clear", systemImage: "xmark.circle") {
+                        brewfilePath = ""
+                    }
+                    .help("Use auto-discovery")
+                    .disabled(brewfilePath.isEmpty)
+                }
+            }
+            if !isBrewfilePathValid {
+                Text("No Brewfile found at this path.")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+        }
+    }
+
+    @MainActor
+    private func chooseBrewfile() {
+        guard let path = BrewfilePicker.choosePath() else { return }
+        brewfilePath = path
     }
 }
 

@@ -60,6 +60,9 @@ struct ContentView: View {
             } else if selectedCategory == .groups {
                 GroupsView(selectedGroup: $selectedGroupItem)
                     .navigationSplitViewColumnWidth(min: 300, ideal: 350, max: 500)
+            } else if selectedCategory == .bundle {
+                BundleView()
+                    .navigationSplitViewColumnWidth(min: 400, ideal: 600, max: .infinity)
             } else if selectedCategory == .history {
                 HistoryView(selectedEntry: $selectedHistoryEntry)
                     .navigationSplitViewColumnWidth(min: 300, ideal: 350, max: 500)
@@ -100,7 +103,9 @@ struct ContentView: View {
                 lastSeenVersion = currentVersion
                 showWhatsNew = true
             }
+            async let bundleRefresh: Void = brewService.refreshBundle()
             await brewService.refresh()
+            await bundleRefresh
         }
         .task(id: autoRefreshInterval) {
             guard autoRefreshInterval > 0 else { return }
@@ -146,7 +151,8 @@ struct ContentView: View {
     }
 
     @ViewBuilder private var detailView: some View {
-        if selectedCategory == .maintenance || (selectedCategory == .masApps && !brewService.isMasAvailable) {
+        if selectedCategory == .maintenance || selectedCategory == .bundle
+            || (selectedCategory == .masApps && !brewService.isMasAvailable) {
             Color.clear
                 .navigationSplitViewColumnWidth(0)
         } else if selectedCategory == .services, let service = selectedServiceItem {
