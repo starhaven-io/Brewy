@@ -60,6 +60,7 @@ private struct SidebarRow: View {
         case .taps: brewService.installedTaps.count
         case .services: nil
         case .groups: brewService.packageGroups.isEmpty ? nil : brewService.packageGroups.count
+        case .bundle: brewService.bundleEntryCount
         case .history: brewService.actionHistory.isEmpty ? nil : brewService.actionHistory.count
         case .discover: nil
         case .maintenance: nil
@@ -79,6 +80,7 @@ private struct SidebarRow: View {
         case .taps: .teal
         case .services: .gray
         case .groups: .brown
+        case .bundle: .brewyAccent
         case .history: .secondary
         case .discover: .cyan
         case .maintenance: .purple

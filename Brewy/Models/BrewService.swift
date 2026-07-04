@@ -42,6 +42,9 @@ final class BrewService {
     @AppStorage("brewPath")
     @ObservationIgnored var customBrewPath = "/opt/homebrew/bin/brew"
 
+    @AppStorage("brewfilePath")
+    @ObservationIgnored var customBrewfilePath = ""
+
     init(commandRunner: CommandRunning = DefaultCommandRunner()) {
         self.commandRunner = commandRunner
     }
@@ -78,6 +81,10 @@ final class BrewService {
     var packageGroups: [PackageGroup] = []
     var actionHistory: [ActionHistoryEntry] = []
     var lastUpdateResult: BrewUpdateResult?
+    var brewfileURL: URL?
+    var bundleEntries: [BrewBundleEntry] = []
+    var bundleCheckStatus: BrewBundleCheckStatus = .unknown
+    var isBundleLoading = false
 
     var tapsLoaded = false
     private var isRefreshing = false
@@ -137,28 +144,6 @@ final class BrewService {
 
     func dependents(of name: String) -> [BrewPackage] {
         reverseDependencies[name] ?? []
-    }
-
-    func packages(for category: SidebarCategory) -> [BrewPackage] {
-        switch category {
-        case .installed: allInstalled
-        case .formulae: installedFormulae
-        case .casks: installedCasks
-        case .masApps: installedMasApps
-        case .outdated: outdatedPackages
-        case .pinned: pinnedPackages
-        case .leaves: leavesPackages
-        case .taps: []
-        case .services: []
-        case .groups: []
-        case .history: []
-        case .discover: searchResults
-        case .maintenance: []
-        }
-    }
-
-    var homebrewOutdatedPackages: [BrewPackage] {
-        outdatedPackages.filter { !$0.isMas }
     }
 
     // MARK: - Cache
@@ -316,6 +301,7 @@ final class BrewService {
 
         installedTaps = fetchedTaps
         tapsLoaded = true
+        updateBundleEntryStatuses()
 
         let masCount = fetchedMasApps.count
         let outdatedCount = allOutdated.count
@@ -386,5 +372,33 @@ final class BrewService {
     func runBrewCommand(_ arguments: [String]) async -> CommandResult {
         let brewPath = CommandRunner.resolvedBrewPath(preferred: customBrewPath)
         return await commandRunner.run(arguments, brewPath: brewPath)
+    }
+}
+
+// MARK: - Package Category Queries
+
+extension BrewService {
+
+    func packages(for category: SidebarCategory) -> [BrewPackage] {
+        switch category {
+        case .installed: allInstalled
+        case .formulae: installedFormulae
+        case .casks: installedCasks
+        case .masApps: installedMasApps
+        case .outdated: outdatedPackages
+        case .pinned: pinnedPackages
+        case .leaves: leavesPackages
+        case .taps: []
+        case .services: []
+        case .groups: []
+        case .bundle: []
+        case .history: []
+        case .discover: searchResults
+        case .maintenance: []
+        }
+    }
+
+    var homebrewOutdatedPackages: [BrewPackage] {
+        outdatedPackages.filter { !$0.isMas }
     }
 }

@@ -124,6 +124,7 @@ enum SidebarCategory: String, CaseIterable, Identifiable {
     case taps = "Taps"
     case services = "Services"
     case groups = "Groups"
+    case bundle = "Bundle"
     case history = "History"
     case discover = "Discover"
     case maintenance = "Maintenance"
@@ -142,6 +143,7 @@ enum SidebarCategory: String, CaseIterable, Identifiable {
         case .taps: "spigot.fill"
         case .services: "gearshape.2"
         case .groups: "folder.fill"
+        case .bundle: "doc.text.fill"
         case .history: "clock.arrow.circlepath"
         case .discover: "magnifyingglass"
         case .maintenance: "wrench.and.screwdriver.fill"
@@ -151,7 +153,7 @@ enum SidebarCategory: String, CaseIterable, Identifiable {
     static let packageCategories: [Self] = [
         .installed, .formulae, .casks, .masApps, .outdated, .pinned, .leaves
     ]
-    static let managementCategories: [Self] = [.taps, .services, .groups]
+    static let managementCategories: [Self] = [.taps, .services, .groups, .bundle]
     static let toolCategories: [Self] = [.history, .discover, .maintenance]
 }
 
