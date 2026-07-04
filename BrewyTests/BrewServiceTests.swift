@@ -347,6 +347,27 @@ struct CommandRunnerTests {
         let path = CommandRunner.resolvedPrivilegedBrewPath(preferred: "/bin/sh")
         #expect(path == nil)
     }
+
+    @Test("resolvedPrivilegedBrewPath accepts symlink to standard executable")
+    func privilegedPathAcceptsSymlinkToStandardExecutable() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("brewy-command-runner-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let standardBrew = directory.appendingPathComponent("brew")
+        let alias = directory.appendingPathComponent("custom-brew")
+        try Data("#!/bin/sh\nexit 0\n".utf8).write(to: standardBrew)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: standardBrew.path)
+        try FileManager.default.createSymbolicLink(at: alias, withDestinationURL: standardBrew)
+
+        let path = CommandRunner.resolvedPrivilegedBrewPath(
+            preferred: alias.path,
+            standardPaths: [standardBrew.path]
+        )
+
+        #expect(path == standardBrew.path)
+    }
 }
 
 // MARK: - BrewService Batching Tests

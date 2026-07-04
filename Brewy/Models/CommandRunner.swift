@@ -93,11 +93,14 @@ enum CommandRunner {
         return preferred
     }
 
-    static func resolvedPrivilegedBrewPath(preferred: String) -> String? {
+    static func resolvedPrivilegedBrewPath(
+        preferred: String,
+        standardPaths: [String] = standardBrewPaths
+    ) -> String? {
         if FileManager.default.isExecutableFile(atPath: preferred) {
-            return standardBrewPath(matching: preferred)
+            return standardBrewPath(matching: preferred, standardPaths: standardPaths)
         }
-        return standardBrewPaths.first { FileManager.default.isExecutableFile(atPath: $0) }
+        return standardPaths.first { FileManager.default.isExecutableFile(atPath: $0) }
     }
 
     static func run(
@@ -164,9 +167,9 @@ enum CommandRunner {
         return env
     }
 
-    private static func standardBrewPath(matching path: String) -> String? {
+    private static func standardBrewPath(matching path: String, standardPaths: [String]) -> String? {
         let resolvedPath = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
-        return standardBrewPaths.first { standardPath in
+        return standardPaths.first { standardPath in
             FileManager.default.isExecutableFile(atPath: standardPath)
                 && URL(fileURLWithPath: standardPath).resolvingSymlinksInPath().path == resolvedPath
         }

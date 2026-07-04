@@ -151,7 +151,7 @@ enum TapHealthChecker {
         }
     }
 
-    private static func mapResponse(
+    static func mapResponse(
         statusCode: Int,
         data: Data,
         response: HTTPURLResponse,
