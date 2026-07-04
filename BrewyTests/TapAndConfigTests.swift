@@ -53,6 +53,93 @@ struct TapHealthStatusTests {
     }
 }
 
+// MARK: - TapHealthChecker Tests
+
+@Suite("TapHealthChecker")
+struct TapHealthCheckerTests {
+
+    @Test("mapResponse maps archived repository response")
+    func mapArchivedResponse() async throws {
+        let status = await TapHealthChecker.mapResponse(
+            statusCode: 200,
+            data: Data(#"{"archived":true}"#.utf8),
+            response: try response(statusCode: 200),
+            owner: "owner",
+            repo: "repo"
+        )
+
+        #expect(status.status == .archived)
+        #expect(status.movedTo == nil)
+    }
+
+    @Test("mapResponse maps moved repository response")
+    func mapMovedResponse() async throws {
+        let movedTo = "https://github.com/new-owner/homebrew-new"
+        let status = await TapHealthChecker.mapResponse(
+            statusCode: 301,
+            data: Data(),
+            response: try response(statusCode: 301, headers: ["Location": movedTo]),
+            owner: "owner",
+            repo: "repo"
+        )
+
+        #expect(status.status == .moved)
+        #expect(status.movedTo == movedTo)
+    }
+
+    @Test("mapResponse maps missing repository response")
+    func mapMissingResponse() async throws {
+        let status = await TapHealthChecker.mapResponse(
+            statusCode: 404,
+            data: Data(),
+            response: try response(statusCode: 404),
+            owner: "owner",
+            repo: "repo"
+        )
+
+        #expect(status.status == .notFound)
+        #expect(status.movedTo == nil)
+    }
+
+    @Test("mapResponse maps rate limit response to unknown")
+    func mapRateLimitResponse() async throws {
+        let status = await TapHealthChecker.mapResponse(
+            statusCode: 403,
+            data: Data(),
+            response: try response(statusCode: 403),
+            owner: "owner",
+            repo: "repo"
+        )
+
+        #expect(status.status == .unknown)
+        #expect(status.movedTo == nil)
+    }
+
+    @Test("checkHealth prunes statuses for removed taps")
+    func checkHealthPrunesRemovedTaps() async {
+        let existing = [
+            "old/tap": TapHealthStatus(status: .healthy, movedTo: nil, lastChecked: Date())
+        ]
+
+        let statuses = await TapHealthChecker.checkHealth(taps: [], existing: existing)
+
+        #expect(statuses.isEmpty)
+    }
+
+    private func response(
+        statusCode: Int,
+        headers: [String: String]? = nil
+    ) throws -> HTTPURLResponse {
+        let url = try #require(URL(string: "https://api.github.com/repos/owner/repo"))
+        return try #require(HTTPURLResponse(
+            url: url,
+            statusCode: statusCode,
+            httpVersion: nil,
+            headerFields: headers
+        ))
+    }
+}
+
 // MARK: - parseGitHubRepo Tests
 
 @Suite("parseGitHubRepo")
