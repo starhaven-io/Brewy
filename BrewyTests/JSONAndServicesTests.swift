@@ -163,4 +163,43 @@ struct ServicesIntegrationTests {
         #expect(services.count == 1)
         #expect(services[0].name == "redis")
     }
+
+    @Test("fetchServices returns empty when both service commands fail")
+    func fetchServicesDoubleFailure() async {
+        let mock = MockCommandRunner()
+        let service = BrewService(commandRunner: mock)
+        mock.setResult(for: ["services", "info", "--all", "--json"], output: "info failed", success: false)
+        mock.setResult(for: ["services", "list", "--json"], output: "list failed", success: false)
+
+        let services = await service.fetchServices()
+
+        #expect(services.isEmpty)
+        #expect(mock.executedCommands.contains(["services", "info", "--all", "--json"]))
+        #expect(mock.executedCommands.contains(["services", "list", "--json"]))
+    }
+
+    @Test("cleanupServices runs brew services cleanup")
+    func cleanupServicesRunsCommand() async {
+        let mock = MockCommandRunner()
+        let service = BrewService(commandRunner: mock)
+        mock.setResult(for: ["services", "cleanup"], output: "Cleaned")
+
+        let result = await service.cleanupServices()
+
+        #expect(result.success)
+        #expect(result.output == "Cleaned")
+        #expect(mock.executedCommands.contains(["services", "cleanup"]))
+    }
+
+    @Test("cleanupServices preserves failure result")
+    func cleanupServicesPreservesFailure() async {
+        let mock = MockCommandRunner()
+        let service = BrewService(commandRunner: mock)
+        mock.setResult(for: ["services", "cleanup"], output: "cleanup failed", success: false)
+
+        let result = await service.cleanupServices()
+
+        #expect(!result.success)
+        #expect(result.output == "cleanup failed")
+    }
 }
