@@ -99,9 +99,15 @@ check:
     fi
     if command -v periphery &>/dev/null; then
         # Match CI: tolerate periphery:ignore comments CI sees as redundant (SwiftUI $-binding refs).
-        run periphery scan --strict --disable-update-check --no-superfluous-ignore-comments
+        run periphery scan --strict --disable-update-check --no-superfluous-ignore-comments \
+            -- CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO EXCLUDED_ARCHS=x86_64
     else
         skip periphery periphery periphery
+    fi
+    if command -v lychee &>/dev/null; then
+        run lychee --config lychee.toml README.md CONTRIBUTING.md
+    else
+        skip lychee lychee lychee
     fi
     run xcodebuild test \
         -project Brewy.xcodeproj \

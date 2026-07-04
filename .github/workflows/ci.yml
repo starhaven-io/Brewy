@@ -55,9 +55,24 @@ jobs:
           # one on the same SHA, bypassing tests, lint, CodeQL and the rest.
           CHANGED=$(git diff --name-only "${BASE_SHA}...HEAD")
 
+          NEEDS_LINT=0
+          NEEDS_TESTS=0
+
           # Swift or CI workflow changes: lint + sanitizer tests
           if echo "${CHANGED}" | grep -qE '\.swift$|^Brewy\.xcodeproj/|^\.swiftlint\.yml$|^\.github/workflows/ci\.yml$'; then
+            NEEDS_LINT=1
+            NEEDS_TESTS=1
+          fi
+
+          # Docs, typo config, or release workflow changes: lint/typos + lockstep checks
+          if echo "${CHANGED}" | grep -qE '\.md$|^_typos\.toml$|^\.github/workflows/release\.yml$'; then
+            NEEDS_LINT=1
+          fi
+
+          if [[ "${NEEDS_LINT}" -eq 1 ]]; then
             MATRIX+=',{"name":"Lint","check":"lint","runner":"macos-26"}'
+          fi
+          if [[ "${NEEDS_TESTS}" -eq 1 ]]; then
             MATRIX+=',{"name":"Test (Thread Sanitizer)","check":"test-tsan","runner":"macos-26","xcodebuild_flags":"-enableCodeCoverage YES -enableThreadSanitizer YES","result_bundle":"TestResults-TSAN","environment":"codecov"}'
             # UI test runner is incompatible with ASan (crashes at launch); TSan covers the UI tests.
             MATRIX+=',{"name":"Test (Address Sanitizer)","check":"test-asan","runner":"macos-26","xcodebuild_flags":"-enableAddressSanitizer YES -skip-testing:BrewyUITests","result_bundle":"TestResults-ASAN"}'
@@ -170,6 +185,34 @@ jobs:
       - name: Typos
         if: matrix.check == 'lint'
         run: typos
+
+      - name: Sparkle version lockstep
+        if: matrix.check == 'lint'
+        run: |
+          PACKAGE_RESOLVED="Brewy.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
+          RESOLVED_VERSION=$(
+            python3 -c '
+          import json
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as package_resolved:
+              pins = json.load(package_resolved).get("pins", [])
+
+          for pin in pins:
+              if pin.get("identity") == "sparkle":
+                  print(pin.get("state", {}).get("version", ""))
+                  break
+          ' "${PACKAGE_RESOLVED}"
+          )
+          RELEASE_VERSION=$(awk -F'"' '/SPARKLE_VERSION:/ { print $2; exit }' .github/workflows/release.yml)
+          if [[ -z "${RESOLVED_VERSION}" || -z "${RELEASE_VERSION}" ]]; then
+            echo "::error::Could not read Sparkle versions from Package.resolved and release.yml."
+            exit 1
+          fi
+          if [[ "${RESOLVED_VERSION}" != "${RELEASE_VERSION}" ]]; then
+            echo "::error::Sparkle Package.resolved version (${RESOLVED_VERSION}) does not match release.yml (${RELEASE_VERSION})."
+            exit 1
+          fi
 
       # --- Periphery (dead-code scan) ---
 

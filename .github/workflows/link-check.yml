@@ -1,6 +1,11 @@
 name: Link Check
 
 on:
+  pull_request:
+    paths:
+      - "README.md"
+      - "CONTRIBUTING.md"
+      - "lychee.toml"
   schedule:
     - cron: "0 14 * * 1" # every Monday at 14:00 UTC
   workflow_dispatch:
@@ -8,7 +13,7 @@ on:
 permissions: {}
 
 concurrency:
-  group: link-check
+  group: link-check-${{ github.ref }}
   cancel-in-progress: true
 
 defaults:

@@ -72,6 +72,20 @@ jobs:
           echo "build_number=${BUILD_NUMBER}" >> "${GITHUB_OUTPUT}"
           echo "TAG=${TAG}" >> "${GITHUB_ENV}"
 
+      - name: Ensure release tag is available
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          if gh release view "${TAG}" --repo "${REPOSITORY}" >/dev/null 2>&1; then
+            echo "::error::Release ${TAG} already exists."
+            exit 1
+          fi
+          if gh api "repos/${REPOSITORY}/git/ref/tags/${TAG}" >/dev/null 2>&1; then
+            echo "::error::Tag ${TAG} already exists."
+            exit 1
+          fi
+
       - name: Create and unlock temporary macOS keychain
         run: |
           # Keep xtrace disabled here: this password is generated at runtime and is not a registered secret.
@@ -192,6 +206,21 @@ jobs:
             "${RUNNER_TEMP}/staple/Brewy.app" \
             "${ARTIFACT_NAME}"
 
+      - name: Verify stapled app
+        env:
+          ARTIFACT_NAME: ${{ needs.build.outputs.artifact_name }}
+        run: |
+          ditto -xk "${ARTIFACT_NAME}" "${RUNNER_TEMP}/verify"
+          APP_PATH="${RUNNER_TEMP}/verify/Brewy.app"
+          codesign --verify --deep --strict --verbose=2 "${APP_PATH}"
+          xcrun stapler validate "${APP_PATH}"
+          spctl -a -t exec -vv "${APP_PATH}"
+          BUNDLE_VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "${APP_PATH}/Contents/Info.plist")
+          if [[ "${BUNDLE_VERSION}" != "${TAG}" ]]; then
+            echo "::error::Built app version ${BUNDLE_VERSION} does not match release tag ${TAG}."
+            exit 1
+          fi
+
       - name: Generate build provenance for the published asset
         uses: actions/attest@a1948c3f048ba23858d222213b7c278aabede763 # v4.1.1
         with:
@@ -224,24 +253,16 @@ jobs:
           echo "SPARKLE_SIG=$(echo "${SIG_OUTPUT}" | grep -o 'sparkle:edSignature="[^"]*"' | cut -d'"' -f2)" >> "${GITHUB_ENV}"
           echo "SPARKLE_LENGTH=$(echo "${SIG_OUTPUT}" | grep -o 'length="[^"]*"' | cut -d'"' -f2)" >> "${GITHUB_ENV}"
 
-      - name: Create tag
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPOSITORY: ${{ github.repository }}
-          COMMIT_SHA: ${{ github.sha }}
-        run: |
-          gh api "repos/${REPOSITORY}/git/refs" \
-            -f "ref=refs/tags/${TAG}" \
-            -f "sha=${COMMIT_SHA}"
-
       - name: Create release with generated notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ARTIFACT_NAME: ${{ needs.build.outputs.artifact_name }}
           REPOSITORY: ${{ github.repository }}
+          COMMIT_SHA: ${{ github.sha }}
         run: |
           gh release create "${TAG}" \
             --repo "${REPOSITORY}" \
+            --target "${COMMIT_SHA}" \
             --title "${TAG}" \
             --generate-notes \
             "${ARTIFACT_NAME}"
@@ -290,15 +311,15 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${REPOSITORY}.git"
+          AUTH_HEADER="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
           cp appcast.xml "${RUNNER_TEMP}/appcast.xml"
-          git fetch origin appcast
+          git -c "http.extraheader=AUTHORIZATION: Basic ${AUTH_HEADER}" fetch origin appcast
           git checkout appcast
           cp "${RUNNER_TEMP}/appcast.xml" appcast.xml
           git add appcast.xml
           git diff --cached --quiet && exit 0
           git commit -m "Update appcast for ${TAG}"
-          git push origin appcast
+          git -c "http.extraheader=AUTHORIZATION: Basic ${AUTH_HEADER}" push origin appcast
 
   bump-cask:
     name: Bump tap cask

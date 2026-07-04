@@ -1,3 +1,8 @@
 #!/bin/sh
 # Runs the same checks as CI before pushing.
+if ! command -v just >/dev/null 2>&1; then
+    echo "pre-push hook: 'just' is required. Install it with 'brew install just'." >&2
+    exit 127
+fi
+
 just check
