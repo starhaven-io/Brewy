@@ -1,0 +1,68 @@
+name: Bug report
+description: Report a reproducible problem in Brewy.
+title: "fix: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve Brewy. Please do not include secrets, tokens,
+        or private local paths in logs or screenshots.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the smallest set of steps that triggers the issue.
+      placeholder: |
+        1. Open ...
+        2. Click ...
+        3. See ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect Brewy to do?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What did Brewy do instead?
+    validations:
+      required: true
+  - type: input
+    id: brewy-version
+    attributes:
+      label: Brewy version
+      placeholder: "0.15.0"
+    validations:
+      required: true
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS version
+      placeholder: "15.5"
+    validations:
+      required: true
+  - type: input
+    id: brew-path
+    attributes:
+      label: Homebrew path
+      placeholder: "/opt/homebrew/bin/brew"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Add relevant output after removing secrets, tokens, and private paths.
+      render: text
