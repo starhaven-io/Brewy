@@ -81,6 +81,7 @@ final class BrewService {
 
     var tapsLoaded = false
     private var isRefreshing = false
+    private var needsRefresh = false
     @ObservationIgnored private var isBatchingUpdates = false
     @ObservationIgnored var infoCache: [String: String] = [:]
     @ObservationIgnored private var tapHealthTask: Task<Void, Never>?
@@ -250,11 +251,19 @@ final class BrewService {
 
     func refresh() async {
         guard !isRefreshing else {
-            logger.info("Refresh already in progress, skipping")
+            needsRefresh = true
+            logger.info("Refresh already in progress, queuing follow-up")
             return
         }
         isRefreshing = true
         defer { isRefreshing = false }
+        repeat {
+            needsRefresh = false
+            await performRefresh()
+        } while needsRefresh
+    }
+
+    private func performRefresh() async {
         logger.info("Starting full refresh")
         let previousVersions = Dictionary(allInstalled.map { ($0.id, $0.version) }, uniquingKeysWith: { _, last in last })
         let hadCachedData = !installedFormulae.isEmpty || !installedCasks.isEmpty
@@ -262,7 +271,6 @@ final class BrewService {
         // search() from clearing it early (and vice versa).
         let showsSpinner = !hadCachedData
         if showsSpinner { loadingCount += 1 }
-        lastError = nil
         defer {
             if showsSpinner { loadingCount -= 1 }
         }
@@ -284,12 +292,20 @@ final class BrewService {
         let fetchedTaps = await taps ?? installedTaps
         let allOutdated = fetchedOutdated + fetchedMasOutdated
         let outdatedByID = Dictionary(allOutdated.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
+        let mergedFormulae = fetchedFormulae.map { Self.mergeOutdatedStatus($0, outdatedByID: outdatedByID) }
+        let mergedCasks = fetchedCasks.map { Self.mergeOutdatedStatus($0, outdatedByID: outdatedByID) }
+        let mergedMasApps = fetchedMasApps.map { Self.mergeOutdatedStatus($0, outdatedByID: outdatedByID) }
+        let mergedByID = Dictionary(
+            (mergedFormulae + mergedCasks + mergedMasApps).filter(\.isOutdated).map { ($0.id, $0) },
+            uniquingKeysWith: { _, last in last }
+        )
+        let displayedOutdated = allOutdated.map { mergedByID[$0.id] ?? $0 }
 
         applyRefreshResults(
-            formulae: fetchedFormulae.map { Self.mergeOutdatedStatus($0, outdatedByID: outdatedByID) },
-            casks: fetchedCasks.map { Self.mergeOutdatedStatus($0, outdatedByID: outdatedByID) },
-            masApps: fetchedMasApps.map { Self.mergeOutdatedStatus($0, outdatedByID: outdatedByID) },
-            outdated: allOutdated
+            formulae: mergedFormulae,
+            casks: mergedCasks,
+            masApps: mergedMasApps,
+            outdated: displayedOutdated
         )
         lastUpdated = Date()
 

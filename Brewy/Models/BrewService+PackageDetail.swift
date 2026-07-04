@@ -1,4 +1,7 @@
 import Foundation
+import OSLog
+
+private let logger = Logger(subsystem: "io.linnane.brewy", category: "BrewService+PackageDetail")
 
 // MARK: - Package Detail Fetching
 
@@ -20,7 +23,7 @@ extension BrewService {
                         name: cask.token,
                         version: cask.version ?? package.version,
                         description: cask.desc ?? package.description,
-                        homepage: cask.homepage ?? "",
+                        homepage: cask.homepage ?? package.homepage,
                         isInstalled: package.isInstalled,
                         isOutdated: package.isOutdated,
                         installedVersion: package.installedVersion,
@@ -37,7 +40,7 @@ extension BrewService {
                         name: formula.name,
                         version: formula.versions?.stable ?? package.version,
                         description: formula.desc ?? package.description,
-                        homepage: formula.homepage ?? "",
+                        homepage: formula.homepage ?? package.homepage,
                         isInstalled: package.isInstalled,
                         isOutdated: package.isOutdated,
                         installedVersion: package.installedVersion,
@@ -50,6 +53,7 @@ extension BrewService {
                 }
                 return nil
             } catch {
+                logger.error("Failed to parse package detail JSON for \(package.name): \(error.localizedDescription)")
                 return nil
             }
         }.value

@@ -7,6 +7,7 @@ import Testing
 final class MockCommandRunner: CommandRunning, @unchecked Sendable {
     private let lock = NSLock()
     private var _results: [[String]: CommandResult] = [:]
+    private var _delays: [[String]: Duration] = [:]
     private var _executedCommands: [[String]] = []
     private var _executedExecutables: [(path: String, arguments: [String])] = []
 
@@ -26,20 +27,34 @@ final class MockCommandRunner: CommandRunning, @unchecked Sendable {
         }
     }
 
-    func run(_ arguments: [String], brewPath: String, timeout: Duration) async -> CommandResult {
+    func setDelay(for arguments: [String], duration: Duration) {
         lock.withLock {
-            _executedCommands.append(arguments)
-            _executedExecutables.append((path: brewPath, arguments: arguments))
-            return _results[arguments] ?? CommandResult(output: "", success: false)
+            _delays[arguments] = duration
         }
     }
 
+    func run(_ arguments: [String], brewPath: String, timeout: Duration) async -> CommandResult {
+        let (delay, result) = lock.withLock {
+            _executedCommands.append(arguments)
+            _executedExecutables.append((path: brewPath, arguments: arguments))
+            return (_delays[arguments], _results[arguments] ?? CommandResult(output: "", success: false))
+        }
+        if let delay {
+            try? await Task.sleep(for: delay)
+        }
+        return result
+    }
+
     func runExecutable(_ executablePath: String, arguments: [String], timeout: Duration) async -> CommandResult {
-        lock.withLock {
+        let (delay, result) = lock.withLock {
             _executedCommands.append(arguments)
             _executedExecutables.append((path: executablePath, arguments: arguments))
-            return _results[arguments] ?? CommandResult(output: "", success: false)
+            return (_delays[arguments], _results[arguments] ?? CommandResult(output: "", success: false))
         }
+        if let delay {
+            try? await Task.sleep(for: delay)
+        }
+        return result
     }
 }
 

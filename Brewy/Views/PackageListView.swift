@@ -55,9 +55,12 @@ struct PackageListView: View {
                 }
             }
             .onChange(of: searchText) {
-                guard isSearchingAll else { return }
                 searchTask?.cancel()
-                guard !searchText.isEmpty else { return }
+                guard isSearchingAll else { return }
+                guard !searchText.isEmpty else {
+                    brewService.searchResults = []
+                    return
+                }
                 searchTask = Task {
                     try? await Task.sleep(for: .milliseconds(300))
                     guard !Task.isCancelled else { return }
@@ -65,17 +68,27 @@ struct PackageListView: View {
                 }
             }
             .onChange(of: searchScope) {
-                if isSearchingAll, !searchText.isEmpty {
+                guard isSearchingAll else {
+                    brewService.searchResults = []
+                    return
+                }
+                if !searchText.isEmpty {
                     searchTask?.cancel()
                     searchTask = Task {
                         await brewService.search(query: searchText)
                     }
                 }
             }
+            .onChange(of: isSearchPresented) {
+                guard !isSearchPresented else { return }
+                searchTask?.cancel()
+                brewService.searchResults = []
+            }
             .onChange(of: selectedCategory) {
                 searchScope = .installed
                 searchText = ""
                 searchTask?.cancel()
+                brewService.searchResults = []
                 // selectedPackage is cleared centrally in ContentView.onChange(of: selectedCategory).
             }
             .overlay {

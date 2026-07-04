@@ -6,7 +6,7 @@ extension ActionHistoryEntry {
 
     private static let mutatingCommands: Set<String> = [
         "install", "uninstall", "upgrade", "reinstall",
-        "link", "unlink", "autoremove", "cleanup", "update",
+        "pin", "unpin", "link", "unlink", "autoremove", "cleanup", "update",
         "tap", "untap"
     ]
 }

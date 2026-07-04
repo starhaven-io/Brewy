@@ -31,7 +31,8 @@ struct FormulaJSON: Decodable {
     }
 
     func toPackage() -> BrewPackage {
-        let installedVersion = installed?.first?.version
+        let newestInstalled = installed?.last
+        let installedVersion = newestInstalled?.version
         let stable = versions?.stable ?? "unknown"
         return BrewPackage(
             id: "formula-\(name)",
@@ -45,7 +46,7 @@ struct FormulaJSON: Decodable {
             latestVersion: stable,
             source: .formula,
             pinned: pinned ?? false,
-            installedOnRequest: installed?.first?.installedOnRequest ?? false,
+            installedOnRequest: newestInstalled?.installedOnRequest ?? false,
             dependencies: dependencies ?? []
         )
     }
@@ -123,15 +124,16 @@ struct OutdatedFormulaJSON: Decodable {
 
     func toPackage() -> BrewPackage? {
         guard let currentVersion else { return nil }
+        let installedVersion = installedVersions?.last
         return BrewPackage(
             id: "formula-\(name)",
             name: name,
-            version: installedVersions?.first ?? "unknown",
+            version: installedVersion ?? "unknown",
             description: "",
             homepage: "",
             isInstalled: true,
             isOutdated: true,
-            installedVersion: installedVersions?.first,
+            installedVersion: installedVersion,
             latestVersion: currentVersion,
             source: .formula,
             pinned: pinned ?? false,
@@ -154,7 +156,7 @@ struct OutdatedCaskJSON: Decodable {
 
     func toPackage() -> BrewPackage? {
         guard let currentVersion,
-              let installedVersion = installedVersions?.first else { return nil }
+              let installedVersion = installedVersions?.last else { return nil }
         return BrewPackage(
             id: "cask-\(name)",
             name: name,

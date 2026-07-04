@@ -11,6 +11,7 @@ struct MaintenanceView: View {
     @State private var isLoadingConfig = true
     @State private var showRemoveOrphansConfirm = false
     @State private var showClearCacheConfirm = false
+    @State private var doctorTask: Task<Void, Never>?
 
     var body: some View {
         Form {
@@ -41,6 +42,11 @@ struct MaintenanceView: View {
             async let configTask: () = loadConfig()
             _ = await (cacheTask, configTask)
         }
+        .onDisappear {
+            doctorTask?.cancel()
+            doctorTask = nil
+            isRunningDoctor = false
+        }
     }
 
     // MARK: - Health Check
@@ -57,10 +63,14 @@ struct MaintenanceView: View {
                             .controlSize(.small)
                     }
                     Button("Run brew doctor") {
+                        doctorTask?.cancel()
                         isRunningDoctor = true
-                        Task {
-                            doctorOutput = await brewService.doctor()
+                        doctorTask = Task {
+                            let output = await brewService.doctor()
+                            guard !Task.isCancelled else { return }
+                            doctorOutput = output
                             isRunningDoctor = false
+                            doctorTask = nil
                         }
                     }
                     .disabled(isRunningDoctor)
