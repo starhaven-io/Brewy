@@ -20,6 +20,32 @@ struct ErrorPersistenceTests {
         #expect(service.lastError?.localizedDescription.contains("Refusing to untap") == true)
     }
 
+    @Test("performBrewAction preserves command failure after refresh")
+    func brewActionPreservesFailureAfterRefresh() async {
+        let mock = MockCommandRunner()
+        let (service, _) = makeService(mock: mock)
+        setupRefreshMock(mock)
+        mock.setResult(for: ["autoremove"], output: "autoremove failed", success: false)
+
+        await service.performBrewAction(["autoremove"], refreshAfter: true)
+
+        #expect(service.lastError != nil)
+        #expect(service.lastError?.localizedDescription.contains("autoremove failed") == true)
+    }
+
+    @Test("upgradeSelected preserves command failure after refresh")
+    func upgradeSelectedPreservesFailureAfterRefresh() async {
+        let mock = MockCommandRunner()
+        let (service, _) = makeService(mock: mock)
+        setupRefreshMock(mock)
+        mock.setResult(for: ["upgrade", "wget"], output: "upgrade failed", success: false)
+
+        await service.upgradeSelected(packages: [makePackage(name: "wget", isOutdated: true)])
+
+        #expect(service.lastError != nil)
+        #expect(service.lastError?.localizedDescription.contains("upgrade failed") == true)
+    }
+
     @Test("queued refresh preserves an error set while waiting")
     func queuedRefreshPreservesLateError() async {
         let mock = MockCommandRunner()

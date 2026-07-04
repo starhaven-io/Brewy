@@ -5,6 +5,7 @@ struct GroupsView: View {
     private var brewService
     @Binding var selectedGroup: PackageGroup?
     @State private var showCreateSheet = false
+    @State private var groupPendingDeletion: PackageGroup?
 
     var body: some View {
         List(selection: $selectedGroup) {
@@ -20,10 +21,7 @@ struct GroupsView: View {
                         .tag(group)
                         .contextMenu {
                             Button("Delete Group", systemImage: "trash", role: .destructive) {
-                                if selectedGroup?.id == group.id {
-                                    selectedGroup = nil
-                                }
-                                brewService.deleteGroup(group)
+                                groupPendingDeletion = group
                             }
                         }
                 }
@@ -42,6 +40,28 @@ struct GroupsView: View {
         }
         .sheet(isPresented: $showCreateSheet) {
             CreateGroupSheet()
+        }
+        .confirmationDialog(
+            "Delete Group?",
+            isPresented: Binding(
+                get: { groupPendingDeletion != nil },
+                set: { if !$0 { groupPendingDeletion = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: groupPendingDeletion
+        ) { group in
+            Button("Delete", role: .destructive) {
+                if selectedGroup?.id == group.id {
+                    selectedGroup = nil
+                }
+                brewService.deleteGroup(group)
+                groupPendingDeletion = nil
+            }
+            Button("Cancel", role: .cancel) {
+                groupPendingDeletion = nil
+            }
+        } message: { group in
+            Text("This will delete \(group.name). Your packages will not be affected.")
         }
     }
 }

@@ -110,8 +110,8 @@ extension BrewService {
     // MARK: - Search
 
     func performSearch(query: String) async -> [BrewPackage] {
-        async let formulaeResult = runBrewCommand(["search", "--formula", query])
-        async let casksResult = runBrewCommand(["search", "--cask", query])
+        async let formulaeResult = runBrewCommand(["search", "--formula", "--", query])
+        async let casksResult = runBrewCommand(["search", "--cask", "--", query])
 
         let formulaeOutput = await formulaeResult
         let casksOutput = await casksResult

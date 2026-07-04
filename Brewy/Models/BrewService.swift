@@ -358,20 +358,27 @@ final class BrewService {
 
         let formulae = packages.filter { $0.source == .formula }.map(\.name)
         let casks = packages.filter { $0.source == .cask }.map(\.name)
+        let masCount = packages.filter(\.isMas).count
+        var errorOutputs: [String] = []
 
         if !formulae.isEmpty {
             let args = ["upgrade"] + formulae
             let result = await runBrewCommand(args)
             actionOutput += result.output
-            if !result.success { lastError = .commandFailed(command: "upgrade", output: result.output) }
+            if !result.success { errorOutputs.append(result.output) }
             recordAction(arguments: args, packageName: nil, packageSource: .formula, success: result.success, output: result.output)
         }
         if !casks.isEmpty {
             let args = ["upgrade", "--cask"] + casks
             let result = await runBrewCommand(args)
             actionOutput += result.output
-            if !result.success { lastError = .commandFailed(command: "upgrade --cask", output: result.output) }
+            if !result.success { errorOutputs.append(result.output) }
             recordAction(arguments: args, packageName: nil, packageSource: .cask, success: result.success, output: result.output)
+        }
+        if !errorOutputs.isEmpty {
+            lastError = .commandFailed(command: "upgrade", output: errorOutputs.joined(separator: "\n\n"))
+        } else if masCount > 0 {
+            lastError = .commandFailed(command: "upgrade", output: Self.masUpgradeMessage(count: masCount))
         }
         await refresh()
     }

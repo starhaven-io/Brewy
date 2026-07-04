@@ -198,8 +198,8 @@ struct SearchTests {
     func searchReturnsBoth() async {
         let mock = MockCommandRunner()
         let (service, _) = makeService(mock: mock)
-        mock.setResult(for: ["search", "--formula", "fire"], output: "firewalld\nfirejail")
-        mock.setResult(for: ["search", "--cask", "fire"], output: "firefox\nfirealpaca")
+        mock.setResult(for: ["search", "--formula", "--", "fire"], output: "firewalld\nfirejail")
+        mock.setResult(for: ["search", "--cask", "--", "fire"], output: "firefox\nfirealpaca")
 
         await service.search(query: "fire")
 
@@ -215,8 +215,8 @@ struct SearchTests {
         let (service, _) = makeService(mock: mock)
         service.installedFormulae = [makePackage(name: "wget")]
 
-        mock.setResult(for: ["search", "--formula", "wget"], output: "wget\nwget2")
-        mock.setResult(for: ["search", "--cask", "wget"], output: "")
+        mock.setResult(for: ["search", "--formula", "--", "wget"], output: "wget\nwget2")
+        mock.setResult(for: ["search", "--cask", "--", "wget"], output: "")
 
         await service.search(query: "wget")
 
@@ -241,8 +241,8 @@ struct SearchTests {
     func searchHandlesFailure() async {
         let mock = MockCommandRunner()
         let (service, _) = makeService(mock: mock)
-        mock.setResult(for: ["search", "--formula", "test"], output: "Error", success: false)
-        mock.setResult(for: ["search", "--cask", "test"], output: "test-app")
+        mock.setResult(for: ["search", "--formula", "--", "test"], output: "Error", success: false)
+        mock.setResult(for: ["search", "--cask", "--", "test"], output: "test-app")
 
         await service.search(query: "test")
 
@@ -254,8 +254,8 @@ struct SearchTests {
     func searchFiltersHeaders() async {
         let mock = MockCommandRunner()
         let (service, _) = makeService(mock: mock)
-        mock.setResult(for: ["search", "--formula", "test"], output: "==> Formulae\ntest-formula")
-        mock.setResult(for: ["search", "--cask", "test"], output: "==> Casks\ntest-cask")
+        mock.setResult(for: ["search", "--formula", "--", "test"], output: "==> Formulae\ntest-formula")
+        mock.setResult(for: ["search", "--cask", "--", "test"], output: "==> Casks\ntest-cask")
 
         await service.search(query: "test")
 
@@ -272,8 +272,8 @@ struct SearchTests {
     func searchResultSourceTypes() async {
         let mock = MockCommandRunner()
         let (service, _) = makeService(mock: mock)
-        mock.setResult(for: ["search", "--formula", "test"], output: "test-formula")
-        mock.setResult(for: ["search", "--cask", "test"], output: "test-cask")
+        mock.setResult(for: ["search", "--formula", "--", "test"], output: "test-formula")
+        mock.setResult(for: ["search", "--cask", "--", "test"], output: "test-cask")
 
         await service.search(query: "test")
 
