@@ -5,6 +5,12 @@ import SwiftUI
 @main
 struct BrewyApp: App {
     @State private var brewService = BrewService()
+    // HACK: there is a known color scheme bug in SwiftUI where passing `nil` to `.preferredColorScheme`
+    // doesn't change the color of some elements:
+    // https://stackoverflow.com/questions/76123702/preferredcolorschemenil-visual-bug-when-switching-to-system-light-dark-more
+    // NSApplication.shared, not NSApp: this initializer can run before NSApp is set (seen on CI
+    // test hosts), and .shared creates the instance instead of unwrapping nil.
+    @State private var systemColorScheme = Self.colorScheme(for: NSApplication.shared.effectiveAppearance)
     private let updaterController: SPUStandardUpdaterController
 
     init() {
@@ -16,11 +22,8 @@ struct BrewyApp: App {
     @AppStorage("appIcon")
     private var appIcon = AppIconSelection.current.rawValue
 
-    // HACK: there is a known color scheme bug in SwiftUI where passing `nil` to `.preferredColorScheme`
-    // doesn't change the color of some elements:
-    // https://stackoverflow.com/questions/76123702/preferredcolorschemenil-visual-bug-when-switching-to-system-light-dark-more
-    private var systemColorScheme: ColorScheme? {
-        switch NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) {
+    private static func colorScheme(for appearance: NSAppearance) -> ColorScheme? {
+        switch appearance.bestMatch(from: [.aqua, .darkAqua]) {
         case .aqua: .light
         case .darkAqua: .dark
         default: nil
@@ -36,6 +39,9 @@ struct BrewyApp: App {
             ContentView()
                 .environment(brewService)
                 .preferredColorScheme(preferredColorScheme ?? systemColorScheme)
+                .onReceive(NSApplication.shared.publisher(for: \.effectiveAppearance)) { appearance in
+                    systemColorScheme = Self.colorScheme(for: appearance)
+                }
                 .onChange(of: appIcon, initial: true) {
                     AppIconSelection.apply(rawValue: appIcon)
                 }

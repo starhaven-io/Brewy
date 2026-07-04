@@ -9,27 +9,35 @@ extension BrewService {
 
     func ensureTapsLoaded() async {
         guard !tapsLoaded else { return }
+        guard let fetchedTaps = await fetchTaps() else {
+            tapsLoaded = false
+            return
+        }
+        installedTaps = fetchedTaps
         tapsLoaded = true
-        installedTaps = await fetchTaps() ?? installedTaps
         saveToCache()
     }
 
     // MARK: - Tap Management
 
-    func addTap(name: String) async {
+    @discardableResult
+    func addTap(name: String) async -> CommandResult {
         await performTapAction { await runTapCommand(["tap", name]) }
     }
 
-    func removeTap(name: String) async {
+    @discardableResult
+    func removeTap(name: String) async -> CommandResult {
         await performTapAction { await runTapCommand(["untap", name]) }
     }
 
-    func migrateTap(from oldName: String, to newName: String) async {
+    @discardableResult
+    func migrateTap(from oldName: String, to newName: String) async -> CommandResult {
         await performTapAction {
             logger.info("Migrating tap \(oldName) → \(newName)")
-            guard await runTapCommand(["untap", oldName]) else { return false }
+            let untapped = await runTapCommand(["untap", oldName])
+            guard untapped.success else { return untapped }
             let tapped = await runTapCommand(["tap", newName])
-            if tapped {
+            if tapped.success {
                 // Drop the old tap's cached health only once the new tap is in place; on rollback
                 // it stays installed and keeps its status.
                 tapHealthStatuses.removeValue(forKey: oldName)
@@ -41,29 +49,30 @@ extension BrewService {
         }
     }
 
-    private func performTapAction(_ action: () async -> Bool) async {
+    private func performTapAction(_ action: () async -> CommandResult) async -> CommandResult {
         guard !isPerformingAction else {
             logger.info("Tap action skipped, action already in progress")
-            return
+            return CommandResult(output: "Another action is already in progress.", success: false)
         }
         isPerformingAction = true
         actionOutput = ""
         lastError = nil
         defer { isPerformingAction = false }
-        _ = await action()
+        let result = await action()
         tapsLoaded = false
         await ensureTapsLoaded()
         await refresh()
+        return result
     }
 
     @discardableResult
-    private func runTapCommand(_ arguments: [String]) async -> Bool {
+    private func runTapCommand(_ arguments: [String]) async -> CommandResult {
         let result = await runBrewCommand(arguments)
         actionOutput += actionOutput.isEmpty ? result.output : "\n" + result.output
         if !result.success {
             lastError = .commandFailed(command: arguments.first ?? "", output: result.output)
         }
         recordAction(arguments: arguments, packageName: nil, packageSource: nil, success: result.success, output: result.output)
-        return result.success
+        return result
     }
 }

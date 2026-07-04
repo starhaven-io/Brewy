@@ -84,6 +84,43 @@ struct JSONParsingEdgeCaseTests {
         #expect(pkg.installedOnRequest == false)
         #expect(pkg.dependencies == ["openssl"])
     }
+
+    @Test("Formula JSON uses newest installed keg")
+    func formulaUsesNewestInstalledKeg() throws {
+        let json = """
+        {"formulae":[{"name":"node","desc":"","homepage":"","versions":{"stable":"24.0.0"},\
+        "pinned":false,"installed":[\
+        {"version":"22.0.0","installed_on_request":false},\
+        {"version":"24.0.0","installed_on_request":true}],\
+        "dependencies":[]}],"casks":[]}
+        """
+        let data = try #require(json.data(using: .utf8))
+        let response = try JSONDecoder().decode(BrewInfoResponse.self, from: data)
+        let pkg = try #require(response.formulae?.first?.toPackage())
+
+        #expect(pkg.version == "24.0.0")
+        #expect(pkg.installedVersion == "24.0.0")
+        #expect(pkg.installedOnRequest)
+    }
+
+    @Test("Outdated JSON uses newest installed version")
+    func outdatedUsesNewestInstalledVersion() throws {
+        let json = """
+        {"formulae":[{"name":"node","installed_versions":["22.0.0","24.0.0"],\
+        "current_version":"24.1.0","pinned":false}],\
+        "casks":[{"name":"firefox","installed_versions":["122.0","123.0"],\
+        "current_version":"124.0"}]}
+        """
+        let data = try #require(json.data(using: .utf8))
+        let response = try JSONDecoder().decode(BrewOutdatedResponse.self, from: data)
+        let formula = try #require(response.formulae?.first?.toPackage())
+        let cask = try #require(response.casks?.first?.toPackage())
+
+        #expect(formula.version == "24.0.0")
+        #expect(formula.installedVersion == "24.0.0")
+        #expect(cask.version == "123.0")
+        #expect(cask.installedVersion == "123.0")
+    }
 }
 
 // MARK: - Services Integration Tests

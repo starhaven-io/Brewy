@@ -123,12 +123,14 @@ struct ActionHistoryEntryTests {
 
     @Test("isMutatingCommand is true for mutating commands")
     func isMutatingCommandForMutations() {
-        let entry = ActionHistoryEntry(
-            id: UUID(), command: "cleanup", arguments: ["cleanup", "--prune=all"],
-            packageName: nil, packageSource: nil,
-            status: .failure, output: "Error", timestamp: Date()
-        )
-        #expect(entry.isMutatingCommand)
+        for command in ["cleanup", "pin", "unpin"] {
+            let entry = ActionHistoryEntry(
+                id: UUID(), command: command, arguments: [command, "wget"],
+                packageName: command == "cleanup" ? nil : "wget", packageSource: .formula,
+                status: .failure, output: "Error", timestamp: Date()
+            )
+            #expect(entry.isMutatingCommand)
+        }
     }
 
     @Test("isMutatingCommand is false for read-only commands")

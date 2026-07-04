@@ -185,9 +185,11 @@ private struct AddTapSheet: View {
                     isAdding = true
                     errorMessage = nil
                     Task {
-                        await brewService.addTap(name: name)
-                        if let error = brewService.lastError {
-                            errorMessage = error.localizedDescription
+                        let result = await brewService.addTap(name: name)
+                        if !result.success {
+                            errorMessage = BrewError.commandFailed(command: "tap \(name)", output: result.output)
+                                .localizedDescription
+                            brewService.lastError = nil
                             isAdding = false
                         } else {
                             dismiss()

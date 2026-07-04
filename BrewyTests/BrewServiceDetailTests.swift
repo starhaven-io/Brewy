@@ -263,6 +263,29 @@ struct PackageDetailTests {
         #expect(enriched?.installedVersion == "1.24.5")
         #expect(enriched?.latestVersion == "1.25.0")
     }
+
+    @Test("fetchPackageDetail preserves homepage when JSON omits it")
+    func fetchDetailPreservesHomepage() async {
+        let mock = MockCommandRunner()
+        let (service, _) = makeService(mock: mock)
+        let pkg = BrewPackage(
+            id: "cask-firefox", name: "firefox", version: "122.0",
+            description: "Browser", homepage: "https://example.com/firefox",
+            isInstalled: true, isOutdated: false,
+            installedVersion: "122.0", latestVersion: nil,
+            source: .cask, pinned: false, installedOnRequest: true,
+            dependencies: []
+        )
+        let detail = """
+        {"formulae":[],"casks":[{"token":"firefox","version":"123.0",\
+        "desc":"Fast web browser"}]}
+        """
+        mock.setResult(for: ["info", "--cask", "--json=v2", "firefox"], output: detail)
+
+        let enriched = await service.fetchPackageDetail(for: pkg)
+
+        #expect(enriched?.homepage == "https://example.com/firefox")
+    }
 }
 
 // MARK: - Tap Management Tests
@@ -281,6 +304,19 @@ struct TapManagementTests {
         await service.addTap(name: "user/repo")
 
         #expect(mock.executedCommands.contains(["tap", "user/repo"]))
+    }
+
+    @Test("addTap returns command failure even when refresh clears shared error")
+    func addTapReturnsFailure() async {
+        let mock = MockCommandRunner()
+        let (service, _) = makeService(mock: mock)
+        setupRefreshMock(mock)
+        mock.setResult(for: ["tap", "bad/repo"], output: "Error: tap failed", success: false)
+
+        let result = await service.addTap(name: "bad/repo")
+
+        #expect(!result.success)
+        #expect(result.output.contains("tap failed"))
     }
 
     @Test("removeTap calls brew untap")
@@ -325,6 +361,23 @@ struct TapManagementTests {
 
         let tapCommands = mock.executedCommands.filter { $0 == ["tap-info", "--json=v1", "--installed"] }
         #expect(tapCommands.count == 1)
+    }
+
+    @Test("ensureTapsLoaded retries after failed load")
+    func ensureTapsLoadedRetriesAfterFailure() async {
+        let mock = MockCommandRunner()
+        let (service, _) = makeService(mock: mock)
+        mock.setResult(for: ["tap-info", "--json=v1", "--installed"], output: "Error", success: false)
+
+        await service.ensureTapsLoaded()
+        #expect(!service.tapsLoaded)
+
+        mock.setResult(for: ["tap-info", "--json=v1", "--installed"], output: TestJSON.taps)
+        await service.ensureTapsLoaded()
+
+        let tapCommands = mock.executedCommands.filter { $0 == ["tap-info", "--json=v1", "--installed"] }
+        #expect(tapCommands.count == 2)
+        #expect(service.installedTaps.count == 1)
     }
 }
 

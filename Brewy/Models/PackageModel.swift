@@ -85,9 +85,11 @@ struct TapHealthStatus: Codable, Equatable {
     let lastChecked: Date
 
     static let cacheTTL: TimeInterval = 24 * 60 * 60 // 1 day
+    static let unknownCacheTTL: TimeInterval = 30 * 60
 
     var isStale: Bool {
-        Date().timeIntervalSince(lastChecked) > Self.cacheTTL
+        let ttl = status == .unknown ? Self.unknownCacheTTL : Self.cacheTTL
+        return Date().timeIntervalSince(lastChecked) > ttl
     }
 
     static func parseGitHubRepo(from remote: String) -> (owner: String, repo: String)? {
