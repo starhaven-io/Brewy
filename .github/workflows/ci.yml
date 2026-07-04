@@ -59,13 +59,13 @@ jobs:
           NEEDS_TESTS=0
 
           # Swift or CI workflow changes: lint + sanitizer tests
-          if echo "${CHANGED}" | grep -qE '\.swift$|^Brewy\.xcodeproj/|^\.swiftlint\.yml$|^\.github/workflows/ci\.yml$'; then
+          if grep -qE '\.swift$|^Brewy\.xcodeproj/|^\.swiftlint\.yml$|^\.github/workflows/ci\.yml$' <<< "${CHANGED}"; then
             NEEDS_LINT=1
             NEEDS_TESTS=1
           fi
 
           # Docs, typo config, or release workflow changes: lint/typos + lockstep checks
-          if echo "${CHANGED}" | grep -qE '\.md$|^_typos\.toml$|^\.github/workflows/release\.yml$'; then
+          if grep -qE '\.md$|^_typos\.toml$|^\.github/workflows/release\.yml$' <<< "${CHANGED}"; then
             NEEDS_LINT=1
           fi
 
@@ -79,17 +79,17 @@ jobs:
           fi
 
           # Source or periphery-config changes: dead-code scan
-          if echo "${CHANGED}" | grep -qE '\.swift$|^Brewy\.xcodeproj/|^\.periphery\.yml$|^\.github/workflows/ci\.yml$'; then
+          if grep -qE '\.swift$|^Brewy\.xcodeproj/|^\.periphery\.yml$|^\.github/workflows/ci\.yml$' <<< "${CHANGED}"; then
             MATRIX+=',{"name":"Periphery","check":"periphery","runner":"macos-26"}'
           fi
 
           # Source changes: CodeQL (excludes xcodeproj-only changes like version bumps)
-          if echo "${CHANGED}" | grep -qE '^Brewy/|^BrewyTests/|^BrewyUITests/'; then
+          if grep -qE '^Brewy/|^BrewyTests/|^BrewyUITests/' <<< "${CHANGED}"; then
             MATRIX+=',{"name":"CodeQL","check":"codeql","runner":"macos-26"}'
           fi
 
           # Workflow changes: Actions security audit
-          if echo "${CHANGED}" | grep -qE '^\.github/workflows/'; then
+          if grep -qE '^\.github/workflows/' <<< "${CHANGED}"; then
             MATRIX+=',{"name":"zizmor","check":"zizmor","runner":"ubuntu-24.04"}'
           fi
 
