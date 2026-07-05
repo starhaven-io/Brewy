@@ -10,7 +10,6 @@ updates:
       github-actions:
         patterns:
           - "*"
-
   - package-ecosystem: "swift"
     directory: "/"
     schedule:

@@ -8,50 +8,23 @@ on:
       - "Brewy/**"
       - "BrewyTests/**"
       - "BrewyUITests/**"
+
 concurrency:
   group: "codeql-${{ github.ref }}"
   cancel-in-progress: false
-
-defaults:
-  run:
-    shell: bash -xeuo pipefail {0}
 
 permissions: {}
 
 jobs:
   analyze:
-    name: Analyze (Swift)
-    runs-on: macos-26
-    timeout-minutes: 30
+    name: Analyze
     permissions:
       contents: read
       security-events: write # required to upload SARIF results
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          persist-credentials: false
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
-        with:
-          languages: swift
-          build-mode: manual
-
-      - name: Build
-        run: |
-          xcodebuild \
-            -project Brewy.xcodeproj \
-            -scheme Brewy \
-            -destination 'generic/platform=macOS' \
-            -configuration Debug \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
-            SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
-            EXCLUDED_ARCHS=x86_64 \
-            build
-
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
-        with:
-          category: "/language:swift"
+    uses: starhaven-io/.github/.github/workflows/reusable-codeql.yml@dc64ac16c4a6e908a7094bccd8442b57f7222199 # v2026.07.05.1
+    with:
+      languages: '["swift"]'
+      runner: "macos-26"
+      timeout-minutes: 30
+      build-mode: "manual"
+      build-profile: "brewy-xcode"

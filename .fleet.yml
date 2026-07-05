@@ -1,0 +1,33 @@
+schema: 1
+license: "agpl"
+params:
+  dependabot:
+    - package-ecosystem: "github-actions"
+      group: "github-actions"
+      directory: "/"
+    - package-ecosystem: "swift"
+      group: "swift-dependencies"
+      directory: "/"
+  link-check:
+    targets: "--config lychee.toml README.md CONTRIBUTING.md"
+    build-site: false
+    authenticated-github: true
+    schedule: "0 14 * * 1"
+    pull-request-paths: ["README.md", "CONTRIBUTING.md", "lychee.toml"]
+    concurrency-group: "link-check-${{ github.ref }}"
+  codeql:
+    languages: ["swift"]
+    paths: ["Brewy/**", "BrewyTests/**", "BrewyUITests/**"]
+    runner: "macos-26"
+    timeout-minutes: 30
+    build-mode: "manual"
+    build-profile: "brewy-xcode"
+  pinprick-audit:
+    advanced-security: "${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}"
+    fail-on-findings: true
+  readme:
+    badges:
+      workflow: "ci.yml"
+      extra: []
+    license: {}
+exceptions: {}
