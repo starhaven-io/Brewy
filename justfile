@@ -22,9 +22,11 @@ clean:
 
 # Setup
 
-# Install git hooks (DCO sign-off + pre-push checks) — run once per clone
+# fleet:block install-hooks
+# Install git hooks (DCO sign-off + pre-push checks). Run once per clone.
 install-hooks:
     git config core.hooksPath .githooks
+# fleet:end
 
 # Test
 
@@ -44,9 +46,10 @@ test:
 
 # Lint
 
-# Audit GitHub Actions workflows
+# fleet:block audit
 audit:
     zizmor --persona auditor .github/workflows/
+# fleet:end
 
 # Run SwiftLint
 lint:
@@ -129,3 +132,8 @@ check:
         failed=1
     fi
     exit $failed
+
+# fleet:block pinprick-audit
+pinprick-audit:
+    pinprick audit .
+# fleet:end

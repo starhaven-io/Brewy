@@ -63,6 +63,8 @@ Please follow these guidelines when contributing.
 11. Keep Sparkle download verification and EdDSA signing in lockstep with `Package.resolved`.
 12. The cask `depends_on` decoder tolerates brew emitting it as either an object or an empty array. Preserve that tolerance when changing `BrewJSONTypes`/`PackageModel` decoding so casks keep participating in reverse-dependency, leaves, and dependency-tree computation.
 
+<!-- fleet:block commit-and-pr-conventions -->
+
 ## Commit and PR conventions
 
 - Conventional Commits: `type(scope): description`. Valid types: `feat`,
@@ -72,8 +74,13 @@ Please follow these guidelines when contributing.
   enable it).
 - When authored with an AI coding agent, add a `Co-Authored-By` trailer after
   `Signed-off-by`, naming the agent and model. Current example:
-  `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>`. Bump the model
+  `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`. Bump the model
   version as newer ones ship.
 - Never commit directly to `main`; create a feature branch and open a PR.
 - PR descriptions should contain only a concise summary of changes. Do not add
   test-plan sections, bot attribution, or generated-with footers.
+- Comments must earn their keep: a comment states a constraint or rationale the
+  code cannot express. Never add comments that narrate what the code does,
+  restate names, or explain a change to its reviewer.
+
+<!-- fleet:end -->

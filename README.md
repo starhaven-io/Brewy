@@ -1,5 +1,12 @@
 # Brewy
 
+<!-- fleet:block badges -->
+
+[![CI](https://github.com/starhaven-io/Brewy/actions/workflows/ci.yml/badge.svg)](https://github.com/starhaven-io/Brewy/actions/workflows/ci.yml)
+[![License: AGPL-3.0-only](https://img.shields.io/badge/License-AGPL--3.0--only-blue.svg)](LICENSE)
+
+<!-- fleet:end -->
+
 <p align="center"><img src="assets/BrewyIcon.png" alt="Brewy icon" width="128"></p>
 
 [![CI](https://github.com/starhaven-io/Brewy/actions/workflows/ci.yml/badge.svg)](https://github.com/starhaven-io/Brewy/actions/workflows/ci.yml)
@@ -79,8 +86,12 @@ Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the develo
 
 Thanks to [@bevanjkay](https://github.com/bevanjkay) for the classic app icon idea.
 
+<!-- fleet:block license-section -->
+
 ## License
 
 This project is licensed under the [GNU Affero General Public License v3.0](LICENSE) (`AGPL-3.0-only`).
 
 Copyright (C) 2026 Patrick Linnane
+
+<!-- fleet:end -->

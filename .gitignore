@@ -1,9 +1,10 @@
+# fleet:block local-state
 # Local machine/editor/agent state
 .claude/
 .codex/
 .DS_Store
 .vscode/
-
+# fleet:end
 # Build outputs
 .build/
 build/

@@ -17,19 +17,10 @@ permissions: {}
 jobs:
   audit:
     name: Audit
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
     permissions:
       contents: read
       security-events: write # required to upload SARIF results
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          persist-credentials: false
-
-      - name: Run pinprick
-        uses: starhaven-io/pinprick-action@b711e85aacbd9cf73e0285b16b0f3d0b35b3ae60 # v0.2.0
-        with:
-          # Fork pull requests cannot upload SARIF with the read-only token.
-          advanced-security: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
-          fail-on-findings: true
+    uses: starhaven-io/.github/.github/workflows/reusable-pinprick-audit.yml@dc64ac16c4a6e908a7094bccd8442b57f7222199 # v2026.07.05.1
+    with:
+      advanced-security: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+      fail-on-findings: true
