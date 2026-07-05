@@ -22,6 +22,7 @@ jobs:
   validate-dispatch:
     name: Validate dispatch
     runs-on: ubuntu-slim
+    timeout-minutes: 15
     permissions: {}
     steps:
       - name: Require main branch
@@ -37,6 +38,7 @@ jobs:
     name: Build
     needs: validate-dispatch
     runs-on: macos-26
+    timeout-minutes: 60
     environment:
       name: release
       deployment: false
@@ -174,6 +176,7 @@ jobs:
     name: Release
     needs: build
     runs-on: macos-26
+    timeout-minutes: 60
     environment:
       name: release
       deployment: false
@@ -325,6 +328,7 @@ jobs:
     name: Bump tap cask
     needs: [build, release]
     runs-on: macos-26
+    timeout-minutes: 60
     environment:
       name: release
       deployment: false
