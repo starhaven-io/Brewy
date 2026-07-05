@@ -47,7 +47,15 @@ jobs:
             exit 0
           fi
 
-          MATRIX='[{"name":"Conventional Commits","check":"commits","runner":"ubuntu-slim","fetch_depth":"0"}'
+          MATRIX='[]'
+          add_check() {
+            local entry="$1"
+            if [[ "${MATRIX}" == "[]" ]]; then
+              MATRIX="[${entry}]"
+            else
+              MATRIX="${MATRIX%]},${entry}]"
+            fi
+          }
 
           # `edited` (title/body/base) also runs the full path-derived matrix. The
           # aggregate "conclusion" job is the only required status check, so it must
@@ -71,34 +79,43 @@ jobs:
           fi
 
           if [[ "${NEEDS_LINT}" -eq 1 ]]; then
-            MATRIX+=',{"name":"Lint","check":"lint","runner":"macos-26"}'
+            add_check '{"name":"Lint","check":"lint","runner":"macos-26"}'
           fi
           if [[ "${NEEDS_TESTS}" -eq 1 ]]; then
-            MATRIX+=',{"name":"Test (Thread Sanitizer)","check":"test-tsan","runner":"macos-26","xcodebuild_flags":"-enableCodeCoverage YES -enableThreadSanitizer YES","result_bundle":"TestResults-TSAN","environment":"codecov"}'
+            add_check '{"name":"Test (Thread Sanitizer)","check":"test-tsan","runner":"macos-26","xcodebuild_flags":"-enableCodeCoverage YES -enableThreadSanitizer YES","result_bundle":"TestResults-TSAN","environment":"codecov"}'
             # UI test runner is incompatible with ASan (crashes at launch); TSan covers the UI tests.
-            MATRIX+=',{"name":"Test (Address Sanitizer)","check":"test-asan","runner":"macos-26","xcodebuild_flags":"-enableAddressSanitizer YES -skip-testing:BrewyUITests","result_bundle":"TestResults-ASAN"}'
+            add_check '{"name":"Test (Address Sanitizer)","check":"test-asan","runner":"macos-26","xcodebuild_flags":"-enableAddressSanitizer YES -skip-testing:BrewyUITests","result_bundle":"TestResults-ASAN"}'
           fi
 
           # Source or periphery-config changes: dead-code scan
           if grep -qE '\.swift$|^Brewy\.xcodeproj/|^\.periphery\.yml$|^\.github/workflows/ci\.yml$' <<< "${CHANGED}"; then
-            MATRIX+=',{"name":"Periphery","check":"periphery","runner":"macos-26"}'
+            add_check '{"name":"Periphery","check":"periphery","runner":"macos-26"}'
           fi
 
           # Source changes: CodeQL (excludes xcodeproj-only changes like version bumps)
           if grep -qE '^Brewy/|^BrewyTests/|^BrewyUITests/' <<< "${CHANGED}"; then
-            MATRIX+=',{"name":"CodeQL","check":"codeql","runner":"macos-26"}'
+            add_check '{"name":"CodeQL","check":"codeql","runner":"macos-26"}'
           fi
 
           # Workflow changes: Actions security audit
           if grep -qE '^\.github/workflows/' <<< "${CHANGED}"; then
-            MATRIX+=',{"name":"zizmor","check":"zizmor","runner":"ubuntu-24.04"}'
+            add_check '{"name":"zizmor","check":"zizmor","runner":"ubuntu-24.04"}'
           fi
 
-          echo "matrix=${MATRIX}]" >> "${GITHUB_OUTPUT}"
+          echo "matrix=${MATRIX}" >> "${GITHUB_OUTPUT}"
+
+  commits:
+    name: Conventional Commits
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: read # required to read PR titles
+    uses: starhaven-io/.github/.github/workflows/reusable-conventional-commits.yml@497c741e3457eddfe696cb604b1d1c283ef82b90 # v2026.07.05.5
 
   check:
     name: ${{ matrix.name }}
     needs: generate-matrix
+    if: ${{ needs.generate-matrix.outputs.matrix != '[]' }}
     runs-on: ${{ matrix.runner }}
     environment:
       name: ${{ matrix.environment }}
@@ -109,7 +126,6 @@ jobs:
     timeout-minutes: 45
     permissions:
       contents: read
-      pull-requests: read # required to fetch PR commits for conventional commit validation
       security-events: write # required for CodeQL and zizmor SARIF uploads
     strategy:
       fail-fast: false
@@ -120,54 +136,6 @@ jobs:
         with:
           fetch-depth: ${{ matrix.fetch_depth || 1 }}
           persist-credentials: false
-
-
-      - name: Check PR title
-        if: matrix.check == 'commits'
-        env:
-          PR_TITLE: ${{ github.event.pull_request.title }}
-        run: |
-          PATTERN='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore)(\(.+\))?: .+'
-          if [[ ! "${PR_TITLE}" =~ ${PATTERN} ]]; then
-            echo "::error::PR title '${PR_TITLE}' does not follow Conventional Commits."
-            echo ""
-            echo "Expected format: <type>(<scope>): <description>"
-            echo ""
-            echo "Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore"
-            echo ""
-            echo "Examples:"
-            echo "  feat: add Sparkle auto-update support"
-            echo "  fix(updater): resolve crash on empty appcast"
-            echo "  ci: automate appcast generation on release"
-            exit 1
-          fi
-
-      - name: Check commit messages
-        if: matrix.check == 'commits'
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          PATTERN='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore)(\(.+\))?: .+'
-          FAILED=0
-          while IFS= read -r LINE; do
-            SHA="${LINE%% *}"
-            MSG="${LINE#* }"
-            if [[ "${MSG}" == Merge\ * ]]; then
-              continue
-            fi
-            if [[ ! "${MSG}" =~ ${PATTERN} ]]; then
-              echo "::error::Commit ${SHA} does not follow Conventional Commits: '${MSG}'"
-              FAILED=1
-            fi
-          done < <(git log --format="%h %s" "${BASE_SHA}..${HEAD_SHA}")
-
-          if [[ "${FAILED}" -eq 1 ]]; then
-            echo ""
-            echo "All commit messages must follow: <type>(<scope>): <description>"
-            echo "Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore"
-            exit 1
-          fi
 
 
       - name: Cache Homebrew downloads
@@ -381,12 +349,15 @@ jobs:
 
   conclusion:
     name: conclusion
-    needs: check
+    needs: [commits, check]
     runs-on: ubuntu-slim
     timeout-minutes: 15
     if: always()
     steps:
       - name: Result
         env:
+          COMMITS_RESULT: ${{ needs.commits.result }}
           CHECK_RESULT: ${{ needs.check.result }}
-        run: test "${CHECK_RESULT}" = "success"
+        run: |
+          test "${COMMITS_RESULT}" = "success" || test "${COMMITS_RESULT}" = "skipped"
+          test "${CHECK_RESULT}" = "success" || test "${CHECK_RESULT}" = "skipped"
