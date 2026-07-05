@@ -24,6 +24,7 @@ jobs:
   lychee:
     name: Check links
     runs-on: ubuntu-slim
+    timeout-minutes: 15
     permissions:
       contents: read
     steps:

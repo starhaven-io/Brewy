@@ -23,6 +23,7 @@ jobs:
   generate-matrix:
     name: Generate matrix
     runs-on: ubuntu-slim
+    timeout-minutes: 15
     permissions:
       contents: read
     outputs:
@@ -120,7 +121,6 @@ jobs:
           fetch-depth: ${{ matrix.fetch_depth || 1 }}
           persist-credentials: false
 
-      # --- Conventional Commits ---
 
       - name: Check PR title
         if: matrix.check == 'commits'
@@ -169,7 +169,6 @@ jobs:
             exit 1
           fi
 
-      # --- Lint ---
 
       - name: Cache Homebrew downloads
         if: matrix.check == 'lint' || matrix.check == 'periphery'
@@ -223,7 +222,6 @@ jobs:
             exit 1
           fi
 
-      # --- Periphery (dead-code scan) ---
 
       - name: Install Periphery
         if: matrix.check == 'periphery'
@@ -240,7 +238,6 @@ jobs:
           periphery scan --strict --disable-update-check --no-superfluous-ignore-comments \
             -- CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO EXCLUDED_ARCHS=x86_64
 
-      # --- Tests ---
 
       - name: Test
         if: startsWith(matrix.check, 'test-')
@@ -346,7 +343,6 @@ jobs:
           path: ${{ matrix.result_bundle }}.xcresult
           retention-days: 14
 
-      # --- CodeQL ---
 
       - name: Initialize CodeQL
         if: matrix.check == 'codeql'
@@ -376,7 +372,6 @@ jobs:
         with:
           category: "/language:swift"
 
-      # --- zizmor ---
 
       - name: Run zizmor
         if: matrix.check == 'zizmor'
@@ -388,6 +383,7 @@ jobs:
     name: conclusion
     needs: check
     runs-on: ubuntu-slim
+    timeout-minutes: 15
     if: always()
     steps:
       - name: Result

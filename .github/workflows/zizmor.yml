@@ -17,6 +17,7 @@ jobs:
   zizmor:
     name: Analyze
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     permissions:
       contents: read
       security-events: write # required to upload SARIF results
