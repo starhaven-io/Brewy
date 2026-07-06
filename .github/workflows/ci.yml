@@ -110,7 +110,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: read # required to read PR titles
-    uses: starhaven-io/.github/.github/workflows/reusable-conventional-commits.yml@497c741e3457eddfe696cb604b1d1c283ef82b90 # v2026.07.05.5
+    uses: starhaven-io/.github/.github/workflows/reusable-conventional-commits.yml@5f266219bb9c86c8c24f7743bbbe9accb665010c # v2026.07.05.6
 
   check:
     name: ${{ matrix.name }}
