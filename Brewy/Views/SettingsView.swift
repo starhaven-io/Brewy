@@ -23,6 +23,8 @@ struct SettingsView: View {
     private var brewfilePath = ""
     @AppStorage("autoRefreshInterval")
     private var autoRefreshInterval = 0
+    @AppStorage(CommandRunner.preventHomebrewAutoUpdateKey)
+    private var preventHomebrewAutoUpdate = false
     @AppStorage("showCasksByDefault")
     private var showCasksByDefault = false
     @AppStorage("appTheme")
@@ -56,6 +58,9 @@ struct SettingsView: View {
                 Text("Every 15 minutes").tag(900)
                 Text("Every hour").tag(3_600)
             }
+
+            Toggle("Prevent Homebrew auto-update", isOn: $preventHomebrewAutoUpdate)
+                .help("Stops Homebrew from updating itself before installs and upgrades.")
 
             Picker("Appearance:", selection: $appTheme) {
                 ForEach(AppTheme.allCases) { theme in
@@ -91,7 +96,7 @@ struct SettingsView: View {
         .onChange(of: appIcon, initial: true) {
             AppIconSelection.apply(rawValue: appIcon)
         }
-        .frame(width: 560, height: 380)
+        .frame(width: 560, height: 410)
     }
 
     private var brewfileOverrideSetting: some View {
