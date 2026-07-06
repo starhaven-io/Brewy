@@ -8,6 +8,9 @@ updates:
       default-days: 7
       exclude:
         - "starhaven-io/*"
+    ignore:
+      # Fleet pins are owned by the sync; Dependabot never writes them.
+      - dependency-name: "starhaven-io/.github/*"
     groups:
       github-actions:
         patterns:
