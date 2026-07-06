@@ -80,6 +80,7 @@ struct DefaultCommandRunner: CommandRunning {
 enum CommandRunner {
 
     static let defaultTimeout: Duration = .seconds(300)
+    static let preventHomebrewAutoUpdateKey = "preventHomebrewAutoUpdate"
     private static let standardBrewPaths = ["/opt/homebrew/bin/brew", "/usr/local/bin/brew"]
 
     /// Grace period between SIGTERM and SIGKILL when a process exceeds its timeout.
@@ -103,6 +104,10 @@ enum CommandRunner {
         return standardPaths.first { FileManager.default.isExecutableFile(atPath: $0) }
     }
 
+    static func preventsHomebrewAutoUpdate(userDefaults: UserDefaults = .standard) -> Bool {
+        userDefaults.bool(forKey: preventHomebrewAutoUpdateKey)
+    }
+
     static func run(
         _ arguments: [String],
         brewPath: String,
@@ -120,13 +125,15 @@ enum CommandRunner {
         let commandDescription = "\(execName) \(arguments.joined(separator: " "))"
         logger.info("Running: \(commandDescription)")
         let startTime = ContinuousClock.now
+        let preventHomebrewAutoUpdate = preventsHomebrewAutoUpdate()
 
         let result = await Task.detached(priority: .medium) {
             executeProcess(
                 arguments: arguments,
                 brewPath: executablePath,
                 timeout: timeout,
-                commandDescription: commandDescription
+                commandDescription: commandDescription,
+                preventHomebrewAutoUpdate: preventHomebrewAutoUpdate
             )
         }.value
 
@@ -148,10 +155,14 @@ enum CommandRunner {
         return paths[0]
     }
 
-    // MARK: - Private
+    // MARK: - Environment
 
-    private static func buildEnvironment(brewPath: String) -> [String: String] {
-        var env = ProcessInfo.processInfo.environment
+    static func buildEnvironment(
+        brewPath: String,
+        preventHomebrewAutoUpdate: Bool,
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> [String: String] {
+        var env = environment
         let brewBin = URL(fileURLWithPath: brewPath).deletingLastPathComponent().path
         let brewPrefix = URL(fileURLWithPath: brewBin).deletingLastPathComponent().path
         let brewSbin = brewPrefix + "/sbin"
@@ -164,8 +175,13 @@ enum CommandRunner {
         }
 
         env["PATH"] = pathComponents.joined(separator: ":")
+        if preventHomebrewAutoUpdate {
+            env["HOMEBREW_NO_AUTO_UPDATE"] = "1"
+        }
         return env
     }
+
+    // MARK: - Private
 
     private static func standardBrewPath(matching path: String, standardPaths: [String]) -> String? {
         let resolvedPath = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
@@ -187,7 +203,8 @@ enum CommandRunner {
         arguments: [String],
         brewPath: String,
         timeout: Duration,
-        commandDescription: String
+        commandDescription: String,
+        preventHomebrewAutoUpdate: Bool
     ) -> CommandResult {
         let process = Process()
         let stdoutPipe = Pipe()
@@ -195,7 +212,10 @@ enum CommandRunner {
 
         process.executableURL = URL(fileURLWithPath: brewPath)
         process.arguments = arguments
-        process.environment = buildEnvironment(brewPath: brewPath)
+        process.environment = buildEnvironment(
+            brewPath: brewPath,
+            preventHomebrewAutoUpdate: preventHomebrewAutoUpdate
+        )
         process.standardOutput = stdoutPipe
         process.standardError = stderrPipe
 

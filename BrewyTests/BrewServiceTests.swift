@@ -368,6 +368,37 @@ struct CommandRunnerTests {
 
         #expect(path == standardBrew.path)
     }
+
+    @Test("automatic Homebrew update prevention defaults off")
+    func automaticHomebrewUpdatePreventionDefaultsOff() throws {
+        let suiteName = "io.linnane.brewy.tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        #expect(!CommandRunner.preventsHomebrewAutoUpdate(userDefaults: defaults))
+    }
+
+    @Test("automatic Homebrew update prevention sets Homebrew environment")
+    func automaticHomebrewUpdatePreventionSetsEnvironment() {
+        let env = CommandRunner.buildEnvironment(
+            brewPath: "/opt/homebrew/bin/brew",
+            preventHomebrewAutoUpdate: true,
+            environment: [:]
+        )
+
+        #expect(env["HOMEBREW_NO_AUTO_UPDATE"] == "1")
+    }
+
+    @Test("automatic Homebrew update prevention leaves environment unchanged when disabled")
+    func automaticHomebrewUpdatePreventionLeavesEnvironmentUnchangedWhenDisabled() {
+        let env = CommandRunner.buildEnvironment(
+            brewPath: "/opt/homebrew/bin/brew",
+            preventHomebrewAutoUpdate: false,
+            environment: [:]
+        )
+
+        #expect(env["HOMEBREW_NO_AUTO_UPDATE"] == nil)
+    }
 }
 
 // MARK: - BrewService Batching Tests
