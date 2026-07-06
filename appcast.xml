@@ -3,26 +3,17 @@
     <channel>
         <title>Brewy</title>
         <item>
-            <title>0.16.0</title>
-            <pubDate>Sat, 04 Jul 2026 16:26:19 +0000</pubDate>
-            <sparkle:version>22</sparkle:version>
-            <sparkle:shortVersionString>0.16.0</sparkle:shortVersionString>
+            <title>0.17.0</title>
+            <pubDate>Mon, 06 Jul 2026 01:23:59 +0000</pubDate>
+            <sparkle:version>23</sparkle:version>
+            <sparkle:shortVersionString>0.17.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>Fixes</h2>
+            <description><![CDATA[<h2>What&#x27;s New</h2>
 <ul>
-  <li>address package refresh correctness</li>
-  <li>add safety guardrails for destructive actions</li>
-</ul>
-<h2>Documentation</h2>
-<ul>
-  <li>add repository hygiene templates</li>
-</ul>
-<h2>Testing</h2>
-<ul>
-  <li>cover small service and summary gaps</li>
-  <li>cover execution safety mapping</li>
+  <li>add read-only Brewfile awareness</li>
+  <li>add toggle to prevent Homebrew auto-update</li>
 </ul>]]></description>
-            <enclosure url="https://github.com/starhaven-io/Brewy/releases/download/0.16.0/Brewy-0.16.0.zip" length="4574946" type="application/octet-stream" sparkle:edSignature="1iGX++LV9dFJiW8neyvz0Y0YDeebHeyj6W1blVzGWkbwIw7D4Mjlli+TiGybCAFHy3/Wm/iENJ/adYDf4BPzAg=="/>
+            <enclosure url="https://github.com/starhaven-io/Brewy/releases/download/0.17.0/Brewy-0.17.0.zip" length="4618564" type="application/octet-stream" sparkle:edSignature="wDsdnnzeqH/rALoWvJi7I/bs0UIg37SDiWCUleE/m6WhfGajOxa65Yd/I7FqwtJlO+zkvilsasyglzqoMydbCw=="/>
         </item>
     </channel>
 </rss>
