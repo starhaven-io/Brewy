@@ -24,10 +24,13 @@ struct BundleView: View {
                     brewfileURL: brewfileURL,
                     entryCount: brewService.bundleEntries.count,
                     status: brewService.bundleCheckStatus,
-                    isLoading: brewService.isBundleLoading
+                    isLoading: brewService.isBundleLoading,
+                    trustBrewfile: trustBrewfile
                 )
 
-                if brewService.bundleEntries.isEmpty, !brewService.isBundleLoading {
+                if brewService.bundleEntries.isEmpty,
+                   !brewService.isBundleLoading,
+                   brewService.bundleCheckStatus != .untrusted {
                     Section {
                         ContentUnavailableView(
                             "No Bundle Entries",
@@ -111,6 +114,11 @@ struct BundleView: View {
         guard panel.runModal() == .OK, let url = panel.url else { return }
         Task { await brewService.dumpBundle(to: url) }
     }
+
+    @MainActor
+    private func trustBrewfile() {
+        Task { await brewService.trustCurrentBrewfileAndRefresh() }
+    }
 }
 
 // MARK: - Bundle Status
@@ -120,6 +128,7 @@ private struct BundleStatusSection: View {
     let entryCount: Int
     let status: BrewBundleCheckStatus
     let isLoading: Bool
+    let trustBrewfile: () -> Void
 
     var body: some View {
         Section {
@@ -157,6 +166,17 @@ private struct BundleStatusSection: View {
                     }
                 }
             }
+
+            if status == .untrusted {
+                Text("Brewfiles can execute Ruby code. Trust this file before Brewy reads bundle entries.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Button("Trust and Refresh", systemImage: "checkmark.shield") {
+                    trustBrewfile()
+                }
+                .help("Run Homebrew Bundle for this Brewfile")
+            }
         } header: {
             Label("Check", systemImage: "checkmark.seal")
         }
@@ -166,6 +186,7 @@ private struct BundleStatusSection: View {
         switch status {
         case .unknown: return "Not Checked"
         case .noBrewfile: return "No Brewfile"
+        case .untrusted: return "Review Required"
         case .checking: return "Checking..."
         case .satisfied: return "Satisfied"
         case .unsatisfied: return "Missing Dependencies"
@@ -179,6 +200,8 @@ private struct BundleStatusSection: View {
             return "\(entryCount) entries loaded."
         case .noBrewfile:
             return "Choose or create a Brewfile."
+        case .untrusted:
+            return "Trust this Brewfile before running bundle checks."
         case .checking:
             return "Checking Brewfile dependencies."
         case .satisfied:
@@ -196,6 +219,7 @@ private struct BundleStatusSection: View {
         case .satisfied: return .green
         case .unsatisfied: return .red
         case .failed: return .orange
+        case .untrusted: return .orange
         case .checking: return .blue
         case .unknown, .noBrewfile: return .secondary
         }

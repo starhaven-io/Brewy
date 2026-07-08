@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import OSLog
 
@@ -58,6 +59,7 @@ struct BrewBundleEntry: Identifiable, Hashable {
 enum BrewBundleCheckStatus: Equatable {
     case unknown
     case noBrewfile
+    case untrusted
     case checking
     case satisfied
     case unsatisfied([String])
@@ -187,6 +189,9 @@ extension BrewService {
         if url == nil {
             bundleEntries = []
             bundleCheckStatus = .noBrewfile
+        } else if let url, !isTrustedBrewfile(url) {
+            bundleEntries = []
+            bundleCheckStatus = .untrusted
         }
         return url
     }
@@ -195,6 +200,7 @@ extension BrewService {
         guard !isBundleLoading, bundleCheckStatus != .checking else { return }
         lastError = nil
         guard let brewfileURL = resolveBrewfile() else { return }
+        guard canExecuteBrewfile(brewfileURL) else { return }
         guard await fetchBundleEntries(brewfileURL: brewfileURL) else { return }
         await checkBundle(brewfileURL: brewfileURL)
     }
@@ -214,6 +220,7 @@ extension BrewService {
 
     @discardableResult
     func fetchBundleEntries(brewfileURL: URL) async -> Bool {
+        guard canExecuteBrewfile(brewfileURL) else { return false }
         isBundleLoading = true
         defer { isBundleLoading = false }
 
@@ -246,6 +253,7 @@ extension BrewService {
     }
 
     func checkBundle(brewfileURL: URL) async {
+        guard canExecuteBrewfile(brewfileURL) else { return }
         bundleCheckStatus = .checking
         let arguments = ["bundle", "check", "--verbose", "--file", brewfileURL.path]
         let result = await runBrewCommand(arguments)
@@ -281,9 +289,33 @@ extension BrewService {
 
         if result.success {
             customBrewfilePath = url.path
+            trustBrewfile(at: url)
             await refreshBundle()
         }
         return result
+    }
+
+    @discardableResult
+    func trustBrewfile(at url: URL) -> Bool {
+        let resolvedURL = url.resolvingSymlinksInPath()
+        guard let digest = Self.brewfileDigest(at: resolvedURL) else {
+            let message = "Unable to read Brewfile at \(url.path)."
+            bundleCheckStatus = .failed(message)
+            lastError = .commandFailed(command: "bundle trust", output: message)
+            return false
+        }
+        trustedBrewfilePath = resolvedURL.path
+        trustedBrewfileDigest = digest
+        if brewfileURL?.path == resolvedURL.path, bundleCheckStatus == .untrusted {
+            bundleCheckStatus = .unknown
+        }
+        return true
+    }
+
+    func trustCurrentBrewfileAndRefresh() async {
+        guard let brewfileURL = resolveBrewfile() else { return }
+        guard trustBrewfile(at: brewfileURL) else { return }
+        await refreshBundle()
     }
 
     private func bundleStatus(for name: String, type: BrewBundleEntryType) -> BrewBundleEntryStatus {
@@ -306,5 +338,30 @@ extension BrewService {
                 ? BrewBundleEntryStatus.installed
                 : BrewBundleEntryStatus.missing
         }
+    }
+
+    private func canExecuteBrewfile(_ url: URL) -> Bool {
+        guard isTrustedBrewfile(url) else {
+            bundleEntries = []
+            bundleCheckStatus = .untrusted
+            return false
+        }
+        return true
+    }
+
+    private func isTrustedBrewfile(_ url: URL) -> Bool {
+        // Homebrew Bundle only accepts a path, so recheck trust immediately before launch.
+        guard trustedBrewfilePath == url.path,
+              let digest = Self.brewfileDigest(at: url) else {
+            return false
+        }
+        return trustedBrewfileDigest == digest
+    }
+
+    private static func brewfileDigest(at url: URL) -> String? {
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return SHA256.hash(data: data)
+            .map { String(format: "%02x", $0) }
+            .joined()
     }
 }
