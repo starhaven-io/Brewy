@@ -127,7 +127,7 @@ struct RefreshTests {
 
         await service.refresh()
 
-        mock.setResult(for: ["info", "wget"], output: "wget: stable 1.24.5")
+        mock.setResult(for: ["info", "--", "wget"], output: "wget: stable 1.24.5")
         let info = await service.info(for: service.installedFormulae[0])
         #expect(!info.isEmpty)
 
@@ -143,7 +143,7 @@ struct RefreshTests {
 
         await service.refresh()
 
-        mock.setResult(for: ["info", "wget"], output: "wget: stable 1.25.0")
+        mock.setResult(for: ["info", "--", "wget"], output: "wget: stable 1.25.0")
         let newInfo = await service.info(for: service.installedFormulae[0])
         #expect(newInfo == "wget: stable 1.25.0")
     }
@@ -296,11 +296,11 @@ struct PackageActionTests {
         let (service, _) = makeService(mock: mock)
         let pkg = makePackage(name: "wget")
         setupRefreshMock(mock)
-        mock.setResult(for: ["install", "wget"], output: "Installed wget")
+        mock.setResult(for: ["install", "--", "wget"], output: "Installed wget")
 
         await service.install(package: pkg)
 
-        #expect(mock.executedCommands.contains(["install", "wget"]))
+        #expect(mock.executedCommands.contains(["install", "--", "wget"]))
         #expect(service.actionOutput == "Installed wget")
     }
 
@@ -310,11 +310,11 @@ struct PackageActionTests {
         let (service, _) = makeService(mock: mock)
         let pkg = makePackage(name: "firefox", source: .cask)
         setupRefreshMock(mock)
-        mock.setResult(for: ["install", "--cask", "firefox"], output: "Installed firefox")
+        mock.setResult(for: ["install", "--cask", "--", "firefox"], output: "Installed firefox")
 
         await service.install(package: pkg)
 
-        #expect(mock.executedCommands.contains(["install", "--cask", "firefox"]))
+        #expect(mock.executedCommands.contains(["install", "--cask", "--", "firefox"]))
     }
 
     @Test("install skips mas packages")
@@ -335,11 +335,11 @@ struct PackageActionTests {
         let (service, _) = makeService(mock: mock)
         let pkg = makePackage(name: "wget")
         setupRefreshMock(mock)
-        mock.setResult(for: ["uninstall", "wget"], output: "Uninstalled wget")
+        mock.setResult(for: ["uninstall", "--", "wget"], output: "Uninstalled wget")
 
         await service.uninstall(package: pkg)
 
-        #expect(mock.executedCommands.contains(["uninstall", "wget"]))
+        #expect(mock.executedCommands.contains(["uninstall", "--", "wget"]))
     }
 
     @Test("upgrade calls brew upgrade")
@@ -348,11 +348,11 @@ struct PackageActionTests {
         let (service, _) = makeService(mock: mock)
         let pkg = makePackage(name: "wget")
         setupRefreshMock(mock)
-        mock.setResult(for: ["upgrade", "wget"], output: "Upgraded wget")
+        mock.setResult(for: ["upgrade", "--", "wget"], output: "Upgraded wget")
 
         await service.upgrade(package: pkg)
 
-        #expect(mock.executedCommands.contains(["upgrade", "wget"]))
+        #expect(mock.executedCommands.contains(["upgrade", "--", "wget"]))
     }
 
     @Test("pin calls brew pin")
@@ -361,11 +361,11 @@ struct PackageActionTests {
         let (service, _) = makeService(mock: mock)
         let pkg = makePackage(name: "wget")
         setupRefreshMock(mock)
-        mock.setResult(for: ["pin", "wget"], output: "Pinned wget")
+        mock.setResult(for: ["pin", "--", "wget"], output: "Pinned wget")
 
         await service.pin(package: pkg)
 
-        #expect(mock.executedCommands.contains(["pin", "wget"]))
+        #expect(mock.executedCommands.contains(["pin", "--", "wget"]))
     }
 
     @Test("unpin calls brew unpin")
@@ -374,11 +374,11 @@ struct PackageActionTests {
         let (service, _) = makeService(mock: mock)
         let pkg = makePackage(name: "wget")
         setupRefreshMock(mock)
-        mock.setResult(for: ["unpin", "wget"], output: "Unpinned wget")
+        mock.setResult(for: ["unpin", "--", "wget"], output: "Unpinned wget")
 
         await service.unpin(package: pkg)
 
-        #expect(mock.executedCommands.contains(["unpin", "wget"]))
+        #expect(mock.executedCommands.contains(["unpin", "--", "wget"]))
     }
 
     @Test("reinstall calls brew reinstall")
@@ -387,11 +387,11 @@ struct PackageActionTests {
         let (service, _) = makeService(mock: mock)
         let pkg = makePackage(name: "wget")
         setupRefreshMock(mock)
-        mock.setResult(for: ["reinstall", "wget"], output: "Reinstalled wget")
+        mock.setResult(for: ["reinstall", "--", "wget"], output: "Reinstalled wget")
 
         await service.reinstall(package: pkg)
 
-        #expect(mock.executedCommands.contains(["reinstall", "wget"]))
+        #expect(mock.executedCommands.contains(["reinstall", "--", "wget"]))
     }
 
     @Test("failed action records failure in history")
@@ -400,7 +400,7 @@ struct PackageActionTests {
         let (service, _) = makeService(mock: mock)
         let pkg = makePackage(name: "wget")
         setupRefreshMock(mock)
-        mock.setResult(for: ["install", "wget"], output: "Error: something failed", success: false)
+        mock.setResult(for: ["install", "--", "wget"], output: "Error: something failed", success: false)
 
         await service.install(package: pkg)
 
@@ -415,7 +415,7 @@ struct PackageActionTests {
         let (service, _) = makeService(mock: mock)
         let pkg = makePackage(name: "wget")
         setupRefreshMock(mock)
-        mock.setResult(for: ["install", "wget"], output: "Installed wget")
+        mock.setResult(for: ["install", "--", "wget"], output: "Installed wget")
 
         await service.install(package: pkg)
 
@@ -431,7 +431,7 @@ struct PackageActionTests {
         let (service, _) = makeService(mock: mock)
         let pkg = makePackage(name: "wget")
         setupRefreshMock(mock)
-        mock.setResult(for: ["install", "wget"], output: "Installed wget")
+        mock.setResult(for: ["install", "--", "wget"], output: "Installed wget")
 
         await service.install(package: pkg)
 

@@ -79,6 +79,53 @@ struct BrewServiceSafetyGuardrailTests {
         #expect(mock.executedCommands.contains(["search", "--cask", "--", "--eval-all"]))
     }
 
+    @Test("package actions insert option separator before package name")
+    func packageActionsUseOptionSeparator() async {
+        let mock = MockCommandRunner()
+        let (service, _) = makeService(mock: mock)
+        setupRefreshMock(mock)
+
+        let formula = makePackage(name: "--eval-all", source: .formula)
+        let cask = makePackage(name: "--zap", source: .cask)
+        let formulaCommand = ["install", "--", "--eval-all"]
+        let caskCommand = ["install", "--cask", "--", "--zap"]
+        mock.setResult(for: formulaCommand, output: "Installed formula")
+        mock.setResult(for: caskCommand, output: "Installed cask")
+
+        await service.install(package: formula)
+        await service.install(package: cask)
+
+        #expect(mock.executedCommands.contains(formulaCommand))
+        #expect(mock.executedCommands.contains(caskCommand))
+    }
+
+    @Test("read-only package info commands insert option separator before package name")
+    func packageInfoUsesOptionSeparator() async {
+        let mock = MockCommandRunner()
+        let (service, _) = makeService(mock: mock)
+
+        let formula = makePackage(name: "--eval-all", source: .formula)
+        let cask = makePackage(name: "--zap", source: .cask)
+        let formulaInfoCommand = ["info", "--", "--eval-all"]
+        let caskInfoCommand = ["info", "--cask", "--", "--zap"]
+        let formulaDetailCommand = ["info", "--json=v2", "--", "--eval-all"]
+        let caskDetailCommand = ["info", "--cask", "--json=v2", "--", "--zap"]
+        mock.setResult(for: formulaInfoCommand, output: "formula info")
+        mock.setResult(for: caskInfoCommand, output: "cask info")
+        mock.setResult(for: formulaDetailCommand, output: TestJSON.formulaDetail)
+        mock.setResult(for: caskDetailCommand, output: TestJSON.caskDetail)
+
+        _ = await service.info(for: formula)
+        _ = await service.info(for: cask)
+        _ = await service.fetchPackageDetail(for: formula)
+        _ = await service.fetchPackageDetail(for: cask)
+
+        #expect(mock.executedCommands.contains(formulaInfoCommand))
+        #expect(mock.executedCommands.contains(caskInfoCommand))
+        #expect(mock.executedCommands.contains(formulaDetailCommand))
+        #expect(mock.executedCommands.contains(caskDetailCommand))
+    }
+
     @Test("upgradeSelected excludes mas apps and reports App Store updates")
     func upgradeSelectedReportsMasApps() async {
         let mock = MockCommandRunner()
