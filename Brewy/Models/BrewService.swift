@@ -45,6 +45,12 @@ final class BrewService {
     @AppStorage("brewfilePath")
     @ObservationIgnored var customBrewfilePath = ""
 
+    @AppStorage("trustedBrewfilePath")
+    @ObservationIgnored var trustedBrewfilePath = ""
+
+    @AppStorage("trustedBrewfileDigest")
+    @ObservationIgnored var trustedBrewfileDigest = ""
+
     init(commandRunner: CommandRunning = DefaultCommandRunner()) {
         self.commandRunner = commandRunner
     }
