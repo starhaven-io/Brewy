@@ -414,23 +414,21 @@ struct BrewConfig {
 }
 
 // MARK: - Brew Update Result
-
 struct BrewUpdateItem: Identifiable, Hashable, Codable, Sendable {
     let name: String
     let description: String?
     let source: PackageSource
 
     var id: String { "\(source.rawValue)-\(name)" }
-
-    /// Builds a minimal BrewPackage suitable for handing to brew install actions.
-    func asPlaceholderPackage() -> BrewPackage {
+    /// Builds a minimal BrewPackage for newly discovered update items.
+    func asPlaceholderPackage(isInstalled: Bool = false) -> BrewPackage {
         BrewPackage(
             id: id,
             name: name,
             version: "",
             description: description ?? "",
             homepage: "",
-            isInstalled: false,
+            isInstalled: isInstalled,
             isOutdated: false,
             installedVersion: nil,
             latestVersion: nil,
@@ -449,6 +447,9 @@ struct BrewUpdateResult: Codable, Sendable {
 
     var isEmpty: Bool { newFormulae.isEmpty && newCasks.isEmpty }
     var totalCount: Int { newFormulae.count + newCasks.count }
+    func discoverPackages(installedPackageIDs: Set<String>) -> [BrewPackage] {
+        (newFormulae + newCasks).map { item in item.asPlaceholderPackage(isInstalled: installedPackageIDs.contains(item.id)) }
+    }
 }
 
 enum BrewUpdateParser {

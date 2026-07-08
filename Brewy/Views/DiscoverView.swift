@@ -5,21 +5,35 @@ struct DiscoverView: View {
     private var brewService
     @Binding var selectedPackage: BrewPackage?
     @State private var searchText = ""
-    @State private var results: [BrewPackage] = []
+    @State private var searchResults: [BrewPackage] = []
     @State private var isSearching = false
     @State private var searchTask: Task<Void, Never>?
 
+    private var recentPackages: [BrewPackage] {
+        guard searchText.isEmpty,
+              let result = brewService.lastUpdateResult,
+              !result.isEmpty else { return [] }
+        return result.discoverPackages(installedPackageIDs: brewService.installedIDs)
+    }
+
+    private var displayedPackages: [BrewPackage] {
+        searchText.isEmpty ? recentPackages : searchResults
+    }
+
     var body: some View {
+        let packages = displayedPackages
         List(selection: $selectedPackage) {
-            if results.isEmpty {
+            if packages.isEmpty {
                 emptyContent
             } else {
-                ForEach(results) { package in
-                    DiscoverRow(
-                        package: package,
-                        onInstall: { pkg in await brewService.install(package: pkg) }
-                    )
-                    .tag(package)
+                if searchText.isEmpty, let result = brewService.lastUpdateResult {
+                    Section {
+                        packageRows(packages)
+                    } header: {
+                        Text("New since \(result.timestamp.formatted(.relative(presentation: .named)))")
+                    }
+                } else {
+                    packageRows(packages)
                 }
             }
         }
@@ -28,7 +42,7 @@ struct DiscoverView: View {
         .onChange(of: searchText) {
             searchTask?.cancel()
             guard !searchText.isEmpty else {
-                results = []
+                searchResults = []
                 isSearching = false
                 return
             }
@@ -38,21 +52,36 @@ struct DiscoverView: View {
                 isSearching = true
                 let fetched = await brewService.performSearch(query: searchText)
                 guard !Task.isCancelled else { return }
-                results = fetched
+                searchResults = fetched
                 isSearching = false
             }
         }
         .overlay {
-            if isSearching, !searchText.isEmpty, results.isEmpty {
+            if isSearching, !searchText.isEmpty, searchResults.isEmpty {
                 ProgressView("Searching...")
             }
         }
         .navigationTitle("Discover")
-        .navigationSubtitle(
-            searchText.isEmpty
-                ? "Search to find new packages"
-                : "\(results.count) results"
-        )
+        .navigationSubtitle(navigationSubtitle(for: packages.count))
+    }
+
+    @ViewBuilder
+    private func packageRows(_ packages: [BrewPackage]) -> some View {
+        ForEach(packages) { package in
+            DiscoverRow(
+                package: package,
+                onInstall: { pkg in await brewService.install(package: pkg) }
+            )
+            .tag(package)
+        }
+    }
+
+    private func navigationSubtitle(for count: Int) -> String {
+        if searchText.isEmpty {
+            guard count > 0 else { return "Search to find new packages" }
+            return count == 1 ? "1 new package" : "\(count) new packages"
+        }
+        return "\(count) results"
     }
 
     @ViewBuilder private var emptyContent: some View {

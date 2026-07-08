@@ -103,6 +103,7 @@ final class BrewService {
 
     private(set) var allInstalled: [BrewPackage] = []
     private(set) var installedNames: Set<String> = []
+    private(set) var installedIDs: Set<String> = []
     private(set) var reverseDependencies: [String: [BrewPackage]] = [:]
     private(set) var leavesPackages: [BrewPackage] = []
     private(set) var pinnedPackages: [BrewPackage] = []
@@ -135,6 +136,7 @@ final class BrewService {
         let all = installedFormulae + installedCasks + installedMasApps
         allInstalled = all
         installedNames = Set(all.map(\.name))
+        installedIDs = Set(all.map(\.id))
 
         var reverse: [String: [BrewPackage]] = [:]
         reverse.reserveCapacity(all.count)
