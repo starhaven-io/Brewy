@@ -147,7 +147,7 @@ struct InfoCachingTests {
         let mock = MockCommandRunner()
         let (service, _) = makeService(mock: mock)
         let pkg = makePackage(name: "wget")
-        mock.setResult(for: ["info", "wget"], output: "wget: stable 1.24.5")
+        mock.setResult(for: ["info", "--", "wget"], output: "wget: stable 1.24.5")
 
         let first = await service.info(for: pkg)
         let second = await service.info(for: pkg)
@@ -155,7 +155,7 @@ struct InfoCachingTests {
         #expect(first == "wget: stable 1.24.5")
         #expect(second == "wget: stable 1.24.5")
 
-        let infoCommands = mock.executedCommands.filter { $0 == ["info", "wget"] }
+        let infoCommands = mock.executedCommands.filter { $0 == ["info", "--", "wget"] }
         #expect(infoCommands.count == 1)
     }
 
@@ -164,12 +164,12 @@ struct InfoCachingTests {
         let mock = MockCommandRunner()
         let (service, _) = makeService(mock: mock)
         let pkg = makePackage(name: "firefox", source: .cask)
-        mock.setResult(for: ["info", "--cask", "firefox"], output: "firefox: 122.0")
+        mock.setResult(for: ["info", "--cask", "--", "firefox"], output: "firefox: 122.0")
 
         let result = await service.info(for: pkg)
 
         #expect(result == "firefox: 122.0")
-        #expect(mock.executedCommands.contains(["info", "--cask", "firefox"]))
+        #expect(mock.executedCommands.contains(["info", "--cask", "--", "firefox"]))
     }
 
     @Test("info returns empty string for mas packages")
@@ -196,7 +196,7 @@ struct PackageDetailTests {
         let mock = MockCommandRunner()
         let (service, _) = makeService(mock: mock)
         let pkg = makePackage(name: "wget")
-        mock.setResult(for: ["info", "--json=v2", "wget"], output: TestJSON.formulaDetail)
+        mock.setResult(for: ["info", "--json=v2", "--", "wget"], output: TestJSON.formulaDetail)
 
         let enriched = await service.fetchPackageDetail(for: pkg)
 
@@ -210,7 +210,7 @@ struct PackageDetailTests {
         let mock = MockCommandRunner()
         let (service, _) = makeService(mock: mock)
         let pkg = makePackage(name: "firefox", source: .cask)
-        mock.setResult(for: ["info", "--cask", "--json=v2", "firefox"], output: TestJSON.caskDetail)
+        mock.setResult(for: ["info", "--cask", "--json=v2", "--", "firefox"], output: TestJSON.caskDetail)
 
         let enriched = await service.fetchPackageDetail(for: pkg)
 
@@ -223,7 +223,7 @@ struct PackageDetailTests {
         let mock = MockCommandRunner()
         let (service, _) = makeService(mock: mock)
         let pkg = makePackage(name: "wget")
-        mock.setResult(for: ["info", "--json=v2", "wget"], output: "Error", success: false)
+        mock.setResult(for: ["info", "--json=v2", "--", "wget"], output: "Error", success: false)
 
         let enriched = await service.fetchPackageDetail(for: pkg)
 
@@ -235,7 +235,7 @@ struct PackageDetailTests {
         let mock = MockCommandRunner()
         let (service, _) = makeService(mock: mock)
         let pkg = makePackage(name: "wget")
-        mock.setResult(for: ["info", "--json=v2", "wget"], output: "not json at all")
+        mock.setResult(for: ["info", "--json=v2", "--", "wget"], output: "not json at all")
 
         let enriched = await service.fetchPackageDetail(for: pkg)
 
@@ -254,7 +254,7 @@ struct PackageDetailTests {
             source: .formula, pinned: true, installedOnRequest: true,
             dependencies: []
         )
-        mock.setResult(for: ["info", "--json=v2", "wget"], output: TestJSON.formulaDetail)
+        mock.setResult(for: ["info", "--json=v2", "--", "wget"], output: TestJSON.formulaDetail)
 
         let enriched = await service.fetchPackageDetail(for: pkg)
 
@@ -280,7 +280,7 @@ struct PackageDetailTests {
         {"formulae":[],"casks":[{"token":"firefox","version":"123.0",\
         "desc":"Fast web browser"}]}
         """
-        mock.setResult(for: ["info", "--cask", "--json=v2", "firefox"], output: detail)
+        mock.setResult(for: ["info", "--cask", "--json=v2", "--", "firefox"], output: detail)
 
         let enriched = await service.fetchPackageDetail(for: pkg)
 

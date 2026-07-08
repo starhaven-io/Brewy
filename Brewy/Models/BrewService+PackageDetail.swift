@@ -9,8 +9,8 @@ extension BrewService {
 
     func fetchPackageDetail(for package: BrewPackage) async -> BrewPackage? {
         let command = package.isCask
-            ? ["info", "--cask", "--json=v2", package.name]
-            : ["info", "--json=v2", package.name]
+            ? ["info", "--cask", "--json=v2", "--", package.name]
+            : ["info", "--json=v2", "--", package.name]
         let result = await runBrewCommand(command)
         guard result.success, let data = result.output.data(using: .utf8) else { return nil }
 
