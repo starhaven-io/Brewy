@@ -28,6 +28,8 @@ jobs:
       contents: read
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
+      run_codeql: ${{ steps.matrix.outputs.run_codeql }}
+      run_zizmor: ${{ steps.matrix.outputs.run_zizmor }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -57,7 +59,11 @@ jobs:
             add_check '{"name":"Lint","check":"lint","runner":"macos-26"}'
             add_check '{"name":"Periphery","check":"periphery","runner":"macos-26"}'
             add_check '{"name":"Test (Thread Sanitizer)","check":"test-tsan","runner":"macos-26","xcodebuild_flags":"-enableCodeCoverage YES -enableThreadSanitizer YES","result_bundle":"TestResults-TSAN","environment":"codecov"}'
-            echo "matrix=${MATRIX}" >> "${GITHUB_OUTPUT}"
+            {
+              echo "matrix=${MATRIX}"
+              echo "run_codeql=false"
+              echo "run_zizmor=false"
+            } >> "${GITHUB_OUTPUT}"
             exit 0
           fi
 
@@ -70,6 +76,8 @@ jobs:
 
           NEEDS_LINT=0
           NEEDS_TESTS=0
+          RUN_CODEQL=false
+          RUN_ZIZMOR=false
 
           # Swift or CI workflow changes: lint + sanitizer tests
           if grep -qE '\.swift$|^Brewy\.xcodeproj/|^\.swiftlint\.yml$|^\.github/workflows/ci\.yml$' <<< "${CHANGED}"; then
@@ -98,15 +106,19 @@ jobs:
 
           # Source changes: CodeQL (excludes xcodeproj-only changes like version bumps)
           if grep -qE '^Brewy/|^BrewyTests/|^BrewyUITests/' <<< "${CHANGED}"; then
-            add_check '{"name":"CodeQL","check":"codeql","runner":"macos-26"}'
+            RUN_CODEQL=true
           fi
 
           # Workflow changes: Actions security audit
           if grep -qE '^\.github/workflows/' <<< "${CHANGED}"; then
-            add_check '{"name":"zizmor","check":"zizmor","runner":"ubuntu-24.04"}'
+            RUN_ZIZMOR=true
           fi
 
-          echo "matrix=${MATRIX}" >> "${GITHUB_OUTPUT}"
+          {
+            echo "matrix=${MATRIX}"
+            echo "run_codeql=${RUN_CODEQL}"
+            echo "run_zizmor=${RUN_ZIZMOR}"
+          } >> "${GITHUB_OUTPUT}"
 
   commits:
     name: Conventional Commits
@@ -130,7 +142,6 @@ jobs:
     timeout-minutes: 45
     permissions:
       contents: read
-      security-events: write # required for CodeQL and zizmor SARIF uploads
     strategy:
       fail-fast: false
       matrix:
@@ -338,44 +349,33 @@ jobs:
           retention-days: 14
 
 
-      - name: Initialize CodeQL
-        if: matrix.check == 'codeql'
-        uses: github/codeql-action/init@54f647b7e1bb85c95cddabcd46b0c578ec92bc1a # v4.36.3
-        with:
-          languages: swift
-          build-mode: manual
+  codeql:
+    name: CodeQL
+    needs: generate-matrix
+    if: needs.generate-matrix.outputs.run_codeql == 'true'
+    permissions:
+      contents: read
+      security-events: write # required to upload SARIF results
+    uses: starhaven-io/.github/.github/workflows/reusable-codeql.yml@03a3794cb337d13703059eb02b44a8d419833ebd # v2026.07.08.1
+    with:
+      languages: '["swift"]'
+      runner: "macos-26"
+      timeout-minutes: 30
+      build-mode: "manual"
+      build-profile: "brewy-xcode"
 
-      - name: Build for CodeQL
-        if: matrix.check == 'codeql'
-        run: |
-          xcodebuild \
-            -project Brewy.xcodeproj \
-            -scheme Brewy \
-            -destination 'generic/platform=macOS' \
-            -configuration Debug \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
-            SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
-            EXCLUDED_ARCHS=x86_64 \
-            build
-
-      - name: CodeQL Analysis
-        if: matrix.check == 'codeql'
-        uses: github/codeql-action/analyze@54f647b7e1bb85c95cddabcd46b0c578ec92bc1a # v4.36.3
-        with:
-          category: "/language:swift"
-
-
-      - name: Run zizmor
-        if: matrix.check == 'zizmor'
-        uses: zizmorcore/zizmor-action@192e21d79ab29983730a13d1382995c2307fbcaa # v0.5.7
-        with:
-          persona: auditor
+  zizmor:
+    name: zizmor
+    needs: generate-matrix
+    if: needs.generate-matrix.outputs.run_zizmor == 'true'
+    permissions:
+      contents: read
+      security-events: write # required for zizmor SARIF upload
+    uses: starhaven-io/.github/.github/workflows/reusable-zizmor.yml@03a3794cb337d13703059eb02b44a8d419833ebd # v2026.07.08.1
 
   conclusion:
     name: conclusion
-    needs: [commits, check]
+    needs: [commits, check, codeql, zizmor]
     runs-on: ubuntu-slim
     timeout-minutes: 15
     if: always()
@@ -384,6 +384,10 @@ jobs:
         env:
           COMMITS_RESULT: ${{ needs.commits.result }}
           CHECK_RESULT: ${{ needs.check.result }}
+          CODEQL_RESULT: ${{ needs.codeql.result }}
+          ZIZMOR_RESULT: ${{ needs.zizmor.result }}
         run: |
           test "${COMMITS_RESULT}" = "success" || test "${COMMITS_RESULT}" = "skipped"
           test "${CHECK_RESULT}" = "success" || test "${CHECK_RESULT}" = "skipped"
+          test "${CODEQL_RESULT}" = "success" || test "${CODEQL_RESULT}" = "skipped"
+          test "${ZIZMOR_RESULT}" = "success" || test "${ZIZMOR_RESULT}" = "skipped"
