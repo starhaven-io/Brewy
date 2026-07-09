@@ -349,15 +349,32 @@ jobs:
 
       - name: Bump Homebrew cask
         env:
+          GH_TOKEN: ${{ steps.tap-token.outputs.token }}
           HOMEBREW_GITHUB_API_TOKEN: ${{ steps.tap-token.outputs.token }}
           HOMEBREW_NO_AUTO_UPDATE: 1
           HOMEBREW_NO_ENV_HINTS: 1
           APP_SLUG: ${{ steps.tap-token.outputs.app-slug }}
         run: |
           BOT_USER="${APP_SLUG}[bot]"
-          BOT_ID=$(GH_TOKEN="${HOMEBREW_GITHUB_API_TOKEN}" gh api "/users/${BOT_USER}" --jq .id)
+          BOT_ID=$(gh api "/users/${BOT_USER}" --jq .id)
           export HOMEBREW_GIT_NAME="${BOT_USER}"
           export HOMEBREW_GIT_EMAIL="${BOT_ID}+${BOT_USER}@users.noreply.github.com"
           brew tap starhaven-io/tap
           brew trust starhaven-io/tap
           brew bump-cask-pr --no-fork --version "${VERSION}" starhaven-io/tap/brewy
+
+          BRANCH_VERSION="${VERSION//,/-}"
+          BRANCH_VERSION="${BRANCH_VERSION//:/-}"
+          BRANCH="bump-brewy-${BRANCH_VERSION}"
+          PR_NUMBER=$(gh pr list \
+            --repo starhaven-io/homebrew-tap \
+            --head "${BRANCH}" \
+            --state open \
+            --json number,headRepositoryOwner \
+            --jq 'map(select(.headRepositoryOwner.login == "starhaven-io")) | .[0].number // ""' || true)
+          if [ -n "${PR_NUMBER}" ]; then
+            gh pr merge "${PR_NUMBER}" --repo starhaven-io/homebrew-tap --auto --squash \
+              || echo "::warning::could not enable auto-merge for starhaven-io/homebrew-tap#${PR_NUMBER}"
+          else
+            echo "::warning::could not find open Homebrew cask bump PR for ${BRANCH}"
+          fi
