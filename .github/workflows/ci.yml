@@ -40,13 +40,6 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           EVENT_NAME: ${{ github.event_name }}
         run: |
-          # Push to main: run test-tsan so Codecov has a baseline for PR
-          # coverage comparisons.
-          if [[ "${EVENT_NAME}" == "push" ]]; then
-            echo 'matrix=[{"name":"Test (Thread Sanitizer)","check":"test-tsan","runner":"macos-26","xcodebuild_flags":"-enableCodeCoverage YES -enableThreadSanitizer YES","result_bundle":"TestResults-TSAN","environment":"codecov"}]' >> "${GITHUB_OUTPUT}"
-            exit 0
-          fi
-
           MATRIX='[]'
           add_check() {
             local entry="$1"
@@ -56,6 +49,17 @@ jobs:
               MATRIX="${MATRIX%]},${entry}]"
             fi
           }
+
+          # Push to main: run Homebrew-backed checks so their default-branch
+          # caches can seed PRs, plus test-tsan so Codecov has a baseline for
+          # PR coverage comparisons.
+          if [[ "${EVENT_NAME}" == "push" ]]; then
+            add_check '{"name":"Lint","check":"lint","runner":"macos-26"}'
+            add_check '{"name":"Periphery","check":"periphery","runner":"macos-26"}'
+            add_check '{"name":"Test (Thread Sanitizer)","check":"test-tsan","runner":"macos-26","xcodebuild_flags":"-enableCodeCoverage YES -enableThreadSanitizer YES","result_bundle":"TestResults-TSAN","environment":"codecov"}'
+            echo "matrix=${MATRIX}" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
 
           # `edited` (title/body/base) also runs the full path-derived matrix. The
           # aggregate "conclusion" job is the only required status check, so it must
@@ -138,13 +142,15 @@ jobs:
           persist-credentials: false
 
 
-      - name: Cache Homebrew downloads
+      - name: Restore Homebrew downloads
+        id: homebrew-cache
         if: matrix.check == 'lint' || matrix.check == 'periphery'
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/Library/Caches/Homebrew
-          key: homebrew-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
+          key: homebrew-${{ runner.os }}-${{ matrix.check }}-${{ hashFiles('.github/workflows/ci.yml') }}
           restore-keys: |
+            homebrew-${{ runner.os }}-${{ matrix.check }}-
             homebrew-${{ runner.os }}-
 
       - name: Install lint tools
@@ -153,6 +159,16 @@ jobs:
           HOMEBREW_NO_AUTO_UPDATE: 1
           HOMEBREW_NO_ENV_HINTS: 1
         run: brew install swiftlint typos-cli
+
+      - name: Save lint Homebrew downloads
+        if: >
+          github.event_name == 'push' &&
+          matrix.check == 'lint' &&
+          steps.homebrew-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/Library/Caches/Homebrew
+          key: ${{ steps.homebrew-cache.outputs.cache-primary-key }}
 
       - name: SwiftLint
         if: matrix.check == 'lint'
@@ -197,6 +213,16 @@ jobs:
           HOMEBREW_NO_AUTO_UPDATE: 1
           HOMEBREW_NO_ENV_HINTS: 1
         run: brew install periphery
+
+      - name: Save Periphery Homebrew downloads
+        if: >
+          github.event_name == 'push' &&
+          matrix.check == 'periphery' &&
+          steps.homebrew-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/Library/Caches/Homebrew
+          key: ${{ steps.homebrew-cache.outputs.cache-primary-key }}
 
       - name: Periphery
         if: matrix.check == 'periphery'
