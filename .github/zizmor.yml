@@ -1,7 +1,0 @@
-rules:
-  unpinned-uses:
-    config:
-      policies:
-        # Homebrew/actions does not publish versioned refs; keep this exception
-        # scoped to upstream Homebrew actions.
-        Homebrew/actions/*: ref-pin
