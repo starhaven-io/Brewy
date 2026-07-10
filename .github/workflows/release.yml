@@ -46,6 +46,7 @@ jobs:
       tag: ${{ steps.version.outputs.tag }}
       build_number: ${{ steps.version.outputs.build_number }}
       artifact_name: "Brewy-${{ steps.version.outputs.tag }}.zip"
+      sign_update_sha256: ${{ steps.sparkle-signing-tool.outputs.sha256 }}
     permissions:
       contents: read # required to checkout the release source
     env:
@@ -127,6 +128,7 @@ jobs:
             -scheme Brewy \
             -destination 'generic/platform=macOS' \
             -configuration Release \
+            -derivedDataPath "${RUNNER_TEMP}/DerivedData" \
             -archivePath "${RUNNER_TEMP}/Brewy.xcarchive" \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Developer ID Application" \
@@ -166,11 +168,25 @@ jobs:
             "${RUNNER_TEMP}/export/Brewy.app" \
             "${RUNNER_TEMP}/Brewy-${TAG}.zip"
 
+      - name: Stage Sparkle signing tool
+        id: sparkle-signing-tool
+        run: |
+          SPARKLE_SIGN_UPDATE="${RUNNER_TEMP}/DerivedData/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update"
+          if [[ ! -x "${SPARKLE_SIGN_UPDATE}" ]]; then
+            echo "::error::Could not find Sparkle sign_update in the resolved Swift package artifact."
+            exit 1
+          fi
+          cp "${SPARKLE_SIGN_UPDATE}" "${RUNNER_TEMP}/sign_update"
+          SIGN_UPDATE_SHA256=$(shasum -a 256 "${RUNNER_TEMP}/sign_update")
+          echo "sha256=${SIGN_UPDATE_SHA256%% *}" >> "${GITHUB_OUTPUT}"
+
       - name: Upload artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: "Brewy-${{ steps.version.outputs.tag }}.zip"
-          path: "${{ runner.temp }}/Brewy-${{ steps.version.outputs.tag }}.zip"
+          path: |
+            ${{ runner.temp }}/Brewy-${{ steps.version.outputs.tag }}.zip
+            ${{ runner.temp }}/sign_update
 
   release:
     name: Release
@@ -231,28 +247,22 @@ jobs:
           # `gh attestation verify` against the published download matches the attested digest.
           subject-path: ${{ needs.build.outputs.artifact_name }}
 
-      - name: Download Sparkle
-        env:
-          # Keep in lockstep with the Sparkle version pinned in Package.resolved; verify the
-          # download against a known SHA-256 before running sign_update against the private key.
-          SPARKLE_VERSION: "2.9.3"
-          SPARKLE_SHA256: "74a07da821f92b79310009954c0e15f350173374a3abe39095b4fc5096916be6"
-        run: |
-          curl -fsSL -o "${RUNNER_TEMP}/sparkle.tar.xz" \
-            "https://github.com/sparkle-project/Sparkle/releases/download/${SPARKLE_VERSION}/Sparkle-${SPARKLE_VERSION}.tar.xz"
-          echo "${SPARKLE_SHA256}  ${RUNNER_TEMP}/sparkle.tar.xz" | shasum -a 256 -c -
-          mkdir -p "${RUNNER_TEMP}/sparkle"
-          tar xf "${RUNNER_TEMP}/sparkle.tar.xz" -C "${RUNNER_TEMP}/sparkle"
-
       - name: Sign update with Sparkle EdDSA
         env:
           SPARKLE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
           ARTIFACT_NAME: ${{ needs.build.outputs.artifact_name }}
+          SIGN_UPDATE_SHA256: ${{ needs.build.outputs.sign_update_sha256 }}
         run: |
+          if [[ -z "${SIGN_UPDATE_SHA256}" ]]; then
+            echo "::error::Could not read the staged Sparkle sign_update checksum."
+            exit 1
+          fi
+          echo "${SIGN_UPDATE_SHA256}  sign_update" | shasum -a 256 -c -
+          chmod 0755 sign_update
           SPARKLE_KEY_FILE="${RUNNER_TEMP}/sparkle_private_key"
           trap 'rm -f "${SPARKLE_KEY_FILE}"' EXIT
           echo "${SPARKLE_KEY}" > "${SPARKLE_KEY_FILE}"
-          SIG_OUTPUT=$("${RUNNER_TEMP}/sparkle/bin/sign_update" "${ARTIFACT_NAME}" --ed-key-file "${SPARKLE_KEY_FILE}" 2>&1)
+          SIG_OUTPUT=$(./sign_update "${ARTIFACT_NAME}" --ed-key-file "${SPARKLE_KEY_FILE}" 2>&1)
           echo "SPARKLE_SIG=$(echo "${SIG_OUTPUT}" | grep -o 'sparkle:edSignature="[^"]*"' | cut -d'"' -f2)" >> "${GITHUB_ENV}"
           echo "SPARKLE_LENGTH=$(echo "${SIG_OUTPUT}" | grep -o 'length="[^"]*"' | cut -d'"' -f2)" >> "${GITHUB_ENV}"
 
