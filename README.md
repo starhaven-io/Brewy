@@ -78,6 +78,8 @@ All CLI execution is centralized through `CommandRunner`, which invokes binaries
 
 Destructive maintenance operations show Homebrew dry-run previews before they can run. External links from package data, tap data, and release notes must pass through `ExternalURLPolicy`, which restricts URLs to `http` and `https` before opening them outside the app.
 
+Report suspected vulnerabilities privately by emailing [security@starhaven.io](mailto:security@starhaven.io) or using [GitHub's private vulnerability reporting](https://github.com/starhaven-io/Brewy/security/advisories/new). See the [security policy](SECURITY.md) for details.
+
 ## Contributing
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the development setup, local checks, and commit conventions.
