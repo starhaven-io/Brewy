@@ -27,5 +27,4 @@ you.
 
 ## Supported versions
 
-Security fixes are made against the current `main` branch and the latest released
-version of Brewy.
+Only the latest released version of Brewy is supported with security fixes.
