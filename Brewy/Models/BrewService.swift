@@ -207,7 +207,7 @@ final class BrewService {
 
     func saveToCache() {
         guard let cacheURL = Self.cacheURL,
-              ProcessInfo.processInfo.environment["XCTestBundlePath"] == nil else { return }
+              !BrewyRuntime.isRunningTests else { return }
         let cached = CachedData(
             schemaVersion: Self.cacheSchemaVersion,
             formulae: installedFormulae,
@@ -235,6 +235,7 @@ final class BrewService {
     }
 
     func checkTapHealth() async {
+        guard !BrewyRuntime.isRunningTests else { return }
         let updated = await TapHealthChecker.checkHealth(taps: installedTaps, existing: tapHealthStatuses)
         guard !Task.isCancelled else { return }
         tapHealthStatuses = updated

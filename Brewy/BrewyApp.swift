@@ -4,7 +4,7 @@ import SwiftUI
 
 @main
 struct BrewyApp: App {
-    @State private var brewService = BrewService()
+    @State private var brewService = Self.makeBrewService()
     // HACK: there is a known color scheme bug in SwiftUI where passing `nil` to `.preferredColorScheme`
     // doesn't change the color of some elements:
     // https://stackoverflow.com/questions/76123702/preferredcolorschemenil-visual-bug-when-switching-to-system-light-dark-more
@@ -14,7 +14,11 @@ struct BrewyApp: App {
     private let updaterController: SPUStandardUpdaterController
 
     init() {
-        updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
+        updaterController = SPUStandardUpdaterController(
+            startingUpdater: !BrewyRuntime.isRunningTests,
+            updaterDelegate: nil,
+            userDriverDelegate: nil
+        )
     }
 
     @AppStorage("appTheme")
@@ -28,6 +32,15 @@ struct BrewyApp: App {
         case .darkAqua: .dark
         default: nil
         }
+    }
+
+    private static func makeBrewService() -> BrewService {
+#if DEBUG
+        if BrewyRuntime.isUITesting {
+            return BrewService(commandRunner: UITestCommandRunner())
+        }
+#endif
+        return BrewService()
     }
 
     private var preferredColorScheme: ColorScheme? {

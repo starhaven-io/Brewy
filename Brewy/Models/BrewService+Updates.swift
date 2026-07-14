@@ -55,7 +55,7 @@ extension BrewService {
 
     private func saveLastUpdateResult() {
         guard let url = Self.lastUpdateResultURL,
-              ProcessInfo.processInfo.environment["XCTestBundlePath"] == nil,
+              !BrewyRuntime.isRunningTests,
               let result = lastUpdateResult else { return }
         Task.detached(priority: .utility) {
             do {

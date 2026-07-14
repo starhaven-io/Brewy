@@ -83,6 +83,7 @@ private struct GroupRow: View {
                 Text(group.name)
                     .font(.body)
                     .bold()
+                    .accessibilityIdentifier("group-row-\(group.name)")
             }
             Spacer()
             BrewyCountBadge(count: brewService.packages(in: group).count)

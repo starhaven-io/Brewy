@@ -1,3 +1,4 @@
+import CryptoKit
 import XCTest
 
 @MainActor
@@ -14,17 +15,43 @@ final class SidebarNavigationUITests: XCTestCase {
     private static let elementTimeout: TimeInterval = 10 * timeoutScale
 
     private var app: XCUIApplication!
+    private var fixtureDirectory: URL!
 
     override func setUp() async throws {
         continueAfterFailure = false
+        fixtureDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("brewy-ui-tests-\(ProcessInfo.processInfo.globallyUniqueString)")
+        let homebrewDirectory = fixtureDirectory.appendingPathComponent("homebrew")
+        try FileManager.default.createDirectory(at: homebrewDirectory, withIntermediateDirectories: true)
+        let brewfileURL = homebrewDirectory.appendingPathComponent("Brewfile")
+            .resolvingSymlinksInPath()
+        let brewfileData = Data("brew \"ripgrep\"\ncask \"firefox\"\n".utf8)
+        try brewfileData.write(to: brewfileURL)
+        let brewfileDigest = SHA256.hash(data: brewfileData)
+            .map { String(format: "%02x", $0) }
+            .joined()
+
         app = XCUIApplication()
-        app.launchArguments += ["-NSConstraintBasedLayoutVisualizeMutuallyExclusiveConstraints", "YES"]
+        app.terminate()
+        app.launchArguments += [
+            "-NSConstraintBasedLayoutVisualizeMutuallyExclusiveConstraints", "YES",
+            "-autoRefreshInterval", "0",
+            "-brewfilePath", "",
+            "-showCasksByDefault", "NO",
+            "-trustedBrewfilePath", brewfileURL.path,
+            "-trustedBrewfileDigest", brewfileDigest
+        ]
         app.launchEnvironment["BREWY_UI_TESTING"] = "1"
+        app.launchEnvironment["XDG_CONFIG_HOME"] = fixtureDirectory.path
         app.launch()
+        app.activate()
     }
 
     override func tearDown() async throws {
+        app?.terminate()
         app = nil
+        try? FileManager.default.removeItem(at: fixtureDirectory)
+        fixtureDirectory = nil
     }
 
     // MARK: - Sidebar Category Navigation
@@ -32,7 +59,7 @@ final class SidebarNavigationUITests: XCTestCase {
     func testAllSidebarCategoriesRender() throws {
         let categories = [
             "Installed", "Formulae", "Casks", "Mac App Store", "Outdated",
-            "Pinned", "Leaves", "Taps", "Services", "Groups",
+            "Pinned", "Leaves", "Taps", "Services", "Groups", "Bundle",
             "History", "Discover", "Maintenance"
         ]
 
@@ -53,7 +80,7 @@ final class SidebarNavigationUITests: XCTestCase {
 
         let expectedCategories = [
             "Installed", "Formulae", "Casks", "Mac App Store", "Outdated",
-            "Pinned", "Leaves", "Taps", "Services", "Groups",
+            "Pinned", "Leaves", "Taps", "Services", "Groups", "Bundle",
             "History", "Discover", "Maintenance"
         ]
 
@@ -98,6 +125,121 @@ final class SidebarNavigationUITests: XCTestCase {
             refreshButton,
             timeout: Self.launchTimeout,
             "Refresh button should exist in sidebar footer"
+        )
+    }
+
+    // MARK: - Fixture-backed flows
+
+    func testPackageDetailRendersFixtureData() throws {
+        let package = app.staticTexts["package-row-ripgrep"]
+        assertExists(package, timeout: Self.launchTimeout, "Fixture package should appear")
+        package.click()
+
+        assertExists(
+            app.staticTexts["Search tool like grep and The Silver Searcher"],
+            timeout: Self.elementTimeout,
+            "Package details should render"
+        )
+        assertExists(
+            app.buttons["Upgrade"],
+            timeout: Self.elementTimeout,
+            "Outdated package should offer Upgrade"
+        )
+        assertExists(
+            app.staticTexts["Version 14.1.0 → 14.1.1"],
+            timeout: Self.elementTimeout,
+            "Package version transition should render"
+        )
+    }
+
+    func testManagementViewsRenderFixtureDetails() throws {
+        let sidebar = app.outlines.firstMatch
+        assertExists(sidebar, timeout: Self.launchTimeout, "Sidebar should exist")
+
+        sidebar.staticTexts["Taps"].click()
+        let tap = app.staticTexts["tap-row-starhaven-io/tap"]
+        assertExists(tap, timeout: Self.elementTimeout, "Fixture tap should appear")
+        tap.click()
+        assertExists(
+            app.staticTexts["https://github.com/starhaven-io/homebrew-tap"].firstMatch,
+            timeout: Self.elementTimeout,
+            "Tap details should render"
+        )
+
+        sidebar.staticTexts["Services"].click()
+        let service = app.staticTexts["service-row-postgresql@17"]
+        assertExists(service, timeout: Self.elementTimeout, "Fixture service should appear")
+        service.click()
+        assertExists(
+            app.staticTexts["homebrew.mxcl.postgresql@17"],
+            timeout: Self.elementTimeout,
+            "Service details should render"
+        )
+
+        sidebar.staticTexts["Groups"].click()
+        let group = app.staticTexts["group-row-Development"]
+        assertExists(group, timeout: Self.elementTimeout, "Fixture group should appear")
+        group.click()
+        assertExists(
+            app.staticTexts["2 packages"],
+            timeout: Self.elementTimeout,
+            "Group package count should render"
+        )
+
+        sidebar.staticTexts["Bundle"].click()
+        assertExists(
+            app.staticTexts["Missing Dependencies"],
+            timeout: Self.elementTimeout,
+            "Bundle status should render"
+        )
+        assertExists(
+            app.staticTexts["jq"].firstMatch,
+            timeout: Self.elementTimeout,
+            "Missing bundle entry should render"
+        )
+    }
+
+    func testHistoryDiscoverAndMaintenanceRenderFixtureData() throws {
+        let sidebar = app.outlines.firstMatch
+        assertExists(sidebar, timeout: Self.launchTimeout, "Sidebar should exist")
+
+        sidebar.staticTexts["History"].click()
+        let historyEntry = app.staticTexts["history-row-ripgrep"]
+        assertExists(historyEntry, timeout: Self.elementTimeout, "Fixture history should appear")
+        historyEntry.click()
+        assertExists(
+            app.staticTexts["brew upgrade ripgrep"],
+            timeout: Self.elementTimeout,
+            "History command should render"
+        )
+        assertExists(
+            app.staticTexts["Error: fixture upgrade failed"],
+            timeout: Self.elementTimeout,
+            "History output should render"
+        )
+
+        sidebar.staticTexts["Discover"].click()
+        assertExists(
+            app.staticTexts["atuin"].firstMatch,
+            timeout: Self.elementTimeout,
+            "New formula should appear in Discover"
+        )
+        assertExists(
+            app.staticTexts["zed"].firstMatch,
+            timeout: Self.elementTimeout,
+            "New cask should appear in Discover"
+        )
+
+        sidebar.staticTexts["Maintenance"].click()
+        assertExists(
+            app.staticTexts["4.6.0"],
+            timeout: Self.elementTimeout,
+            "Fixture Homebrew version should render"
+        )
+        assertExists(
+            app.staticTexts["maintenance-cache-size"],
+            timeout: Self.elementTimeout,
+            "Fixture cache size should render"
         )
     }
 
