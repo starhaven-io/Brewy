@@ -26,7 +26,7 @@ extension BrewService {
 
     private func saveHistory() {
         guard let url = Self.historyURL,
-              ProcessInfo.processInfo.environment["XCTestBundlePath"] == nil else { return }
+              !BrewyRuntime.isRunningTests else { return }
         let history = actionHistory
         Task.detached(priority: .utility) {
             do {

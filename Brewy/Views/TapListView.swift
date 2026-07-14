@@ -91,6 +91,7 @@ private struct TapRow: View {
                     Text(tap.name)
                         .font(.body)
                         .bold()
+                        .accessibilityIdentifier("tap-row-\(tap.name)")
                     if let healthStatus, healthStatus.status != .healthy, healthStatus.status != .unknown {
                         TapHealthBadge(status: healthStatus.status)
                     } else if isOfficialTap, healthStatus?.status == .healthy {

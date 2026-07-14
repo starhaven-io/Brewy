@@ -22,7 +22,7 @@ extension BrewService {
 
     private func saveGroups() {
         guard let url = Self.groupsURL,
-              ProcessInfo.processInfo.environment["XCTestBundlePath"] == nil else { return }
+              !BrewyRuntime.isRunningTests else { return }
         let groups = packageGroups
         Task.detached(priority: .utility) {
             do {

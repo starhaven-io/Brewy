@@ -126,6 +126,7 @@ private struct ServiceRow: View {
                 Text(service.name)
                     .font(.body)
                     .fontWeight(.medium)
+                    .accessibilityIdentifier("service-row-\(service.name)")
                 HStack(spacing: 6) {
                     Text(service.statusLabel)
                         .font(.caption)

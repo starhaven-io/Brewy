@@ -85,6 +85,12 @@ struct ContentView: View {
         }
         .environment(\.selectPackage) { name in navigateToPackage(name) }
         .task {
+#if DEBUG
+            if BrewyRuntime.isUITesting {
+                brewService.loadUITestFixtures()
+                return
+            }
+#endif
             if showCasksByDefault {
                 selectedCategory = .casks
             }
@@ -93,11 +99,8 @@ struct ContentView: View {
             brewService.loadGroups()
             brewService.loadHistory()
             brewService.loadLastUpdateResult()
-            // Skip non-deterministic startup work under tests: real `brew` subprocesses
-            // hang the runner, and the WhatsNew sheet's modal AX hierarchy hides the sidebar.
-            // XCTestBundlePath is set by unit-test hosts; BREWY_UI_TESTING is set by UI-test setUp.
-            let env = ProcessInfo.processInfo.environment
-            guard env["XCTestBundlePath"] == nil, env["BREWY_UI_TESTING"] != "1" else { return }
+            // Skip non-deterministic startup work under unit tests.
+            guard !BrewyRuntime.isRunningTests else { return }
             let currentVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
             if !currentVersion.isEmpty, currentVersion != lastSeenVersion {
                 lastSeenVersion = currentVersion

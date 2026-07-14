@@ -126,6 +126,7 @@ struct MaintenanceView: View {
                         .font(.callout)
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
+                        .accessibilityIdentifier("maintenance-cache-size")
                 }
 
                 Button("Clear Cache") {

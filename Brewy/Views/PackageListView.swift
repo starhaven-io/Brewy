@@ -256,6 +256,7 @@ private struct PackageRow: View {
                     Text(package.name)
                         .font(.body)
                         .fontWeight(.semibold)
+                        .accessibilityIdentifier("package-row-\(package.name)")
                     if showInstalledBadge, package.isInstalled {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.caption2)

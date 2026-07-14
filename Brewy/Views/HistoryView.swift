@@ -58,7 +58,9 @@ private struct HistoryRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 if let name = entry.packageName {
                     HStack(spacing: 6) {
-                        Text(name).fontWeight(.medium)
+                        Text(name)
+                            .fontWeight(.medium)
+                            .accessibilityIdentifier("history-row-\(name)")
                         Text(entry.command)
                             .font(.caption)
                             .foregroundStyle(.secondary)
