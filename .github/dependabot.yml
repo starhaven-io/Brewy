@@ -8,6 +8,9 @@ updates:
       default-days: 7
       exclude:
         - "starhaven-io/*"
+        # A new Ruby is unusable until setup-ruby knows it exists, so a
+        # cooldown here delays every Ruby bump for no safety.
+        - "ruby/setup-ruby"
     ignore:
       # Fleet pins are owned by the sync; Dependabot never writes them.
       - dependency-name: "starhaven-io/.github/*"
