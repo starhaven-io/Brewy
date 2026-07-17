@@ -72,9 +72,10 @@ Please follow these guidelines when contributing.
 - Sign off every commit with `git commit -s` for DCO (enforced by the
   `.githooks/commit-msg` hook; run `just install-hooks` once per clone to
   enable it).
-- When authored with an AI coding agent, add a `Co-Authored-By` trailer after
-  `Signed-off-by`, naming the agent and model. Current example:
-  `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`. Bump the model
+- When authored with an AI coding agent, add a `Co-authored-by` trailer before
+  `Signed-off-by` (git-native order: `git commit -s` appends the sign-off last),
+  naming the agent and model. Current example:
+  `Co-authored-by: Claude Opus 4.8 <noreply@anthropic.com>`. Bump the model
   version as newer ones ship.
 - Never commit directly to `main`; create a feature branch and open a PR.
 - PR descriptions should contain only a concise summary of changes. Do not add
