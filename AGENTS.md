@@ -80,6 +80,9 @@ Please follow these guidelines when contributing.
 - Never commit directly to `main`; create a feature branch and open a PR.
 - PR descriptions should contain only a concise summary of changes. Do not add
   test-plan sections, bot attribution, or generated-with footers.
+- Keep each prose paragraph in a PR description on one source line. Do not
+  hard-wrap PR body prose like a commit message; preserve intentional Markdown
+  line breaks in lists, code blocks, and other structured content.
 - Comments must earn their keep: a comment states a constraint or rationale the
   code cannot express. Never add comments that narrate what the code does,
   restate names, or explain a change to its reviewer.
