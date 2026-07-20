@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>DeveloperName</key>
+	<string>Patrick Linnane</string>
+	<key>ApplicationDescription</key>
+	<string>Brewy is a macOS app for browsing and managing Homebrew packages, casks, taps, and services.</string>
+	<key>Website</key>
+	<string>https://github.com/starhaven-io/Brewy</string>
+	<key>Connections</key>
+	<array>
+		<dict>
+			<key>IsIncoming</key>
+			<false/>
+			<key>Host</key>
+			<string>formulae.brew.sh</string>
+			<key>NetworkProtocol</key>
+			<string>TCP</string>
+			<key>Port</key>
+			<string>443</string>
+			<key>Purpose</key>
+			<string>Brewy runs Homebrew to retrieve formula and cask metadata.</string>
+			<key>DenyConsequences</key>
+			<string>If you deny these connections, package details, search results, and update information may be unavailable or outdated.</string>
+		</dict>
+		<dict>
+			<key>IsIncoming</key>
+			<false/>
+			<key>Host</key>
+			<string>ghcr.io</string>
+			<key>NetworkProtocol</key>
+			<string>TCP</string>
+			<key>Port</key>
+			<string>443</string>
+			<key>Purpose</key>
+			<string>Brewy runs Homebrew to download prebuilt packages from Homebrew’s package registry.</string>
+			<key>DenyConsequences</key>
+			<string>If you deny these connections, Homebrew may be unable to install or upgrade packages.</string>
+		</dict>
+		<dict>
+			<key>IsIncoming</key>
+			<false/>
+			<key>Host</key>
+			<string>api.github.com</string>
+			<key>NetworkProtocol</key>
+			<string>TCP</string>
+			<key>Port</key>
+			<string>443</string>
+			<key>Purpose</key>
+			<string>Brewy checks whether installed Homebrew tap repositories are active, archived, moved, or missing.</string>
+			<key>DenyConsequences</key>
+			<string>If you deny these connections, Brewy cannot report the health of GitHub-hosted taps.</string>
+		</dict>
+		<dict>
+			<key>IsIncoming</key>
+			<false/>
+			<key>Host</key>
+			<string>raw.githubusercontent.com</string>
+			<key>NetworkProtocol</key>
+			<string>TCP</string>
+			<key>Port</key>
+			<string>443</string>
+			<key>Purpose</key>
+			<string>Brewy checks for app updates and loads release notes.</string>
+			<key>DenyConsequences</key>
+			<string>If you deny these connections, Brewy cannot check for updates or show the latest release notes.</string>
+		</dict>
+		<dict>
+			<key>IsIncoming</key>
+			<false/>
+			<key>Host</key>
+			<string>github.com,*.github.com,*.githubusercontent.com</string>
+			<key>NetworkProtocol</key>
+			<string>TCP</string>
+			<key>Port</key>
+			<string>443</string>
+			<key>Purpose</key>
+			<string>Brewy downloads app updates and runs Homebrew to update GitHub-hosted taps and packages.</string>
+			<key>DenyConsequences</key>
+			<string>If you deny these connections, app updates and GitHub-hosted Homebrew operations may fail.</string>
+		</dict>
+		<dict>
+			<key>IsIncoming</key>
+			<false/>
+			<key>Host</key>
+			<string>*</string>
+			<key>Purpose</key>
+			<string>Brewy runs Homebrew and mas to retrieve package information and downloads from servers selected by Homebrew, installed taps, package authors, and Apple.</string>
+			<key>DenyConsequences</key>
+			<string>If you deny these connections, affected package listings, installations, upgrades, or Mac App Store information may be unavailable.</string>
+		</dict>
+		<dict>
+			<key>IsIncoming</key>
+			<false/>
+			<key>Host</key>
+			<string>=*</string>
+			<key>Purpose</key>
+			<string>Brewy accesses the internet to manage Homebrew packages and taps, check tap health, list Mac App Store apps, and deliver Brewy updates.</string>
+			<key>DenyConsequences</key>
+			<string>If you deny these connections, online package management, tap health checks, and app updates will not work.</string>
+		</dict>
+	</array>
+</dict>
+</plist>
