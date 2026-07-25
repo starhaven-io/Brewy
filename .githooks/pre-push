@@ -5,6 +5,7 @@
 # sha for each deleted ref on stdin), so skip the checks for them.
 
 deleting_only=1
+# shellcheck disable=SC2034  # the pre-push stdin protocol dictates all four fields
 while read -r local_ref local_sha remote_ref remote_sha; do
     case "$local_sha" in
         *[!0]*) deleting_only=0 ;;
