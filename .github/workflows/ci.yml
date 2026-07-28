@@ -126,7 +126,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: read # required to read PR titles
-    uses: starhaven-io/.github/.github/workflows/reusable-conventional-commits.yml@1f76a911b7f4fea29eca5983901fa203f38bd303 # v2026.07.27.1
+    uses: starhaven-io/.github/.github/workflows/reusable-conventional-commits.yml@ad5dbd8d426bac03bcc26cac8cc0771926de90a5 # v2026.07.27.2
 
   check:
     name: ${{ matrix.name }}
@@ -327,7 +327,7 @@ jobs:
     permissions:
       contents: read
       security-events: write # required to upload SARIF results
-    uses: starhaven-io/.github/.github/workflows/reusable-codeql.yml@1f76a911b7f4fea29eca5983901fa203f38bd303 # v2026.07.27.1
+    uses: starhaven-io/.github/.github/workflows/reusable-codeql.yml@ad5dbd8d426bac03bcc26cac8cc0771926de90a5 # v2026.07.27.2
     with:
       languages: '["swift"]'
       runner: "macos-26"
@@ -342,7 +342,7 @@ jobs:
     permissions:
       contents: read
       security-events: write # required for zizmor SARIF upload
-    uses: starhaven-io/.github/.github/workflows/reusable-zizmor.yml@1f76a911b7f4fea29eca5983901fa203f38bd303 # v2026.07.27.1
+    uses: starhaven-io/.github/.github/workflows/reusable-zizmor.yml@ad5dbd8d426bac03bcc26cac8cc0771926de90a5 # v2026.07.27.2
 
   conclusion:
     name: conclusion
