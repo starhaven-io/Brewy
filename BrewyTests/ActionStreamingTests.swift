@@ -70,15 +70,16 @@ struct ActionStreamingTests {
     func chunksReachActionOutputMidFlight() async {
         let runner = StreamingMockRunner(
             chunks: ["first-chunk\n", "second-chunk\n"],
-            chunkDelay: .milliseconds(50),
+            // Wide enough that a loaded runner still observes the mid-flight state.
+            chunkDelay: .milliseconds(300),
             finalResult: CommandResult(output: "first-chunk\nsecond-chunk\n", success: true)
         )
         let service = BrewService(commandRunner: runner)
 
         let action = Task { await service.performBrewAction(["upgrade"]) }
         var sawPartial = false
-        for _ in 0..<200 {
-            try? await Task.sleep(for: .milliseconds(5))
+        for _ in 0..<600 {
+            try? await Task.sleep(for: .milliseconds(10))
             if service.actionOutput.contains("first-chunk"), !service.actionOutput.contains("second-chunk") {
                 sawPartial = true
                 break

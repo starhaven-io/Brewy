@@ -183,7 +183,10 @@ struct CommandRunnerProcessTests {
         )
         let elapsed = ContinuousClock.now - start
         #expect(!result.success)
-        #expect(elapsed < .seconds(15))
+        #expect(result.output.contains("timed out"))
+        // Deliberately loose: the point is that the child was killed rather than allowed to
+        // finish its 30 s sleep. A tighter bound only measures how loaded the machine is.
+        #expect(elapsed < .seconds(25))
     }
 
     @Test("runExecutable includes partial output on timeout")
@@ -233,7 +236,9 @@ struct CommandRunnerProcessTests {
         #expect(!result.success)
         #expect(result.cancelled)
         #expect(result.output.contains("cancelled"))
-        #expect(elapsed < .seconds(10))
+        // Loose for the same reason as the timeout test: this proves the call did not wait
+        // out the child's 30 s sleep, not that the machine is fast.
+        #expect(elapsed < .seconds(25))
     }
 
     @Test("Cancellation before launch skips running the process")
