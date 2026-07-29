@@ -115,7 +115,7 @@ struct ContentView: View {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(autoRefreshInterval))
                 guard !Task.isCancelled else { break }
-                await brewService.refresh()
+                await brewService.refresh(isUserInitiated: false)
             }
         }
         .onChange(of: selectedCategory) {
