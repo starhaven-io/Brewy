@@ -143,6 +143,20 @@ struct ActionHistoryEntryTests {
         #expect(entry.isMutatingCommand == false)
     }
 
+    @Test("bundle dump requires retry confirmation and exposes its file")
+    func bundleDumpIsMutating() {
+        let entry = ActionHistoryEntry(
+            id: UUID(), command: "bundle",
+            arguments: ["bundle", "dump", "--force", "--file", "/tmp/Brewfile"],
+            packageName: nil, packageSource: nil,
+            status: .failure, output: "Error", timestamp: Date()
+        )
+
+        #expect(entry.isMutatingCommand)
+        #expect(entry.isBundleDump)
+        #expect(entry.bundleDumpURL?.path == "/tmp/Brewfile")
+    }
+
     @Test("Status raw values encode correctly")
     func statusRawValues() {
         #expect(ActionHistoryEntry.Status.success.rawValue == "success")

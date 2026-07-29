@@ -401,22 +401,21 @@ struct BrewServiceBundleTests {
         }
     }
 
-    @Test("dumpBundle never passes force and surfaces existing-file failure")
-    func dumpBundleExistingFileFailure() async throws {
+    @Test("dumpBundle passes force so a panel-confirmed replace overwrites")
+    func dumpBundleForcesOverwrite() async throws {
         let brewfile = try Self.makeBrewfile()
         let mock = MockCommandRunner()
         let (service, _) = makeService(mock: mock)
         mock.setResult(
-            for: ["bundle", "dump", "--file", brewfile.path],
-            output: "Error: Brewfile already exists at \(brewfile.path)\n",
+            for: ["bundle", "dump", "--force", "--file", brewfile.path],
+            output: "brew crashed\n",
             success: false
         )
 
         let result = await service.dumpBundle(to: brewfile)
 
         #expect(result.success == false)
-        #expect(mock.executedCommands == [["bundle", "dump", "--file", brewfile.path]])
-        #expect(mock.executedCommands[0].contains("--force") == false)
+        #expect(mock.executedCommands == [["bundle", "dump", "--force", "--file", brewfile.path]])
         #expect(service.lastError != nil)
         #expect(service.actionHistory.count == 1)
         #expect(service.actionHistory[0].status == .failure)
@@ -427,7 +426,7 @@ struct BrewServiceBundleTests {
         let brewfile = try Self.makeBrewfile()
         let mock = MockCommandRunner()
         let (service, _) = makeService(mock: mock)
-        mock.setResult(for: ["bundle", "dump", "--file", brewfile.path], output: "Using Brewfile\n")
+        mock.setResult(for: ["bundle", "dump", "--force", "--file", brewfile.path], output: "Using Brewfile\n")
         Self.setEmptyBundleListResults(mock, path: brewfile.path)
         mock.setResult(
             for: ["bundle", "check", "--verbose", "--file", brewfile.path],

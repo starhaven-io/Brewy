@@ -279,7 +279,7 @@ extension BrewService {
         actionOutput = ""
         lastError = nil
 
-        let arguments = ["bundle", "dump", "--file", url.path]
+        let arguments = ["bundle", "dump", "--force", "--file", url.path]
         let result = await runBrewCommandStreaming(arguments)
         if !result.success, !result.cancelled {
             logger.warning("Bundle dump failed: \(result.output.prefix(200))")

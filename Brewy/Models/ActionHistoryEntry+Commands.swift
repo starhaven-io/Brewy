@@ -1,7 +1,21 @@
+import Foundation
+
 extension ActionHistoryEntry {
     var isMutatingCommand: Bool {
+        if isBundleDump { return true }
         guard let command = arguments.first else { return false }
         return Self.mutatingCommands.contains(command)
+    }
+
+    var isBundleDump: Bool {
+        arguments.starts(with: ["bundle", "dump"])
+    }
+
+    var bundleDumpURL: URL? {
+        guard isBundleDump,
+              let fileIndex = arguments.firstIndex(of: "--file"),
+              arguments.indices.contains(fileIndex + 1) else { return nil }
+        return URL(fileURLWithPath: arguments[fileIndex + 1])
     }
 
     private static let mutatingCommands: Set<String> = [

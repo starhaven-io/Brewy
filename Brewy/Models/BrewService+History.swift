@@ -90,7 +90,11 @@ extension BrewService {
             output: result.output
         )
 
-        if entry.isMutatingCommand {
+        if result.success, entry.isBundleDump, let url = entry.bundleDumpURL {
+            customBrewfilePath = url.path
+            trustBrewfile(at: url)
+            await refreshBundle()
+        } else if entry.isMutatingCommand {
             await refresh()
         }
     }
