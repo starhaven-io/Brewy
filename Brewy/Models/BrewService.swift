@@ -82,6 +82,9 @@ final class BrewService {
     var isPerformingAction = false
     var actionOutput: String = ""
     var lastError: BrewError?
+    /// Failure from a background auto-refresh, surfaced non-modally (sidebar footer)
+    /// instead of the error alert so a broken brew doesn't raise a modal every interval.
+    var backgroundRefreshError: BrewError?
     var lastUpdated: Date?
     var tapHealthStatuses: [String: TapHealthStatus] = [:]
     var packageGroups: [PackageGroup] = []
@@ -95,6 +98,9 @@ final class BrewService {
     var tapsLoaded = false
     private var isRefreshing = false
     private var needsRefresh = false
+    private var needsRefreshUserInitiated = false
+    @ObservationIgnored private var isBackgroundRefresh = false
+    @ObservationIgnored private var refreshReportedError = false
     @ObservationIgnored private var isBatchingUpdates = false
     @ObservationIgnored var infoCache: [String: String] = [:]
     @ObservationIgnored private var tapHealthTask: Task<Void, Never>?
@@ -153,8 +159,11 @@ final class BrewService {
     func dependents(of name: String) -> [BrewPackage] {
         reverseDependencies[name] ?? []
     }
+}
 
-    // MARK: - Cache
+// MARK: - Cache
+
+extension BrewService {
 
     nonisolated static let cacheDirectory: URL? = {
         guard let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
@@ -240,25 +249,48 @@ final class BrewService {
         guard !Task.isCancelled else { return }
         tapHealthStatuses = updated
     }
+}
 
-    // MARK: - Homebrew CLI Interactions
+// MARK: - Homebrew CLI Interactions
 
-    func refresh() async {
+extension BrewService {
+
+    func refresh(isUserInitiated: Bool = true) async {
         guard !isRefreshing else {
             needsRefresh = true
+            // A queued follow-up runs as user-initiated if any queued request was.
+            needsRefreshUserInitiated = needsRefreshUserInitiated || isUserInitiated
             logger.info("Refresh already in progress, queuing follow-up")
             return
         }
         isRefreshing = true
         defer { isRefreshing = false }
+        var userInitiated = isUserInitiated
         repeat {
             needsRefresh = false
-            await performRefresh()
+            needsRefreshUserInitiated = false
+            await performRefresh(isUserInitiated: userInitiated)
+            userInitiated = needsRefreshUserInitiated
         } while needsRefresh
     }
 
-    private func performRefresh() async {
+    /// Routes fetch failures to the modal alert for user-initiated refreshes, or to the
+    /// non-modal `backgroundRefreshError` when a background auto-refresh fails.
+    func reportFetchError(command: String, output: String) {
+        refreshReportedError = true
+        let error = BrewError.commandFailed(command: command, output: output)
+        if isBackgroundRefresh {
+            backgroundRefreshError = error
+        } else {
+            lastError = error
+        }
+    }
+
+    private func performRefresh(isUserInitiated: Bool) async {
         logger.info("Starting full refresh")
+        isBackgroundRefresh = !isUserInitiated
+        refreshReportedError = false
+        defer { isBackgroundRefresh = false }
         let previousVersions = Dictionary(allInstalled.map { ($0.id, $0.version) }, uniquingKeysWith: { _, last in last })
         let hadCachedData = !installedFormulae.isEmpty || !installedCasks.isEmpty
         // Only show the spinner when there's no cached data yet; the counter keeps a concurrent
@@ -311,6 +343,10 @@ final class BrewService {
         installedTaps = fetchedTaps
         tapsLoaded = true
         updateBundleEntryStatuses()
+
+        if !refreshReportedError {
+            backgroundRefreshError = nil
+        }
 
         let masCount = fetchedMasApps.count
         let outdatedCount = allOutdated.count
@@ -382,6 +418,7 @@ final class BrewService {
         let brewPath = CommandRunner.resolvedBrewPath(preferred: customBrewPath)
         return await commandRunner.run(arguments, brewPath: brewPath)
     }
+
 }
 
 // MARK: - Package Category Queries

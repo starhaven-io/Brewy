@@ -109,6 +109,14 @@ private struct SidebarFooter: View {
 
                 Spacer()
 
+                if let backgroundError = brewService.backgroundRefreshError {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.yellow)
+                        .help("Background refresh failed: \(backgroundError.localizedDescription)")
+                        .accessibilityLabel("Background refresh failed")
+                }
+
                 if brewService.isLoading {
                     ProgressView()
                         .controlSize(.small)

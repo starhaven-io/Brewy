@@ -15,7 +15,7 @@ extension BrewService {
         let result = await runBrewCommand(["info", "--installed", "--json=v2"])
         guard result.success, let data = result.output.data(using: .utf8) else {
             if !result.success {
-                lastError = .commandFailed(command: "info --installed", output: result.output)
+                reportFetchError(command: "info --installed", output: result.output)
             }
             return result.success ? ([], []) : nil
         }
@@ -33,7 +33,7 @@ extension BrewService {
             }
         }.value
         if packages == nil {
-            lastError = .commandFailed(command: "info --installed --json=v2", output: "Failed to parse Homebrew packages JSON.")
+            reportFetchError(command: "info --installed --json=v2", output: "Failed to parse Homebrew packages JSON.")
         }
         return packages
     }
@@ -42,7 +42,7 @@ extension BrewService {
         let result = await runBrewCommand(["outdated", "--json=v2"])
         guard result.success, let data = result.output.data(using: .utf8) else {
             if !result.success {
-                lastError = .commandFailed(command: "outdated", output: result.output)
+                reportFetchError(command: "outdated", output: result.output)
             }
             return result.success ? [] : nil
         }
@@ -59,7 +59,7 @@ extension BrewService {
             }
         }.value
         if packages == nil {
-            lastError = .commandFailed(command: "outdated --json=v2", output: "Failed to parse Homebrew outdated JSON.")
+            reportFetchError(command: "outdated --json=v2", output: "Failed to parse Homebrew outdated JSON.")
         }
         return packages
     }
@@ -68,7 +68,7 @@ extension BrewService {
         let result = await runBrewCommand(["tap-info", "--json=v1", "--installed"])
         guard result.success, let data = result.output.data(using: .utf8) else {
             if !result.success {
-                lastError = .commandFailed(command: "tap-info", output: result.output)
+                reportFetchError(command: "tap-info", output: result.output)
             }
             return result.success ? [] : nil
         }
@@ -83,7 +83,7 @@ extension BrewService {
             }
         }.value
         if taps == nil {
-            lastError = .commandFailed(command: "tap-info --json=v1 --installed", output: "Failed to parse Homebrew taps JSON.")
+            reportFetchError(command: "tap-info --json=v1 --installed", output: "Failed to parse Homebrew taps JSON.")
         }
         return taps
     }
