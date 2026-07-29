@@ -9,9 +9,6 @@
 
 <p align="center"><img src="assets/BrewyIcon.png" alt="Brewy icon" width="128"></p>
 
-[![CI](https://github.com/starhaven-io/Brewy/actions/workflows/ci.yml/badge.svg)](https://github.com/starhaven-io/Brewy/actions/workflows/ci.yml)
-[![License: AGPL-3.0-only](https://img.shields.io/badge/License-AGPL--3.0--only-blue.svg)](LICENSE)
-
 Brewy is a native macOS app for managing [Homebrew](https://brew.sh) packages, casks, taps, services, and maintenance tasks without dropping into Terminal.
 
 It is designed for people who already use Homebrew and want a fast, inspectable Mac interface for the work they do repeatedly: reviewing what is installed, upgrading safely, cleaning up old dependencies, and understanding why a package is on the machine.
@@ -77,6 +74,8 @@ Brewy is intentionally not sandboxed. It needs to execute the user's Homebrew in
 All CLI execution is centralized through `CommandRunner`, which invokes binaries with argument arrays rather than shell strings. Package names, tap names, appcast data, and other external metadata are treated as untrusted.
 
 Destructive maintenance operations show Homebrew dry-run previews before they can run. External links from package data, tap data, and release notes must pass through `ExternalURLPolicy`, which restricts URLs to `http` and `https` before opening them outside the app.
+
+Brewfiles are treated as code, because `brew bundle` executes the Ruby they contain. Brewy never runs a Brewfile until you explicitly trust it in the Bundle view, and it pins a SHA-256 digest of the trusted file: if the file changes on disk for any reason, every bundle operation stops until you review and re-trust it.
 
 Report suspected vulnerabilities privately by emailing [security@starhaven.io](mailto:security@starhaven.io) or using [GitHub's private vulnerability reporting](https://github.com/starhaven-io/Brewy/security/advisories/new). See the [security policy](SECURITY.md) for details.
 
