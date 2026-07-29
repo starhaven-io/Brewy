@@ -150,6 +150,42 @@ struct ActionHistoryEntryTests {
     }
 }
 
+// MARK: - Output Truncation Tests
+
+@Suite("ActionHistoryEntry Output Truncation")
+struct ActionHistoryOutputTruncationTests {
+
+    @Test("Output at the cap is stored unchanged")
+    func shortOutputUnchanged() {
+        let output = String(repeating: "a", count: ActionHistoryEntry.recordedOutputByteLimit)
+        #expect(ActionHistoryEntry.truncatedOutput(output) == output)
+    }
+
+    @Test("Oversized output keeps head and tail with an omission marker")
+    func oversizedOutputTruncated() {
+        let output = "START"
+            + String(repeating: "x", count: ActionHistoryEntry.recordedOutputByteLimit + 1_000)
+            + "END"
+        let truncated = ActionHistoryEntry.truncatedOutput(output)
+
+        #expect(truncated.count < output.count)
+        #expect(truncated.utf8.count <= ActionHistoryEntry.recordedOutputByteLimit)
+        #expect(truncated.hasPrefix("START"))
+        #expect(truncated.hasSuffix("END"))
+        #expect(truncated.contains("bytes omitted"))
+    }
+
+    @Test("Multi-byte output stays within the byte cap")
+    func multiByteOutputStaysWithinCap() {
+        let output = String(repeating: "🍺", count: ActionHistoryEntry.recordedOutputByteLimit)
+        let truncated = ActionHistoryEntry.truncatedOutput(output)
+
+        #expect(truncated.utf8.count <= ActionHistoryEntry.recordedOutputByteLimit)
+        #expect(truncated.contains("bytes omitted"))
+        #expect(truncated.canBeConverted(to: .utf8))
+    }
+}
+
 // MARK: - BrewService History Tests
 
 @Suite("BrewService Action History")
@@ -197,6 +233,21 @@ struct BrewServiceHistoryTests {
             )
         }
         #expect(service.actionHistory.count == BrewService.maxHistoryEntries)
+    }
+
+    @Test("recordAction truncates oversized output")
+    func recordActionTruncatesOutput() {
+        let service = BrewService()
+        let hugeOutput = String(
+            repeating: "z",
+            count: ActionHistoryEntry.recordedOutputByteLimit + 1_000
+        )
+        service.recordAction(
+            arguments: ["upgrade"], packageName: nil,
+            packageSource: nil, success: true, output: hugeOutput
+        )
+        #expect(service.actionHistory[0].output.utf8.count <= ActionHistoryEntry.recordedOutputByteLimit)
+        #expect(service.actionHistory[0].output.contains("bytes omitted"))
     }
 
     @Test("clearHistory removes all entries")

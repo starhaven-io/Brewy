@@ -55,7 +55,7 @@ extension BrewService {
             packageName: packageName,
             packageSource: packageSource,
             status: success ? .success : .failure,
-            output: output,
+            output: ActionHistoryEntry.truncatedOutput(output),
             timestamp: Date()
         )
         actionHistory.insert(entry, at: 0)
