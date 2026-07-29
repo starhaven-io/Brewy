@@ -7,52 +7,33 @@ extension BrewService {
 
     // MARK: - Fetch Installed Packages
 
-    /// Returns `nil` when the brew command fails so the caller can keep the previously loaded list
-    /// instead of clobbering it to empty; a successful-but-empty response still returns `[]`.
-    func fetchInstalledFormulae() async -> [BrewPackage]? {
+    /// Returns `nil` when the brew command fails so the caller can keep the previously loaded lists
+    /// instead of clobbering them to empty; a successful-but-empty response still returns `[]`s.
+    /// One `brew info --installed --json=v2` invocation carries both formulae and casks in the
+    /// JSON v2 envelope, so a refresh needs a single pass over the installed set, not two.
+    func fetchInstalledPackages() async -> (formulae: [BrewPackage], casks: [BrewPackage])? {
         let result = await runBrewCommand(["info", "--installed", "--json=v2"])
         guard result.success, let data = result.output.data(using: .utf8) else {
             if !result.success {
                 lastError = .commandFailed(command: "info --installed", output: result.output)
             }
-            return result.success ? [] : nil
+            return result.success ? ([], []) : nil
         }
 
-        let packages: [BrewPackage]? = await Task.detached(priority: .userInitiated) { () -> [BrewPackage]? in
+        let packages: (formulae: [BrewPackage], casks: [BrewPackage])? = await Task.detached(priority: .userInitiated) {
             do {
                 let response = try JSONDecoder().decode(BrewInfoResponse.self, from: data)
-                return (response.formulae ?? []).map { $0.toPackage() }
+                return (
+                    (response.formulae ?? []).map { $0.toPackage() },
+                    (response.casks ?? []).map { $0.toPackage() }
+                )
             } catch {
-                logger.error("Failed to parse formulae JSON: \(error.localizedDescription)")
+                logger.error("Failed to parse installed packages JSON: \(error.localizedDescription)")
                 return nil
             }
         }.value
         if packages == nil {
-            lastError = .commandFailed(command: "info --installed --json=v2", output: "Failed to parse Homebrew formulae JSON.")
-        }
-        return packages
-    }
-
-    func fetchInstalledCasks() async -> [BrewPackage]? {
-        let result = await runBrewCommand(["info", "--installed", "--cask", "--json=v2"])
-        guard result.success, let data = result.output.data(using: .utf8) else {
-            if !result.success {
-                lastError = .commandFailed(command: "info --installed --cask", output: result.output)
-            }
-            return result.success ? [] : nil
-        }
-
-        let packages: [BrewPackage]? = await Task.detached(priority: .userInitiated) { () -> [BrewPackage]? in
-            do {
-                let response = try JSONDecoder().decode(BrewInfoResponse.self, from: data)
-                return (response.casks ?? []).map { $0.toPackage() }
-            } catch {
-                logger.error("Failed to parse casks JSON: \(error.localizedDescription)")
-                return nil
-            }
-        }.value
-        if packages == nil {
-            lastError = .commandFailed(command: "info --installed --cask --json=v2", output: "Failed to parse Homebrew casks JSON.")
+            lastError = .commandFailed(command: "info --installed --json=v2", output: "Failed to parse Homebrew packages JSON.")
         }
         return packages
     }

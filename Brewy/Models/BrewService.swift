@@ -269,8 +269,7 @@ final class BrewService {
             if showsSpinner { loadingCount -= 1 }
         }
 
-        async let formulae = fetchInstalledFormulae()
-        async let casks = fetchInstalledCasks()
+        async let installed = fetchInstalledPackages()
         async let outdated = fetchOutdatedPackages()
         async let masApps = fetchInstalledMasApps()
         async let masOutdated = fetchOutdatedMasApps()
@@ -278,8 +277,9 @@ final class BrewService {
 
         // Preserve the previously loaded list when a fetch fails (nil) rather than clobbering it
         // to empty — a transient `brew` failure shouldn't blank out (and then cache) good data.
-        let fetchedFormulae = await formulae ?? installedFormulae
-        let fetchedCasks = await casks ?? installedCasks
+        let fetchedInstalled = await installed
+        let fetchedFormulae = fetchedInstalled?.formulae ?? installedFormulae
+        let fetchedCasks = fetchedInstalled?.casks ?? installedCasks
         let fetchedOutdated = await outdated ?? outdatedPackages.filter { $0.source != .mas }
         let fetchedMasApps = await masApps ?? installedMasApps
         let fetchedMasOutdated = await masOutdated ?? outdatedPackages.filter(\.isMas)

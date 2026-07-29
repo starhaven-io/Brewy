@@ -61,16 +61,14 @@ final class MockCommandRunner: CommandRunning, @unchecked Sendable {
 // MARK: - Test Data
 
 enum TestJSON {
-    static let formulae = """
+    /// Combined `brew info --installed --json=v2` envelope: formulae and casks arrive in one call.
+    static let installedPackages = """
     {"formulae":[{"name":"wget","desc":"Internet file retriever",\
     "homepage":"https://www.gnu.org/software/wget/",\
     "versions":{"stable":"1.24.5"},"pinned":false,\
     "installed":[{"version":"1.24.5","installed_on_request":true}],\
-    "dependencies":["openssl@3","libidn2"]}],"casks":[]}
-    """
-
-    static let casks = """
-    {"formulae":[],"casks":[{"token":"firefox","version":"122.0",\
+    "dependencies":["openssl@3","libidn2"]}],\
+    "casks":[{"token":"firefox","version":"122.0",\
     "desc":"Web browser","homepage":"https://www.mozilla.org/firefox/"}]}
     """
 
@@ -117,8 +115,7 @@ func makeService(mock: MockCommandRunner) -> (BrewService, MockCommandRunner) {
 }
 
 func setupRefreshMock(_ mock: MockCommandRunner) {
-    mock.setResult(for: ["info", "--installed", "--json=v2"], output: TestJSON.formulae)
-    mock.setResult(for: ["info", "--installed", "--cask", "--json=v2"], output: TestJSON.casks)
+    mock.setResult(for: ["info", "--installed", "--json=v2"], output: TestJSON.installedPackages)
     mock.setResult(for: ["outdated", "--json=v2"], output: TestJSON.outdated)
     mock.setResult(for: ["tap-info", "--json=v1", "--installed"], output: TestJSON.taps)
 }
