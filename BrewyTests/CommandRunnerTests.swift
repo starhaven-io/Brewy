@@ -115,15 +115,7 @@ struct BrewServiceTimeoutPropagationTests {
     }
 }
 
-// `/Users/runner` is the GitHub Actions runner home; `CI` / `GITHUB_ACTIONS`
-// don't reliably reach the test host under `xcodebuild test`.
-@Suite(
-    "CommandRunner Process Execution",
-    .disabled(
-        if: FileManager.default.fileExists(atPath: "/Users/runner"),
-        "Pipe reads hang on Actions runner images; run locally"
-    )
-)
+@Suite("CommandRunner Process Execution")
 struct CommandRunnerProcessTests {
 
     @Test("runExecutable captures stdout from echo")
