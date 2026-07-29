@@ -75,6 +75,8 @@ All CLI execution is centralized through `CommandRunner`, which invokes binaries
 
 Destructive maintenance operations show Homebrew dry-run previews before they can run. External links from package data, tap data, and release notes must pass through `ExternalURLPolicy`, which restricts URLs to `http` and `https` before opening them outside the app.
 
+Brewfiles are treated as code, because `brew bundle` executes the Ruby they contain. Brewy never runs a Brewfile until you explicitly trust it in the Bundle view, and it pins a SHA-256 digest of the trusted file: if the file changes on disk for any reason, every bundle operation stops until you review and re-trust it.
+
 Report suspected vulnerabilities privately by emailing [security@starhaven.io](mailto:security@starhaven.io) or using [GitHub's private vulnerability reporting](https://github.com/starhaven-io/Brewy/security/advisories/new). See the [security policy](SECURITY.md) for details.
 
 ## Contributing
