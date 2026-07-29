@@ -404,7 +404,9 @@ enum CommandRunner {
             guard process.isRunning else { return }
             kill(signalTarget, SIGTERM)
         }
-        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + dispatchInterval(from: grace)) { [weak process] in
+        // Above .utility: that queue is starved on a loaded machine, and the escalation is
+        // the only thing that stops a descendant which ignores SIGTERM.
+        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + dispatchInterval(from: grace)) { [weak process] in
             if signalTarget < 0 {
                 errno = 0
                 guard kill(signalTarget, 0) == 0 || errno == EPERM else { return }
@@ -468,7 +470,7 @@ enum CommandRunner {
             timedOut.set()
             terminateThenKill(process, after: killGracePeriod)
         }
-        DispatchQueue.global(qos: .utility).asyncAfter(
+        DispatchQueue.global(qos: .userInitiated).asyncAfter(
             deadline: .now() + dispatchInterval(from: timeout),
             execute: timeoutWork
         )
