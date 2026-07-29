@@ -126,6 +126,25 @@ struct BrewServiceSafetyGuardrailTests {
         #expect(mock.executedCommands.contains(caskDetailCommand))
     }
 
+    @Test("upgradeSelected inserts option separator before package names")
+    func upgradeSelectedUsesOptionSeparator() async {
+        let mock = MockCommandRunner()
+        let (service, _) = makeService(mock: mock)
+        setupRefreshMock(mock)
+
+        let formula = makePackage(name: "--eval-all", source: .formula)
+        let cask = makePackage(name: "--zap", source: .cask)
+        let formulaCommand = ["upgrade", "--", "--eval-all"]
+        let caskCommand = ["upgrade", "--cask", "--", "--zap"]
+        mock.setResult(for: formulaCommand, output: "Upgraded formula")
+        mock.setResult(for: caskCommand, output: "Upgraded cask")
+
+        await service.upgradeSelected(packages: [formula, cask])
+
+        #expect(mock.executedCommands.contains(formulaCommand))
+        #expect(mock.executedCommands.contains(caskCommand))
+    }
+
     @Test("upgradeSelected excludes mas apps and reports App Store updates")
     func upgradeSelectedReportsMasApps() async {
         let mock = MockCommandRunner()
@@ -134,11 +153,11 @@ struct BrewServiceSafetyGuardrailTests {
 
         let formula = makePackage(name: "wget", source: .formula)
         let masApp = makePackage(name: "Xcode", source: .mas)
-        mock.setResult(for: ["upgrade", "wget"], output: "Upgraded wget")
+        mock.setResult(for: ["upgrade", "--", "wget"], output: "Upgraded wget")
 
         await service.upgradeSelected(packages: [formula, masApp])
 
-        #expect(mock.executedCommands.contains(["upgrade", "wget"]))
+        #expect(mock.executedCommands.contains(["upgrade", "--", "wget"]))
         #expect(!mock.executedCommands.contains { $0.contains("Xcode") })
         #expect(service.lastError?.localizedDescription.contains("Mac App Store") == true)
     }

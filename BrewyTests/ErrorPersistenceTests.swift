@@ -38,7 +38,7 @@ struct ErrorPersistenceTests {
         let mock = MockCommandRunner()
         let (service, _) = makeService(mock: mock)
         setupRefreshMock(mock)
-        mock.setResult(for: ["upgrade", "wget"], output: "upgrade failed", success: false)
+        mock.setResult(for: ["upgrade", "--", "wget"], output: "upgrade failed", success: false)
 
         await service.upgradeSelected(packages: [makePackage(name: "wget", isOutdated: true)])
 

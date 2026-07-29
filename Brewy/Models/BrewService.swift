@@ -357,14 +357,14 @@ final class BrewService {
         var errorOutputs: [String] = []
 
         if !formulae.isEmpty {
-            let args = ["upgrade"] + formulae
+            let args = ["upgrade", "--"] + formulae
             let result = await runBrewCommand(args)
             actionOutput += result.output
             if !result.success { errorOutputs.append(result.output) }
             recordAction(arguments: args, packageName: nil, packageSource: .formula, success: result.success, output: result.output)
         }
         if !casks.isEmpty {
-            let args = ["upgrade", "--cask"] + casks
+            let args = ["upgrade", "--cask", "--"] + casks
             let result = await runBrewCommand(args)
             actionOutput += result.output
             if !result.success { errorOutputs.append(result.output) }

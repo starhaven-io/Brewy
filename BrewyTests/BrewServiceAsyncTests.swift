@@ -465,13 +465,13 @@ struct BulkUpgradeTests {
 
         let formula = makePackage(name: "wget", source: .formula)
         let cask = makePackage(name: "firefox", source: .cask)
-        mock.setResult(for: ["upgrade", "wget"], output: "Upgraded wget")
-        mock.setResult(for: ["upgrade", "--cask", "firefox"], output: "Upgraded firefox")
+        mock.setResult(for: ["upgrade", "--", "wget"], output: "Upgraded wget")
+        mock.setResult(for: ["upgrade", "--cask", "--", "firefox"], output: "Upgraded firefox")
 
         await service.upgradeSelected(packages: [formula, cask])
 
-        #expect(mock.executedCommands.contains(["upgrade", "wget"]))
-        #expect(mock.executedCommands.contains(["upgrade", "--cask", "firefox"]))
+        #expect(mock.executedCommands.contains(["upgrade", "--", "wget"]))
+        #expect(mock.executedCommands.contains(["upgrade", "--cask", "--", "firefox"]))
     }
 
     @Test("upgradeSelected with only formulae skips cask upgrade")
@@ -481,11 +481,11 @@ struct BulkUpgradeTests {
         setupRefreshMock(mock)
 
         let formula = makePackage(name: "wget", source: .formula)
-        mock.setResult(for: ["upgrade", "wget"], output: "Upgraded wget")
+        mock.setResult(for: ["upgrade", "--", "wget"], output: "Upgraded wget")
 
         await service.upgradeSelected(packages: [formula])
 
-        #expect(mock.executedCommands.contains(["upgrade", "wget"]))
+        #expect(mock.executedCommands.contains(["upgrade", "--", "wget"]))
         let hasCaskUpgrade = mock.executedCommands.contains { $0.first == "upgrade" && $0.contains("--cask") }
         #expect(!hasCaskUpgrade)
     }
