@@ -10,6 +10,7 @@ final class MockCommandRunner: CommandRunning, @unchecked Sendable {
     private var _delays: [[String]: Duration] = [:]
     private var _executedCommands: [[String]] = []
     private var _executedExecutables: [(path: String, arguments: [String])] = []
+    private var _recordedTimeouts: [[String]: Duration] = [:]
 
     var executedCommands: [[String]] {
         lock.withLock { _executedCommands }
@@ -33,10 +34,16 @@ final class MockCommandRunner: CommandRunning, @unchecked Sendable {
         }
     }
 
+    /// The timeout the service passed for these arguments (last invocation wins).
+    func recordedTimeout(for arguments: [String]) -> Duration? {
+        lock.withLock { _recordedTimeouts[arguments] }
+    }
+
     func run(_ arguments: [String], brewPath: String, timeout: Duration) async -> CommandResult {
         let (delay, result) = lock.withLock {
             _executedCommands.append(arguments)
             _executedExecutables.append((path: brewPath, arguments: arguments))
+            _recordedTimeouts[arguments] = timeout
             return (_delays[arguments], _results[arguments] ?? CommandResult(output: "", success: false))
         }
         if let delay {
@@ -49,6 +56,7 @@ final class MockCommandRunner: CommandRunning, @unchecked Sendable {
         let (delay, result) = lock.withLock {
             _executedCommands.append(arguments)
             _executedExecutables.append((path: executablePath, arguments: arguments))
+            _recordedTimeouts[arguments] = timeout
             return (_delays[arguments], _results[arguments] ?? CommandResult(output: "", success: false))
         }
         if let delay {

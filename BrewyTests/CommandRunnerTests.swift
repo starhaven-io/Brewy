@@ -45,6 +45,76 @@ struct MockCommandRunnerBehaviorTests {
     }
 }
 
+@Suite("Command Timeout Selection")
+struct CommandTimeoutSelectionTests {
+
+    @Test("Mutating verbs get the extended timeout", arguments: [
+        ["install", "--", "wget"],
+        ["uninstall", "--cask", "--", "firefox"],
+        ["reinstall", "--", "wget"],
+        ["upgrade"],
+        ["upgrade", "--cask", "--", "firefox"],
+        ["fetch", "--", "wget"],
+        ["bundle", "dump", "--file", "/tmp/Brewfile"],
+        ["update"],
+        ["cleanup", "--prune=all", "-s"],
+        ["autoremove"],
+        ["tap", "user/repo"],
+        ["untap", "user/repo"]
+    ])
+    func mutatingVerbsGetExtendedTimeout(arguments: [String]) {
+        #expect(CommandRunner.timeout(forBrewArguments: arguments) == CommandRunner.extendedTimeout)
+    }
+
+    @Test("Read-only verbs keep the default timeout", arguments: [
+        ["info", "--installed", "--json=v2"],
+        ["outdated", "--json=v2"],
+        ["search", "--formula", "--", "wget"],
+        ["doctor"],
+        ["services", "list", "--json"],
+        ["config"],
+        ["tap-info", "--json=v1", "--installed"],
+        []
+    ])
+    func readOnlyVerbsKeepDefaultTimeout(arguments: [String]) {
+        #expect(CommandRunner.timeout(forBrewArguments: arguments) == CommandRunner.defaultTimeout)
+    }
+
+    @Test("Extended timeout comfortably exceeds the default")
+    func extendedExceedsDefault() {
+        #expect(CommandRunner.extendedTimeout > CommandRunner.defaultTimeout)
+    }
+}
+
+@Suite("BrewService Timeout Propagation")
+@MainActor
+struct BrewServiceTimeoutPropagationTests {
+
+    @Test("Package actions pass the extended timeout")
+    func actionUsesExtendedTimeout() async {
+        let mock = MockCommandRunner()
+        let (service, _) = makeService(mock: mock)
+        setupRefreshMock(mock)
+        mock.setResult(for: ["install", "--", "wget"], output: "ok")
+
+        await service.install(package: makePackage(name: "wget", source: .formula))
+
+        #expect(mock.recordedTimeout(for: ["install", "--", "wget"]) == CommandRunner.extendedTimeout)
+    }
+
+    @Test("Refresh fetches keep the default timeout")
+    func fetchesUseDefaultTimeout() async {
+        let mock = MockCommandRunner()
+        let (service, _) = makeService(mock: mock)
+        setupRefreshMock(mock)
+
+        await service.refresh()
+
+        #expect(mock.recordedTimeout(for: ["info", "--installed", "--json=v2"]) == CommandRunner.defaultTimeout)
+        #expect(mock.recordedTimeout(for: ["outdated", "--json=v2"]) == CommandRunner.defaultTimeout)
+    }
+}
+
 // `/Users/runner` is the GitHub Actions runner home; `CI` / `GITHUB_ACTIONS`
 // don't reliably reach the test host under `xcodebuild test`.
 @Suite(

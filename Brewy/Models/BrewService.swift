@@ -416,7 +416,11 @@ extension BrewService {
 
     func runBrewCommand(_ arguments: [String]) async -> CommandResult {
         let brewPath = CommandRunner.resolvedBrewPath(preferred: customBrewPath)
-        return await commandRunner.run(arguments, brewPath: brewPath)
+        return await commandRunner.run(
+            arguments,
+            brewPath: brewPath,
+            timeout: CommandRunner.timeout(forBrewArguments: arguments)
+        )
     }
 
 }

@@ -134,6 +134,23 @@ enum CommandRunner {
 
     static let defaultTimeout: Duration = .seconds(300)
 
+    /// Mutating commands legitimately run far past `defaultTimeout` (large downloads, source
+    /// builds, post-install scripts); SIGKILLing them mid-flight can leave a broken keg.
+    static let extendedTimeout: Duration = .seconds(3_600)
+
+    /// Brew verbs that mutate the installation and may run long.
+    private static let longRunningVerbs: Set<String> = [
+        "install", "uninstall", "reinstall", "upgrade", "fetch",
+        "bundle", "update", "cleanup", "autoremove", "tap", "untap"
+    ]
+
+    static func timeout(forBrewArguments arguments: [String]) -> Duration {
+        guard let verb = arguments.first, longRunningVerbs.contains(verb) else {
+            return defaultTimeout
+        }
+        return extendedTimeout
+    }
+
     static let preventHomebrewAutoUpdateKey = "preventHomebrewAutoUpdate"
     private static let standardBrewPaths = ["/opt/homebrew/bin/brew", "/usr/local/bin/brew"]
 
