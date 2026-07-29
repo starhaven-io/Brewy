@@ -1,3 +1,8 @@
+derived_data_path := env(
+    "BREWY_DERIVED_DATA_PATH",
+    "/private/tmp/brewy-deriveddata-" + sha256(justfile_directory())
+)
+
 # Build
 
 # Build the app with xcodebuild
@@ -7,6 +12,7 @@ build:
         -scheme Brewy \
         -destination 'generic/platform=macOS' \
         -configuration Debug \
+        -derivedDataPath {{ quote(derived_data_path) }} \
         CODE_SIGN_IDENTITY="" \
         CODE_SIGNING_REQUIRED=NO \
         CODE_SIGNING_ALLOWED=NO \
@@ -18,7 +24,8 @@ build:
 clean:
     xcodebuild clean \
         -project Brewy.xcodeproj \
-        -scheme Brewy
+        -scheme Brewy \
+        -derivedDataPath {{ quote(derived_data_path) }}
 
 # Setup
 
@@ -38,6 +45,7 @@ test:
         -destination 'platform=macOS' \
         -only-testing:BrewyTests \
         -enableCodeCoverage YES \
+        -derivedDataPath {{ quote(derived_data_path) }} \
         CODE_SIGN_IDENTITY="" \
         CODE_SIGNING_REQUIRED=NO \
         CODE_SIGNING_ALLOWED=NO \
@@ -61,7 +69,7 @@ typos:
 
 # Scan for unused code (uses .periphery.yml)
 periphery:
-    periphery scan
+    periphery scan --clean-build
 
 # Check README and CONTRIBUTING links
 lychee:
@@ -102,7 +110,7 @@ check:
     fi
     if command -v periphery &>/dev/null; then
         # Match CI: tolerate periphery:ignore comments CI sees as redundant (SwiftUI $-binding refs).
-        run periphery scan --strict --disable-update-check --no-superfluous-ignore-comments \
+        run periphery scan --strict --disable-update-check --no-superfluous-ignore-comments --clean-build \
             -- CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO EXCLUDED_ARCHS=x86_64
     else
         skip periphery periphery periphery
@@ -118,6 +126,7 @@ check:
         -destination 'platform=macOS' \
         -only-testing:BrewyTests \
         -enableCodeCoverage YES \
+        -derivedDataPath {{ quote(derived_data_path) }} \
         CODE_SIGN_IDENTITY="" \
         CODE_SIGNING_REQUIRED=NO \
         CODE_SIGNING_ALLOWED=NO \

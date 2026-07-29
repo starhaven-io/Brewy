@@ -97,6 +97,10 @@ jobs:
             add_check '{"name":"Test (Thread Sanitizer)","check":"test-tsan","runner":"macos-26","xcodebuild_flags":"-enableCodeCoverage YES -enableThreadSanitizer YES","result_bundle":"TestResults-TSAN","environment":"codecov"}'
             # UI test runner is incompatible with ASan (crashes at launch); TSan covers the UI tests.
             add_check '{"name":"Test (Address Sanitizer)","check":"test-asan","runner":"macos-26","xcodebuild_flags":"-enableAddressSanitizer YES -skip-testing:BrewyUITests","result_bundle":"TestResults-ASAN"}'
+            # Everything else builds Debug; without this leg the release workflow is the
+            # first place Release-only breakage (optimization warnings, stray references
+            # to DEBUG-gated test fixtures) can surface.
+            add_check '{"name":"Build (Release)","check":"build-release","runner":"macos-26"}'
           fi
 
           # Source or periphery-config changes: dead-code scan
@@ -214,6 +218,21 @@ jobs:
           periphery scan --strict --disable-update-check --no-superfluous-ignore-comments \
             -- CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO EXCLUDED_ARCHS=x86_64
 
+
+      - name: Build (Release)
+        if: matrix.check == 'build-release'
+        run: |
+          xcodebuild build \
+            -project Brewy.xcodeproj \
+            -scheme Brewy \
+            -destination 'generic/platform=macOS' \
+            -configuration Release \
+            -derivedDataPath ./DerivedData \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
+            EXCLUDED_ARCHS=x86_64
 
       - name: Test
         if: startsWith(matrix.check, 'test-')
