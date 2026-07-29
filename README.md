@@ -9,9 +9,6 @@
 
 <p align="center"><img src="assets/BrewyIcon.png" alt="Brewy icon" width="128"></p>
 
-[![CI](https://github.com/starhaven-io/Brewy/actions/workflows/ci.yml/badge.svg)](https://github.com/starhaven-io/Brewy/actions/workflows/ci.yml)
-[![License: AGPL-3.0-only](https://img.shields.io/badge/License-AGPL--3.0--only-blue.svg)](LICENSE)
-
 Brewy is a native macOS app for managing [Homebrew](https://brew.sh) packages, casks, taps, services, and maintenance tasks without dropping into Terminal.
 
 It is designed for people who already use Homebrew and want a fast, inspectable Mac interface for the work they do repeatedly: reviewing what is installed, upgrading safely, cleaning up old dependencies, and understanding why a package is on the machine.
