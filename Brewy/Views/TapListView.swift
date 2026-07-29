@@ -158,8 +158,6 @@ private struct AddTapSheet: View {
     @Environment(\.dismiss)
     private var dismiss
     @State private var tapName = ""
-    @State private var isAdding = false
-    @State private var errorMessage: String?
 
     private var isValidTapName: Bool {
         let trimmed = tapName.trimmingCharacters(in: .whitespaces)
@@ -178,47 +176,24 @@ private struct AddTapSheet: View {
                 .foregroundStyle(.secondary)
             TextField("user/repo", text: $tapName)
                 .textFieldStyle(.roundedBorder)
-                .disabled(isAdding)
-                .onChange(of: tapName) { errorMessage = nil }
             if !tapName.isEmpty, !isValidTapName {
                 Text("Tap name must be in user/repo format.")
                     .font(.caption)
                     .foregroundStyle(.red)
-            }
-            if let errorMessage {
-                Text(errorMessage)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-            }
-            if isAdding {
-                ProgressView("Adding \(tapName.trimmingCharacters(in: .whitespaces))…")
-                    .font(.callout)
             }
             HStack {
                 Button("Cancel") {
                     dismiss()
                 }
                 .keyboardShortcut(.cancelAction)
-                .disabled(isAdding)
                 Button("Add") {
                     let name = tapName.trimmingCharacters(in: .whitespaces)
                     guard isValidTapName else { return }
-                    isAdding = true
-                    errorMessage = nil
-                    Task {
-                        let result = await brewService.addTap(name: name)
-                        if !result.success {
-                            errorMessage = BrewError.commandFailed(command: "tap \(name)", output: result.output)
-                                .localizedDescription
-                            brewService.lastError = nil
-                            isAdding = false
-                        } else {
-                            dismiss()
-                        }
-                    }
+                    dismiss()
+                    Task { await brewService.addTap(name: name) }
                 }
                 .keyboardShortcut(.defaultAction)
-                .disabled(!isValidTapName || isAdding)
+                .disabled(!isValidTapName)
             }
         }
         .padding(20)

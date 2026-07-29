@@ -78,9 +78,8 @@ extension BrewService {
         lastError = nil
         defer { isPerformingAction = false }
 
-        let result = await runBrewCommand(entry.arguments)
-        actionOutput = result.output
-        if !result.success {
+        let result = await runBrewCommandStreaming(entry.arguments)
+        if !result.success, !result.cancelled {
             lastError = .commandFailed(command: entry.arguments.joined(separator: " "), output: result.output)
         }
         recordAction(

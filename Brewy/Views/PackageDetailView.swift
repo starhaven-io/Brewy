@@ -72,11 +72,6 @@ struct PackageDetailView: View {
         } message: {
             Text("This will remove \(package.name) from your system. This action cannot be undone.")
         }
-        .overlay {
-            if brewService.isPerformingAction {
-                ActionOverlay(output: brewService.actionOutput)
-            }
-        }
     }
 }
 

@@ -20,6 +20,19 @@ struct ErrorPersistenceTests {
         #expect(service.lastError?.localizedDescription.contains("Refusing to untap") == true)
     }
 
+    @Test("addTap exposes the full failed command to the root error presenter")
+    func addTapExposesGlobalFailure() async {
+        let mock = MockCommandRunner()
+        let (service, _) = makeService(mock: mock)
+        setupRefreshMock(mock)
+        mock.setResult(for: ["tap", "user/repo"], output: "", success: false)
+
+        let result = await service.addTap(name: "user/repo")
+
+        #expect(!result.success)
+        #expect(service.lastError?.localizedDescription == "brew tap user/repo failed.")
+    }
+
     @Test("performBrewAction preserves command failure after refresh")
     func brewActionPreservesFailureAfterRefresh() async {
         let mock = MockCommandRunner()
