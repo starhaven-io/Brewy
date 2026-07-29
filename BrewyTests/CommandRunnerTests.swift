@@ -261,13 +261,21 @@ struct CommandRunnerProcessTests {
 
     @Test("Cancelled result keeps partial output")
     func cancelledResultKeepsPartialOutput() async {
+        let chunks = LockedChunks()
         let task = Task {
             await CommandRunner.runExecutable(
                 "/bin/sh",
-                arguments: ["-c", "echo before-cancel; sleep 30"]
+                arguments: ["-c", "echo before-cancel; sleep 30"],
+                onOutput: { chunks.append($0) }
             )
         }
-        try? await Task.sleep(for: .milliseconds(500))
+        defer { task.cancel() }
+
+        for _ in 0..<1_000 where !chunks.joined().contains("before-cancel") {
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(chunks.joined().contains("before-cancel"))
+
         task.cancel()
         let result = await task.value
 
