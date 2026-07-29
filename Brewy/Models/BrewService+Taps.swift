@@ -67,10 +67,10 @@ extension BrewService {
 
     @discardableResult
     private func runTapCommand(_ arguments: [String]) async -> CommandResult {
-        let result = await runBrewCommand(arguments)
-        actionOutput += actionOutput.isEmpty ? result.output : "\n" + result.output
-        if !result.success {
-            lastError = .commandFailed(command: arguments.first ?? "", output: result.output)
+        if !actionOutput.isEmpty { actionOutput += "\n" }
+        let result = await runBrewCommandStreaming(arguments)
+        if !result.success, !result.cancelled {
+            lastError = .commandFailed(command: arguments.joined(separator: " "), output: result.output)
         }
         recordAction(arguments: arguments, packageName: nil, packageSource: nil, success: result.success, output: result.output)
         return result

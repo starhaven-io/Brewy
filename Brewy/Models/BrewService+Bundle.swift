@@ -266,6 +266,8 @@ extension BrewService {
         }
     }
 
+    /// Overwrites any existing file at `url`; callers must obtain user consent first
+    /// (BundleView's NSSavePanel shows the system Replace prompt before calling this).
     @discardableResult
     func dumpBundle(to url: URL) async -> CommandResult {
         guard !isPerformingAction else {
@@ -277,10 +279,9 @@ extension BrewService {
         actionOutput = ""
         lastError = nil
 
-        let arguments = ["bundle", "dump", "--file", url.path]
-        let result = await runBrewCommand(arguments)
-        actionOutput = result.output
-        if !result.success {
+        let arguments = ["bundle", "dump", "--force", "--file", url.path]
+        let result = await runBrewCommandStreaming(arguments)
+        if !result.success, !result.cancelled {
             logger.warning("Bundle dump failed: \(result.output.prefix(200))")
             lastError = .commandFailed(command: arguments.joined(separator: " "), output: result.output)
         }

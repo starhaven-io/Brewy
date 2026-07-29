@@ -225,22 +225,36 @@ struct ConsoleOutput: View {
 
 struct ActionOverlay: View {
     let output: String
+    let canCancel: Bool
+    let onCancel: () -> Void
 
     var body: some View {
         VStack(spacing: 16) {
             ProgressView()
                 .scaleEffect(1.2)
-            Text("Running...")
+            Text(canCancel ? "Running..." : "Finishing...")
                 .font(.headline)
             if !output.isEmpty {
-                ScrollView {
-                    Text(output)
-                        .font(.system(.caption, design: .monospaced))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(8)
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        Text(output)
+                            .font(.system(.caption, design: .monospaced))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(8)
+                        Color.clear
+                            .frame(height: 1)
+                            .id("actionOverlayBottom")
+                    }
+                    .frame(maxHeight: 200)
+                    .background(.quaternary.opacity(0.3), in: .rect(cornerRadius: 8))
+                    .onChange(of: output, initial: true) {
+                        proxy.scrollTo("actionOverlayBottom", anchor: .bottom)
+                    }
                 }
-                .frame(maxHeight: 200)
-                .background(.quaternary.opacity(0.3), in: .rect(cornerRadius: 8))
+            }
+            if canCancel {
+                Button("Cancel", action: onCancel)
+                    .keyboardShortcut(.cancelAction)
             }
         }
         .padding(24)

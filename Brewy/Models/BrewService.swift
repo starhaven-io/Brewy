@@ -81,6 +81,7 @@ final class BrewService {
     var isLoading: Bool { loadingCount > 0 }
     var isPerformingAction = false
     var actionOutput: String = ""
+    var canCancelCurrentAction = false
     var lastError: BrewError?
     /// Failure from a background auto-refresh, surfaced non-modally (sidebar footer)
     /// instead of the error alert so a broken brew doesn't raise a modal every interval.
@@ -104,6 +105,7 @@ final class BrewService {
     @ObservationIgnored private var isBatchingUpdates = false
     @ObservationIgnored var infoCache: [String: String] = [:]
     @ObservationIgnored private var tapHealthTask: Task<Void, Never>?
+    @ObservationIgnored var actionCommandTask: Task<CommandResult, Never>?
 
     // MARK: - Cached Derived State
 
@@ -391,24 +393,25 @@ extension BrewService {
         let casks = packages.filter { $0.source == .cask }.map(\.name)
         let masCount = packages.filter(\.isMas).count
         var errorOutputs: [String] = []
+        var wasCancelled = false
 
         if !formulae.isEmpty {
             let args = ["upgrade", "--"] + formulae
-            let result = await runBrewCommand(args)
-            actionOutput += result.output
-            if !result.success { errorOutputs.append(result.output) }
+            let result = await runBrewCommandStreaming(args)
+            wasCancelled = result.cancelled
+            if !result.success, !result.cancelled { errorOutputs.append(result.output) }
             recordAction(arguments: args, packageName: nil, packageSource: .formula, success: result.success, output: result.output)
         }
-        if !casks.isEmpty {
+        if !casks.isEmpty, !wasCancelled {
             let args = ["upgrade", "--cask", "--"] + casks
-            let result = await runBrewCommand(args)
-            actionOutput += result.output
-            if !result.success { errorOutputs.append(result.output) }
+            let result = await runBrewCommandStreaming(args)
+            wasCancelled = result.cancelled
+            if !result.success, !result.cancelled { errorOutputs.append(result.output) }
             recordAction(arguments: args, packageName: nil, packageSource: .cask, success: result.success, output: result.output)
         }
         if !errorOutputs.isEmpty {
             lastError = .commandFailed(command: "upgrade", output: errorOutputs.joined(separator: "\n\n"))
-        } else if masCount > 0 {
+        } else if masCount > 0, !wasCancelled {
             lastError = .commandFailed(command: "upgrade", output: Self.masUpgradeMessage(count: masCount))
         }
         await refresh()
@@ -416,7 +419,11 @@ extension BrewService {
 
     func runBrewCommand(_ arguments: [String]) async -> CommandResult {
         let brewPath = CommandRunner.resolvedBrewPath(preferred: customBrewPath)
-        return await commandRunner.run(arguments, brewPath: brewPath)
+        return await commandRunner.run(
+            arguments,
+            brewPath: brewPath,
+            timeout: CommandRunner.timeout(forBrewArguments: arguments)
+        )
     }
 
 }

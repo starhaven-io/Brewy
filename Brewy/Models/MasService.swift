@@ -144,13 +144,11 @@ extension BrewService {
         lastError = nil
         defer { isPerformingAction = false }
 
-        let brewPath = CommandRunner.resolvedBrewPath(preferred: customBrewPath)
-        let result = await commandRunner.run(["install", "mas"], brewPath: brewPath)
-        actionOutput = result.output
+        let result = await runBrewCommandStreaming(["install", "mas"])
         if result.success {
             isMasAvailable = true
             await refresh()
-        } else {
+        } else if !result.cancelled {
             lastError = .commandFailed(command: "install mas", output: result.output)
         }
     }

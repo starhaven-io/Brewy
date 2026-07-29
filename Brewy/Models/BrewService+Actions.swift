@@ -21,8 +21,8 @@ extension BrewService {
 
     func upgradeAll() async {
         let masOutdatedCount = outdatedPackages.filter(\.isMas).count
-        await performBrewAction(["upgrade"], refreshAfter: true)
-        if masOutdatedCount > 0, lastError == nil {
+        guard let result = await performBrewAction(["upgrade"], refreshAfter: true) else { return }
+        if masOutdatedCount > 0, lastError == nil, !result.cancelled {
             lastError = .commandFailed(command: "upgrade", output: Self.masUpgradeMessage(count: masOutdatedCount))
         }
     }
@@ -36,25 +36,26 @@ extension BrewService {
 
     // MARK: - Action Helpers
 
-    func performBrewAction(_ arguments: [String], refreshAfter: Bool = false) async {
+    @discardableResult
+    func performBrewAction(_ arguments: [String], refreshAfter: Bool = false) async -> CommandResult? {
         guard !isPerformingAction else {
             logger.info("\(arguments.first ?? "action") skipped, action already in progress")
-            return
+            return nil
         }
         isPerformingAction = true
         actionOutput = ""
         lastError = nil
         defer { isPerformingAction = false }
 
-        let result = await runBrewCommand(arguments)
-        actionOutput = result.output
-        if !result.success {
+        let result = await runBrewCommandStreaming(arguments)
+        if !result.success, !result.cancelled {
             lastError = .commandFailed(command: arguments.joined(separator: " "), output: result.output)
         }
         recordAction(arguments: arguments, packageName: nil, packageSource: nil, success: result.success, output: result.output)
         if refreshAfter {
             await refresh()
         }
+        return result
     }
 
     func performAction(_ action: String, package: BrewPackage) async {
@@ -81,9 +82,8 @@ extension BrewService {
         args.append("--")
         args.append(package.name)
 
-        let result = await runBrewCommand(args)
-        actionOutput = result.output
-        if !result.success {
+        let result = await runBrewCommandStreaming(args)
+        if !result.success, !result.cancelled {
             logger.warning("\(action) failed for \(package.name): \(result.output.prefix(200))")
             lastError = .commandFailed(command: action, output: result.output)
         }

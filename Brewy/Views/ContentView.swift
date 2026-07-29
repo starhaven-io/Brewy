@@ -84,6 +84,19 @@ struct ContentView: View {
             detailView
         }
         .environment(\.selectPackage) { name in navigateToPackage(name) }
+        .overlay {
+            if brewService.isPerformingAction {
+                ZStack {
+                    Color.black.opacity(0.12)
+                    ActionOverlay(
+                        output: brewService.actionOutput,
+                        canCancel: brewService.canCancelCurrentAction,
+                        onCancel: brewService.cancelCurrentAction
+                    )
+                }
+                .accessibilityAddTraits(.isModal)
+            }
+        }
         .task {
 #if DEBUG
             if BrewyRuntime.isUITesting {

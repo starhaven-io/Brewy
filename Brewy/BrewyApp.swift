@@ -76,11 +76,7 @@ struct BrewyApp: App {
 
                 Divider()
 
-                Button("Upgrade All") {
-                    Task { await brewService.upgradeAll() }
-                }
-                .keyboardShortcut("u", modifiers: .command)
-                .disabled(brewService.homebrewOutdatedPackages.isEmpty)
+                UpgradeAllCommandButton(brewService: brewService)
 
                 Button("Cleanup...") {
                     NotificationCenter.default.post(name: .showCleanupPreview, object: nil)
@@ -107,6 +103,21 @@ struct BrewyApp: App {
                 systemImage: count > 0 ? "shippingbox.fill" : "shippingbox"
             )
         }
+    }
+}
+
+private struct UpgradeAllCommandButton: View {
+    @Environment(\.openWindow)
+    private var openWindow
+    let brewService: BrewService
+
+    var body: some View {
+        Button("Upgrade All") {
+            openWindow(id: "main")
+            Task { await brewService.upgradeAll() }
+        }
+        .keyboardShortcut("u", modifiers: .command)
+        .disabled(brewService.homebrewOutdatedPackages.isEmpty)
     }
 }
 
@@ -159,6 +170,7 @@ private struct MenuBarView: View {
             if homebrewOutdatedCount > 0 {
                 Divider()
                 Button("Upgrade Homebrew Packages") {
+                    openWindow(id: "main")
                     Task { await brewService.upgradeAll() }
                 }
             }

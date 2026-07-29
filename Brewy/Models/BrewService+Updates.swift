@@ -22,11 +22,12 @@ extension BrewService {
         defer { isPerformingAction = false }
 
         let arguments = ["update"]
-        let result = await runBrewCommand(arguments)
-        actionOutput = result.output
+        let result = await runBrewCommandStreaming(arguments)
 
         if !result.success {
-            lastError = .commandFailed(command: "update", output: result.output)
+            if !result.cancelled {
+                lastError = .commandFailed(command: "update", output: result.output)
+            }
         } else {
             let parsed = BrewUpdateParser.parse(result.output)
             lastUpdateResult = parsed

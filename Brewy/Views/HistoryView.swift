@@ -96,11 +96,6 @@ struct HistoryDetailView: View {
         }
         .formStyle(.grouped)
         .navigationTitle(entry.packageName ?? entry.command)
-        .overlay {
-            if brewService.isPerformingAction {
-                ActionOverlay(output: brewService.actionOutput)
-            }
-        }
         .confirmationDialog("Retry Command?", isPresented: $showRetryConfirmation) {
             Button("Retry", role: .destructive) {
                 Task { await brewService.retryAction(entry) }
