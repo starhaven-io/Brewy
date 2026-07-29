@@ -314,7 +314,12 @@ enum CommandRunner {
             terminateThenKill(process, after: killGracePeriod)
         }
 
-        let (stdoutData, stderrData) = drainPipesInParallel(stdout: stdoutPipe, stderr: stderrPipe, onOutput: onOutput)
+        let (stdoutData, stderrData) = drainPipesInParallel(
+            stdout: stdoutPipe,
+            stderr: stderrPipe,
+            commandDescription: execution.commandDescription,
+            onOutput: onOutput
+        )
         let (timedOut, timeoutWork) = scheduleTimeout(
             for: process,
             after: execution.timeout,
@@ -451,18 +456,6 @@ enum CommandRunner {
         return "Command was cancelled.\n\(partialOutput)"
     }
 
-    private static func drainPipesInParallel(
-        stdout: Pipe,
-        stderr: Pipe,
-        onOutput: (@Sendable (String) -> Void)?
-    ) -> (stdout: PipeReader, stderr: PipeReader) {
-        let stdoutReader = PipeReader(pipe: stdout, onText: onOutput)
-        let stderrReader = PipeReader(pipe: stderr, onText: onOutput)
-        stdoutReader.start()
-        stderrReader.start()
-        return (stdoutReader, stderrReader)
-    }
-
     private static func scheduleTimeout(
         for process: Process,
         after timeout: Duration,
@@ -481,4 +474,25 @@ enum CommandRunner {
         )
         return (timedOut, timeoutWork)
     }
+}
+
+private func drainPipesInParallel(
+    stdout: Pipe,
+    stderr: Pipe,
+    commandDescription: String,
+    onOutput: (@Sendable (String) -> Void)?
+) -> (stdout: PipeReader, stderr: PipeReader) {
+    let stdoutReader = PipeReader(
+        pipe: stdout,
+        label: "\(commandDescription) stdout",
+        onText: onOutput
+    )
+    let stderrReader = PipeReader(
+        pipe: stderr,
+        label: "\(commandDescription) stderr",
+        onText: onOutput
+    )
+    stdoutReader.start()
+    stderrReader.start()
+    return (stdoutReader, stderrReader)
 }

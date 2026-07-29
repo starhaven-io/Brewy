@@ -159,3 +159,19 @@ func makePackage(
         dependencies: dependencies
     )
 }
+
+// MARK: - Streaming Test Support
+
+/// Thread-safe chunk collector for streaming tests.
+final class LockedChunks: @unchecked Sendable {
+    private let lock = NSLock()
+    private var chunks: [String] = []
+
+    func append(_ chunk: String) {
+        lock.withLock { chunks.append(chunk) }
+    }
+
+    func joined() -> String {
+        lock.withLock { chunks.joined() }
+    }
+}
