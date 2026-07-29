@@ -1,0 +1,55 @@
+name: Brew JSON Drift Probe
+
+# Brewy's core contract is Homebrew's JSON output, which changes upstream on its
+# own schedule. Decode the runner's real brew with the repo's own Codable types
+# weekly so schema drift fails here first, not on users' machines.
+on:
+  schedule:
+    - cron: "23 8 * * 2" # Tuesday 08:23 UTC
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash -xeuo pipefail {0}
+
+permissions: {}
+
+concurrency:
+  group: "brew-json-probe-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    name: Decode live brew JSON with BrewJSONTypes
+    runs-on: macos-26
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Update Homebrew
+        env:
+          HOMEBREW_NO_ENV_HINTS: 1
+        run: brew update
+
+      - name: Install probe packages
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: 1
+          HOMEBREW_NO_ENV_HINTS: 1
+        run: |
+          brew install wget
+          brew install --cask font-fira-code
+
+      - name: Build probe
+        run: |
+          xcrun swiftc -o /tmp/brew-json-probe \
+            Brewy/Models/BrewJSONTypes.swift \
+            Brewy/Models/PackageModel.swift \
+            Brewy/Models/ExternalURLPolicy.swift \
+            scripts/brew-json-probe/main.swift
+
+      - name: Run probe against real brew
+        run: /tmp/brew-json-probe
