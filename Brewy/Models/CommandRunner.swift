@@ -9,30 +9,18 @@ private let logger = Logger(subsystem: "io.linnane.brewy", category: "CommandRun
 struct CommandResult: Sendable {
     let output: String
     let success: Bool
+    /// True when the process was terminated because the awaiting task was cancelled,
+    /// so callers can skip failure alerts for user-requested cancellation.
+    let cancelled: Bool
+
+    init(output: String, success: Bool, cancelled: Bool = false) {
+        self.output = output
+        self.success = success
+        self.cancelled = cancelled
+    }
 }
 
 // MARK: - Thread-safe Value Containers
-
-/// Thread-safe accumulator for data chunks.
-private final class LockedData: Sendable {
-    private let lock = NSLock()
-    nonisolated(unsafe) private var chunks: [Data] = []
-
-    func append(_ data: Data) {
-        lock.lock()
-        chunks.append(data)
-        lock.unlock()
-    }
-
-    func combined() -> Data {
-        lock.lock()
-        var result = Data()
-        result.reserveCapacity(chunks.reduce(0) { $0 + $1.count })
-        for chunk in chunks { result.append(chunk) }
-        lock.unlock()
-        return result
-    }
-}
 
 private final class LockedFlag: Sendable {
     private let lock = NSLock()
@@ -46,11 +34,54 @@ private final class LockedFlag: Sendable {
     }
 }
 
+/// Thread-safe handle bridging a launched `Process` to a task-cancellation handler,
+/// which may fire before the process has even launched.
+private final class ProcessHandle: @unchecked Sendable {
+    private let lock = NSLock()
+    private var process: Process?
+    private var signalTarget: Int32?
+    private var cancelled = false
+
+    /// Registers the launched process; returns false when cancellation already
+    /// happened, in which case the caller must tear the process down itself.
+    func register(_ process: Process) -> Bool {
+        let signalTarget = CommandRunner.signalTarget(for: process)
+        lock.lock(); defer { lock.unlock() }
+        guard !cancelled else { return false }
+        self.process = process
+        self.signalTarget = signalTarget
+        return true
+    }
+
+    var wasCancelled: Bool {
+        lock.lock(); defer { lock.unlock() }
+        return cancelled
+    }
+
+    func cancel(killGracePeriod: Duration) {
+        lock.lock()
+        cancelled = true
+        let running = process
+        let target = signalTarget
+        lock.unlock()
+        guard let running, let target else { return }
+        CommandRunner.terminateThenKill(running, signalTarget: target, after: killGracePeriod)
+    }
+}
+
 // MARK: - Command Running Protocol
 
 protocol CommandRunning: Sendable {
     func run(_ arguments: [String], brewPath: String, timeout: Duration) async -> CommandResult
     func runExecutable(_ executablePath: String, arguments: [String], timeout: Duration) async -> CommandResult
+    /// Runs the command, delivering output incrementally as it arrives. `onOutput` may be
+    /// called from arbitrary threads; the returned result still carries the full output.
+    func runStreaming(
+        _ arguments: [String],
+        brewPath: String,
+        timeout: Duration,
+        onOutput: @escaping @Sendable (String) -> Void
+    ) async -> CommandResult
 }
 
 extension CommandRunning {
@@ -60,6 +91,19 @@ extension CommandRunning {
 
     func runExecutable(_ executablePath: String, arguments: [String]) async -> CommandResult {
         await runExecutable(executablePath, arguments: arguments, timeout: CommandRunner.defaultTimeout)
+    }
+
+    /// Non-streaming fallback so simple runners (test mocks) satisfy the protocol:
+    /// the full output arrives as a single chunk on completion.
+    func runStreaming(
+        _ arguments: [String],
+        brewPath: String,
+        timeout: Duration,
+        onOutput: @escaping @Sendable (String) -> Void
+    ) async -> CommandResult {
+        let result = await run(arguments, brewPath: brewPath, timeout: timeout)
+        onOutput(result.output)
+        return result
     }
 }
 
@@ -73,6 +117,15 @@ struct DefaultCommandRunner: CommandRunning {
     func runExecutable(_ executablePath: String, arguments: [String], timeout: Duration) async -> CommandResult {
         await CommandRunner.runExecutable(executablePath, arguments: arguments, timeout: timeout)
     }
+
+    func runStreaming(
+        _ arguments: [String],
+        brewPath: String,
+        timeout: Duration,
+        onOutput: @escaping @Sendable (String) -> Void
+    ) async -> CommandResult {
+        await CommandRunner.runExecutable(brewPath, arguments: arguments, timeout: timeout, onOutput: onOutput)
+    }
 }
 
 // MARK: - Command Runner
@@ -80,11 +133,13 @@ struct DefaultCommandRunner: CommandRunning {
 enum CommandRunner {
 
     static let defaultTimeout: Duration = .seconds(300)
+
     static let preventHomebrewAutoUpdateKey = "preventHomebrewAutoUpdate"
     private static let standardBrewPaths = ["/opt/homebrew/bin/brew", "/usr/local/bin/brew"]
 
     /// Grace period between SIGTERM and SIGKILL when a process exceeds its timeout.
     private static let killGracePeriod: Duration = .seconds(3)
+    private static let pipeDrainGracePeriod: Duration = .seconds(5)
 
     static func resolvedBrewPath(preferred: String) -> String {
         if FileManager.default.isExecutableFile(atPath: preferred) { return preferred }
@@ -119,7 +174,8 @@ enum CommandRunner {
     static func runExecutable(
         _ executablePath: String,
         arguments: [String],
-        timeout: Duration = defaultTimeout
+        timeout: Duration = defaultTimeout,
+        onOutput: (@Sendable (String) -> Void)? = nil
     ) async -> CommandResult {
         let execName = URL(fileURLWithPath: executablePath).lastPathComponent
         let commandDescription = "\(execName) \(arguments.joined(separator: " "))"
@@ -127,18 +183,27 @@ enum CommandRunner {
         let startTime = ContinuousClock.now
         let preventHomebrewAutoUpdate = preventsHomebrewAutoUpdate()
 
-        let result = await Task.detached(priority: .medium) {
-            executeProcess(
-                arguments: arguments,
-                brewPath: executablePath,
-                timeout: timeout,
-                commandDescription: commandDescription,
-                preventHomebrewAutoUpdate: preventHomebrewAutoUpdate
-            )
-        }.value
+        let execution = ProcessExecution(
+            executablePath: executablePath,
+            arguments: arguments,
+            timeout: timeout,
+            commandDescription: commandDescription,
+            preventHomebrewAutoUpdate: preventHomebrewAutoUpdate
+        )
+        let handle = ProcessHandle()
+        let result = await withTaskCancellationHandler {
+            await Task.detached(priority: .medium) {
+                executeProcess(execution, handle: handle, onOutput: onOutput)
+            }.value
+        } onCancel: {
+            logger.info("Task cancelled, terminating: \(commandDescription)")
+            handle.cancel(killGracePeriod: killGracePeriod)
+        }
 
         let elapsed = ContinuousClock.now - startTime
-        if result.success {
+        if result.cancelled {
+            logger.info("\(commandDescription) cancelled after \(elapsed)")
+        } else if result.success {
             logger.info("\(commandDescription) completed in \(elapsed)")
         } else {
             logger.warning("\(commandDescription) failed after \(elapsed): \(result.output.prefix(200))")
@@ -199,50 +264,71 @@ enum CommandRunner {
         return .nanoseconds(Int(totalNanos))
     }
 
-    private static func executeProcess(
-        arguments: [String],
-        brewPath: String,
-        timeout: Duration,
-        commandDescription: String,
-        preventHomebrewAutoUpdate: Bool
-    ) -> CommandResult {
-        let process = Process()
-        let stdoutPipe = Pipe()
-        let stderrPipe = Pipe()
+    private struct ProcessExecution: Sendable {
+        let executablePath: String
+        let arguments: [String]
+        let timeout: Duration
+        let commandDescription: String
+        let preventHomebrewAutoUpdate: Bool
+    }
 
-        process.executableURL = URL(fileURLWithPath: brewPath)
-        process.arguments = arguments
-        process.environment = buildEnvironment(
-            brewPath: brewPath,
-            preventHomebrewAutoUpdate: preventHomebrewAutoUpdate
-        )
-        process.standardOutput = stdoutPipe
-        process.standardError = stderrPipe
+    private static func executeProcess(
+        _ execution: ProcessExecution,
+        handle: ProcessHandle,
+        onOutput: (@Sendable (String) -> Void)?
+    ) -> CommandResult {
+        guard !handle.wasCancelled else {
+            return CommandResult(output: "Command was cancelled.", success: false, cancelled: true)
+        }
+        let (process, stdoutPipe, stderrPipe) = configuredProcess(for: execution)
 
         do {
             try process.run()
         } catch {
             logger.error("Failed to launch process: \(error.localizedDescription)")
             return CommandResult(
-                output: "Failed to run \(commandDescription): \(error.localizedDescription)",
+                output: "Failed to run \(execution.commandDescription): \(error.localizedDescription)",
                 success: false
             )
         }
 
-        let (stdoutData, stderrData) = drainPipesInParallel(stdout: stdoutPipe, stderr: stderrPipe)
-        let (timedOut, timeoutWork) = scheduleTimeout(for: process, after: timeout, commandDescription: commandDescription)
+        if !handle.register(process) {
+            // Cancellation raced the launch; the handler never saw the process, so tear it down here.
+            terminateThenKill(process, after: killGracePeriod)
+        }
+
+        let (stdoutData, stderrData) = drainPipesInParallel(stdout: stdoutPipe, stderr: stderrPipe, onOutput: onOutput)
+        let (timedOut, timeoutWork) = scheduleTimeout(
+            for: process,
+            after: execution.timeout,
+            commandDescription: execution.commandDescription
+        )
 
         process.waitUntilExit()
         // Process finished; cancel the pending timeout so it can't fire later.
         timeoutWork.cancel()
-        let out = stdoutData.wait()
-        let err = stderrData.wait()
+        var drainDeadline: DispatchTime?
+        let requestedDrainDeadline = {
+            if drainDeadline == nil, handle.wasCancelled || timedOut.isSet {
+                drainDeadline = DispatchTime.now() + dispatchInterval(from: pipeDrainGracePeriod)
+            }
+            return drainDeadline
+        }
+        let out = stdoutData.wait(untilRequested: requestedDrainDeadline)
+        let err = stderrData.wait(untilRequested: requestedDrainDeadline)
         let stdout = String(data: out, encoding: .utf8) ?? ""
         let stderr = String(data: err, encoding: .utf8) ?? ""
 
+        if handle.wasCancelled {
+            return CommandResult(
+                output: cancelledOutput(stdout: stdout, stderr: stderr),
+                success: false,
+                cancelled: true
+            )
+        }
         if timedOut.isSet {
             return CommandResult(
-                output: timeoutOutput(stdout: stdout, stderr: stderr, timeout: timeout),
+                output: timeoutOutput(stdout: stdout, stderr: stderr, timeout: execution.timeout),
                 success: false
             )
         }
@@ -250,6 +336,62 @@ enum CommandRunner {
             output: commandOutput(stdout: stdout, stderr: stderr, terminationStatus: process.terminationStatus),
             success: process.terminationStatus == 0
         )
+    }
+
+    private static func configuredProcess(for execution: ProcessExecution) -> (Process, Pipe, Pipe) {
+        let process = Process()
+        let stdoutPipe = Pipe()
+        let stderrPipe = Pipe()
+        process.executableURL = URL(fileURLWithPath: execution.executablePath)
+        process.arguments = execution.arguments
+        process.environment = buildEnvironment(
+            brewPath: execution.executablePath,
+            preventHomebrewAutoUpdate: execution.preventHomebrewAutoUpdate
+        )
+        process.standardOutput = stdoutPipe
+        process.standardError = stderrPipe
+        return (process, stdoutPipe, stderrPipe)
+    }
+
+    /// Signals the process group when Foundation launched an isolated group, falling back to
+    /// the direct process otherwise.
+    static func terminateThenKill(_ process: Process, after grace: Duration) {
+        terminateThenKill(process, signalTarget: signalTarget(for: process), after: grace)
+    }
+
+    fileprivate static func signalTarget(for process: Process) -> Int32 {
+        let pid = process.processIdentifier
+        errno = 0
+        let processGroupID = getpgid(pid)
+        if processGroupID == pid || (processGroupID == -1 && errno == ESRCH) {
+            return -pid
+        }
+        logger.warning("Process \(pid) is not its group leader; terminating only the direct process")
+        return pid
+    }
+
+    fileprivate static func terminateThenKill(
+        _ process: Process,
+        signalTarget: Int32,
+        after grace: Duration
+    ) {
+        if signalTarget < 0 {
+            errno = 0
+            guard kill(signalTarget, SIGTERM) == 0 || errno == EPERM else { return }
+        } else {
+            guard process.isRunning else { return }
+            kill(signalTarget, SIGTERM)
+        }
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + dispatchInterval(from: grace)) { [weak process] in
+            if signalTarget < 0 {
+                errno = 0
+                guard kill(signalTarget, 0) == 0 || errno == EPERM else { return }
+            } else {
+                guard let process, process.isRunning else { return }
+            }
+            logger.warning("SIGTERM did not stop all processes, sending SIGKILL to target \(signalTarget)")
+            kill(signalTarget, SIGKILL)
+        }
     }
 
     private static func commandOutput(stdout: String, stderr: String, terminationStatus: Int32) -> String {
@@ -283,9 +425,22 @@ enum CommandRunner {
         return "Command timed out after \(timeout).\n\(partialOutput)"
     }
 
-    private static func drainPipesInParallel(stdout: Pipe, stderr: Pipe) -> (stdout: PipeReader, stderr: PipeReader) {
-        let stdoutReader = PipeReader(pipe: stdout)
-        let stderrReader = PipeReader(pipe: stderr)
+    private static func cancelledOutput(stdout: String, stderr: String) -> String {
+        let partialOutput = combinedStreams(stdout: stdout, stderr: stderr)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !partialOutput.isEmpty else {
+            return "Command was cancelled."
+        }
+        return "Command was cancelled.\n\(partialOutput)"
+    }
+
+    private static func drainPipesInParallel(
+        stdout: Pipe,
+        stderr: Pipe,
+        onOutput: (@Sendable (String) -> Void)?
+    ) -> (stdout: PipeReader, stderr: PipeReader) {
+        let stdoutReader = PipeReader(pipe: stdout, onText: onOutput)
+        let stderrReader = PipeReader(pipe: stderr, onText: onOutput)
         stdoutReader.start()
         stderrReader.start()
         return (stdoutReader, stderrReader)
@@ -301,44 +456,12 @@ enum CommandRunner {
             guard let process, process.isRunning else { return }
             logger.warning("Timeout exceeded, sending SIGTERM: \(commandDescription)")
             timedOut.set()
-            process.terminate()
-            let pid = process.processIdentifier
-            let graceDispatch = dispatchInterval(from: killGracePeriod)
-            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + graceDispatch) { [weak process] in
-                guard let process, process.isRunning else { return }
-                logger.warning("SIGTERM ignored, sending SIGKILL: \(commandDescription)")
-                kill(pid, SIGKILL)
-            }
+            terminateThenKill(process, after: killGracePeriod)
         }
         DispatchQueue.global(qos: .utility).asyncAfter(
             deadline: .now() + dispatchInterval(from: timeout),
             execute: timeoutWork
         )
         return (timedOut, timeoutWork)
-    }
-}
-
-// MARK: - Pipe Reader
-
-/// Drains a `Pipe` to EOF on a background queue so the subprocess cannot deadlock on a full buffer.
-private final class PipeReader: @unchecked Sendable {
-    private let pipe: Pipe
-    private let accumulator = LockedData()
-    private let semaphore = DispatchSemaphore(value: 0)
-
-    init(pipe: Pipe) { self.pipe = pipe }
-
-    func start() {
-        DispatchQueue.global(qos: .utility).async { [weak self] in
-            guard let self else { return }
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            accumulator.append(data)
-            semaphore.signal()
-        }
-    }
-
-    func wait() -> Data {
-        semaphore.wait()
-        return accumulator.combined()
     }
 }
