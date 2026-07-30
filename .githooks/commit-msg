@@ -1,11 +1,29 @@
 #!/bin/sh
-# Enforce DCO sign-off on every local commit.
-# Commit messages must carry a "Signed-off-by:" trailer. Add one with `git commit -s`.
+# Reject known AI attribution trailers on every local commit.
+# Ordinary commit messages must carry a "Signed-off-by:" trailer. Add one with
+# `git commit -s`.
 #
 # Enable this hook once per clone with: just install-hooks
 # (sets core.hooksPath to this directory).
 
 msg_file="$1"
+
+if ! trailers=$(git interpret-trailers --parse --no-divider "$msg_file"); then
+    echo "commit-msg hook: could not inspect commit trailers." >&2
+    echo "  Commit rejected because AI attribution could not be checked." >&2
+    echo "  Update Git or, after verifying DCO sign-off, re-run with '--no-verify'." >&2
+    exit 1
+fi
+
+if printf '%s\n' "$trailers" |
+    grep -Eiq '(^|[^[:alnum:]_])(claude|codex)([^[:alnum:]_]|$)'
+then
+    echo "commit-msg hook: trailer contains a known AI identifier." >&2
+    echo "  Remove AI attribution and disclose AI use in the PR description." >&2
+    echo "  If this identifies a human or file, verify DCO sign-off and re-run with '--no-verify'." >&2
+    exit 1
+fi
+
 subject=$(sed -n '1p' "$msg_file")
 
 case "$subject" in
