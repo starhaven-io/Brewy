@@ -12,14 +12,23 @@ private final class StreamingMockRunner: CommandRunning, @unchecked Sendable {
     private let chunks: [String]
     private let chunkDelay: Duration
     private let finalResult: CommandResult
+    /// Held after the first chunk so a test can observe the mid-flight state without
+    /// racing the scheduler for a transient window.
+    private let gateAfterFirstChunk: ChunkGate?
 
     var streamedCommands: [[String]] {
         lock.withLock { _streamedCommands }
     }
 
-    init(chunks: [String], chunkDelay: Duration = .milliseconds(20), finalResult: CommandResult) {
+    init(
+        chunks: [String],
+        chunkDelay: Duration = .milliseconds(20),
+        gateAfterFirstChunk: ChunkGate? = nil,
+        finalResult: CommandResult
+    ) {
         self.chunks = chunks
         self.chunkDelay = chunkDelay
+        self.gateAfterFirstChunk = gateAfterFirstChunk
         self.finalResult = finalResult
     }
 
@@ -48,13 +57,14 @@ private final class StreamingMockRunner: CommandRunning, @unchecked Sendable {
         onOutput: @escaping @Sendable (String) -> Void
     ) async -> CommandResult {
         lock.withLock { _streamedCommands.append(arguments) }
-        for chunk in chunks {
+        for (index, chunk) in chunks.enumerated() {
             do {
                 try await Task.sleep(for: chunkDelay)
             } catch {
                 return CommandResult(output: "Command was cancelled.", success: false, cancelled: true)
             }
             onOutput(chunk)
+            if index == 0 { await gateAfterFirstChunk?.wait() }
         }
         return finalResult
     }
@@ -68,25 +78,26 @@ struct ActionStreamingTests {
 
     @Test("Streamed chunks reach actionOutput while the command runs")
     func chunksReachActionOutputMidFlight() async {
+        let gate = ChunkGate()
         let runner = StreamingMockRunner(
             chunks: ["first-chunk\n", "second-chunk\n"],
-            chunkDelay: .milliseconds(50),
+            gateAfterFirstChunk: gate,
             finalResult: CommandResult(output: "first-chunk\nsecond-chunk\n", success: true)
         )
         let service = BrewService(commandRunner: runner)
 
         let action = Task { await service.performBrewAction(["upgrade"]) }
-        var sawPartial = false
-        for _ in 0..<200 {
-            try? await Task.sleep(for: .milliseconds(5))
-            if service.actionOutput.contains("first-chunk"), !service.actionOutput.contains("second-chunk") {
-                sawPartial = true
-                break
-            }
+        // The mock is held after the first chunk, so this converges instead of racing a
+        // transient window, and the second chunk cannot arrive early to spoil the check.
+        for _ in 0..<1_000 where !service.actionOutput.contains("first-chunk") {
+            try? await Task.sleep(for: .milliseconds(10))
         }
+        #expect(service.actionOutput.contains("first-chunk"))
+        #expect(!service.actionOutput.contains("second-chunk"))
+
+        await gate.open()
         _ = await action.value
 
-        #expect(sawPartial)
         #expect(service.actionOutput == "first-chunk\nsecond-chunk\n")
     }
 
@@ -182,5 +193,22 @@ struct ActionStreamingTests {
 
         #expect(service.lastError == nil)
         #expect(!service.canCancelCurrentAction)
+    }
+}
+
+/// Blocks a mock mid-stream until the test releases it.
+private actor ChunkGate {
+    private var isOpen = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func open() {
+        isOpen = true
+        for waiter in waiters { waiter.resume() }
+        waiters.removeAll()
+    }
+
+    func wait() async {
+        guard !isOpen else { return }
+        await withCheckedContinuation { waiters.append($0) }
     }
 }

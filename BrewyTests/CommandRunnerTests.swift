@@ -115,15 +115,7 @@ struct BrewServiceTimeoutPropagationTests {
     }
 }
 
-// `/Users/runner` is the GitHub Actions runner home; `CI` / `GITHUB_ACTIONS`
-// don't reliably reach the test host under `xcodebuild test`.
-@Suite(
-    "CommandRunner Process Execution",
-    .disabled(
-        if: FileManager.default.fileExists(atPath: "/Users/runner"),
-        "Pipe reads hang on Actions runner images; run locally"
-    )
-)
+@Suite("CommandRunner Process Execution")
 struct CommandRunnerProcessTests {
 
     @Test("runExecutable captures stdout from echo")
@@ -191,7 +183,10 @@ struct CommandRunnerProcessTests {
         )
         let elapsed = ContinuousClock.now - start
         #expect(!result.success)
-        #expect(elapsed < .seconds(15))
+        #expect(result.output.contains("timed out"))
+        // Deliberately loose: the point is that the child was killed rather than allowed to
+        // finish its 30 s sleep. A tighter bound only measures how loaded the machine is.
+        #expect(elapsed < .seconds(25))
     }
 
     @Test("runExecutable includes partial output on timeout")
@@ -241,7 +236,9 @@ struct CommandRunnerProcessTests {
         #expect(!result.success)
         #expect(result.cancelled)
         #expect(result.output.contains("cancelled"))
-        #expect(elapsed < .seconds(10))
+        // Loose for the same reason as the timeout test: this proves the call did not wait
+        // out the child's 30 s sleep, not that the machine is fast.
+        #expect(elapsed < .seconds(25))
     }
 
     @Test("Cancellation before launch skips running the process")
@@ -261,13 +258,21 @@ struct CommandRunnerProcessTests {
 
     @Test("Cancelled result keeps partial output")
     func cancelledResultKeepsPartialOutput() async {
+        let chunks = LockedChunks()
         let task = Task {
             await CommandRunner.runExecutable(
                 "/bin/sh",
-                arguments: ["-c", "echo before-cancel; sleep 30"]
+                arguments: ["-c", "echo before-cancel; sleep 30"],
+                onOutput: { chunks.append($0) }
             )
         }
-        try? await Task.sleep(for: .milliseconds(500))
+        defer { task.cancel() }
+
+        for _ in 0..<1_000 where !chunks.joined().contains("before-cancel") {
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(chunks.joined().contains("before-cancel"))
+
         task.cancel()
         let result = await task.value
 
@@ -388,20 +393,6 @@ struct CommandRunnerProcessTests {
 
         #expect(!result.success)
         #expect(chunks.joined().contains("err-line"))
-    }
-}
-
-/// Thread-safe chunk collector for streaming tests.
-private final class LockedChunks: @unchecked Sendable {
-    private let lock = NSLock()
-    private var chunks: [String] = []
-
-    func append(_ chunk: String) {
-        lock.withLock { chunks.append(chunk) }
-    }
-
-    func joined() -> String {
-        lock.withLock { chunks.joined() }
     }
 }
 
