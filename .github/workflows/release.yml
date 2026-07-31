@@ -346,6 +346,11 @@ jobs:
     env:
       VERSION: ${{ needs.build.outputs.tag }}
     steps:
+      - name: Set up Homebrew
+        uses: Homebrew/actions/setup-homebrew@df4b09108a1de9d6f995fe68f302b3f68bd6d2ef # 2026.07.20.1
+        with:
+          stable: true
+
       - name: Mint bot token for tap
         id: tap-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
