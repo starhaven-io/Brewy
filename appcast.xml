@@ -3,25 +3,36 @@
     <channel>
         <title>Brewy</title>
         <item>
-            <title>0.18.0</title>
-            <pubDate>Thu, 09 Jul 2026 05:08:06 +0000</pubDate>
-            <sparkle:version>24</sparkle:version>
-            <sparkle:shortVersionString>0.18.0</sparkle:shortVersionString>
+            <title>0.19.0</title>
+            <pubDate>Fri, 31 Jul 2026 00:27:05 +0000</pubDate>
+            <sparkle:version>25</sparkle:version>
+            <sparkle:shortVersionString>0.19.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
             <description><![CDATA[<h2>What&#x27;s New</h2>
 <ul>
-  <li>show newly added packages when search is empty</li>
+  <li>add Little Snitch Internet Access Policy</li>
+  <li>live streaming output and safe cancellation for long-running commands</li>
 </ul>
 <h2>Fixes</h2>
 <ul>
-  <li>gate Brewfile evaluation behind explicit trust</li>
-  <li>separate package names from flags in brew commands</li>
+  <li>cap persisted action output at 64 KB of UTF-8</li>
+  <li>collapse installed fetches and route background failures non-modally</li>
+</ul>
+<h2>Performance</h2>
+<ul>
+  <li>drain pipes event-driven and re-enable process tests in CI</li>
+</ul>
+<h2>Documentation</h2>
+<ul>
+  <li>add email reporting channel</li>
+  <li>support only the latest released version</li>
+  <li>drop duplicated badges and document the Brewfile trust model</li>
 </ul>
 <h2>Testing</h2>
 <ul>
-  <li>scale sidebar UI test timeouts under Thread Sanitizer</li>
+  <li>raise SwiftUI coverage with fixture-backed UI tests</li>
 </ul>]]></description>
-            <enclosure url="https://github.com/starhaven-io/Brewy/releases/download/0.18.0/Brewy-0.18.0.zip" length="4627484" type="application/octet-stream" sparkle:edSignature="tCgricHkfknLLhnc3svc2jKBhjQZ7KSPQIy2Z7vlLgnaZ3+B9muOf+KHpS61XDrG8ZVkPwDrKWX2kyHQL8s6CA=="/>
+            <enclosure url="https://github.com/starhaven-io/Brewy/releases/download/0.19.0/Brewy-0.19.0.zip" length="4643637" type="application/octet-stream" sparkle:edSignature="K0q87D7+E3BuWRCkuMzBuTm48ugB6IHCorUGpLdtxjndGYtuZZj7G1joInnVvU31Op+IcwugtbF3Exxuf3T3DA=="/>
         </item>
     </channel>
 </rss>
