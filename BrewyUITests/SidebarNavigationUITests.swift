@@ -38,6 +38,7 @@ final class SidebarNavigationUITests: XCTestCase {
             "-autoRefreshInterval", "0",
             "-brewfilePath", "",
             "-showCasksByDefault", "NO",
+            "-showMenuBarIcon", "YES",
             "-trustedBrewfilePath", brewfileURL.path,
             "-trustedBrewfileDigest", brewfileDigest
         ]
@@ -270,6 +271,141 @@ final class SidebarNavigationUITests: XCTestCase {
     }
 
     /// True when the Thread Sanitizer runtime is loaded into this process.
+    private static var isThreadSanitizerActive: Bool {
+        (0..<_dyld_image_count()).contains { index in
+            guard let name = _dyld_get_image_name(index) else { return false }
+            return String(cString: name).contains("libclang_rt.tsan")
+        }
+    }
+}
+
+@MainActor
+final class MenuBarSettingsUITests: XCTestCase {
+    private static let timeoutScale: TimeInterval = isThreadSanitizerActive ? 4 : 1
+    private static let launchTimeout: TimeInterval = 30 * timeoutScale
+    private static let transitionTimeout: TimeInterval = 10 * timeoutScale
+
+    private var app: XCUIApplication!
+    private var fixtureDirectory: URL!
+    private var initialMenuBarIconState: Bool?
+
+    override func setUp() async throws {
+        continueAfterFailure = false
+        fixtureDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("brewy-menu-bar-ui-tests-\(ProcessInfo.processInfo.globallyUniqueString)")
+        try FileManager.default.createDirectory(at: fixtureDirectory, withIntermediateDirectories: true)
+
+        app = XCUIApplication()
+        app.terminate()
+        // This class intentionally omits showMenuBarIcon so the toggle can write through AppStorage.
+        app.launchArguments += [
+            "-NSConstraintBasedLayoutVisualizeMutuallyExclusiveConstraints", "YES",
+            "-autoRefreshInterval", "0",
+            "-brewfilePath", "",
+            "-showCasksByDefault", "NO"
+        ]
+        app.launchEnvironment["BREWY_UI_TESTING"] = "1"
+        app.launchEnvironment["XDG_CONFIG_HOME"] = fixtureDirectory.path
+        app.launch()
+        app.activate()
+    }
+
+    override func tearDown() async throws {
+        restoreInitialMenuBarIconStateIfNeeded()
+        app?.terminate()
+        app = nil
+        try? FileManager.default.removeItem(at: fixtureDirectory)
+        fixtureDirectory = nil
+    }
+
+    func testMenuBarIconVisibilityPersistsAcrossRelaunch() throws {
+        let toggle = try openMenuBarIconSetting()
+        let initialState = try XCTUnwrap(checkedValue(of: toggle))
+        initialMenuBarIconState = initialState
+
+        XCTAssertTrue(waitForMenuBarCount(initialState ? 2 : 1))
+
+        let toggledState = !initialState
+        toggle.click()
+        XCTAssertTrue(waitUntil { self.checkedValue(of: toggle) == toggledState })
+        XCTAssertTrue(waitForMenuBarCount(toggledState ? 2 : 1))
+
+        app.terminate()
+        app.launch()
+        app.activate()
+
+        let relaunchedToggle = try openMenuBarIconSetting()
+        XCTAssertEqual(checkedValue(of: relaunchedToggle), toggledState)
+        XCTAssertTrue(waitForMenuBarCount(toggledState ? 2 : 1))
+
+        relaunchedToggle.click()
+        XCTAssertTrue(waitUntil { self.checkedValue(of: relaunchedToggle) == initialState })
+        XCTAssertTrue(waitForMenuBarCount(initialState ? 2 : 1))
+        initialMenuBarIconState = nil
+    }
+
+    private func openMenuBarIconSetting() throws -> XCUIElement {
+        app.typeKey(",", modifierFlags: .command)
+
+        let settingsWindow = app.windows["Brewy Settings"]
+        _ = try XCTUnwrap(
+            settingsWindow.waitForExistence(timeout: Self.launchTimeout) ? settingsWindow : nil,
+            "Settings window should appear"
+        )
+
+        let toggle = settingsWindow.switches["show-menu-bar-icon-toggle"]
+        return try XCTUnwrap(
+            toggle.waitForExistence(timeout: Self.transitionTimeout) ? toggle : nil,
+            "Menu bar icon setting should appear"
+        )
+    }
+
+    private func checkedValue(of toggle: XCUIElement) -> Bool? {
+        if let number = toggle.value as? NSNumber {
+            return number.boolValue
+        }
+
+        guard let string = toggle.value as? String else { return nil }
+        switch string.lowercased() {
+        case "1", "true", "on": return true
+        case "0", "false", "off": return false
+        default: return nil
+        }
+    }
+
+    private func waitForMenuBarCount(_ count: Int) -> Bool {
+        waitUntil { self.app.menuBars.count == count }
+    }
+
+    private func waitUntil(_ condition: () -> Bool) -> Bool {
+        let deadline = Date(timeIntervalSinceNow: Self.transitionTimeout)
+        repeat {
+            if condition() { return true }
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.1))
+        } while Date() < deadline
+        return condition()
+    }
+
+    private func restoreInitialMenuBarIconStateIfNeeded() {
+        guard let initialMenuBarIconState else { return }
+
+        if app.state == .notRunning {
+            app.launch()
+        }
+        app.activate()
+        app.typeKey(",", modifierFlags: .command)
+
+        let toggle = app.windows["Brewy Settings"].switches["show-menu-bar-icon-toggle"]
+        guard toggle.waitForExistence(timeout: Self.launchTimeout),
+              let currentState = checkedValue(of: toggle),
+              currentState != initialMenuBarIconState else {
+            return
+        }
+
+        toggle.click()
+        _ = waitUntil { self.checkedValue(of: toggle) == initialMenuBarIconState }
+    }
+
     private static var isThreadSanitizerActive: Bool {
         (0..<_dyld_image_count()).contains { index in
             guard let name = _dyld_get_image_name(index) else { return false }

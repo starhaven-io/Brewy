@@ -31,6 +31,8 @@ struct SettingsView: View {
     private var appTheme = AppTheme.system.rawValue
     @AppStorage("appIcon")
     private var appIcon = AppIconSelection.current.rawValue
+    @AppStorage("showMenuBarIcon")
+    private var showMenuBarIcon = true
 
     private var isBrewPathValid: Bool {
         FileManager.default.isExecutableFile(atPath: brewPath)
@@ -88,6 +90,10 @@ struct SettingsView: View {
                 }
             }
 
+            Toggle("Show menu bar icon", isOn: $showMenuBarIcon)
+                .accessibilityIdentifier("show-menu-bar-icon-toggle")
+                .help("Shows package status and quick actions in the menu bar.")
+
             Toggle("Show Casks by default", isOn: $showCasksByDefault)
         }
         .formStyle(.grouped)
@@ -96,7 +102,7 @@ struct SettingsView: View {
         .onChange(of: appIcon, initial: true) {
             AppIconSelection.apply(rawValue: appIcon)
         }
-        .frame(width: 560, height: 410)
+        .frame(width: 560, height: 440)
     }
 
     private var brewfileOverrideSetting: some View {

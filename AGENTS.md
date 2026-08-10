@@ -41,7 +41,7 @@ Please follow these guidelines when contributing.
 - `Brewy/Models/TapHealthChecker.swift`: GitHub API tap health checks for archived, moved, and missing taps.
 - `Brewy/Views/`: SwiftUI views for navigation, lists, details, services, groups, history, settings, maintenance, taps, and release notes.
 - `BrewyTests/`: Swift Testing unit tests and shared `MockCommandRunner` helpers.
-- `BrewyUITests/`: sidebar navigation UI tests.
+- `BrewyUITests/`: macOS UI tests for navigation and settings behavior.
 - `.github/workflows/ci.yml`: PR/push checks with dynamic matrix.
 - `.github/workflows/link-check.yml`: weekly README and CONTRIBUTING link check.
 - `.github/workflows/release.yml`: manual release workflow for archive, signing, notarization, Sparkle signing, appcast, GitHub release, and tap cask bump.

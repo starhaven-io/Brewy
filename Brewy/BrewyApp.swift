@@ -25,6 +25,8 @@ struct BrewyApp: App {
     private var appTheme = AppTheme.system.rawValue
     @AppStorage("appIcon")
     private var appIcon = AppIconSelection.current.rawValue
+    @AppStorage("showMenuBarIcon")
+    private var showMenuBarIcon = true
 
     private static func colorScheme(for appearance: NSAppearance) -> ColorScheme? {
         switch appearance.bestMatch(from: [.aqua, .darkAqua]) {
@@ -93,7 +95,7 @@ struct BrewyApp: App {
             SettingsView()
         }
 
-        MenuBarExtra {
+        MenuBarExtra(isInserted: $showMenuBarIcon) {
             MenuBarView()
                 .environment(brewService)
         } label: {
