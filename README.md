@@ -28,7 +28,7 @@ It is designed for people who already use Homebrew and want a fast, inspectable 
 - Review action history and retry failed commands when it is safe to do so.
 - Run `brew doctor`, update Homebrew, remove orphaned packages, and clear caches with dry-run previews for destructive maintenance.
 - Use the menu bar extra to see the current outdated count and trigger quick refresh or upgrade actions.
-- Choose light, dark, or system appearance, configure the `brew` path, and set an auto-refresh interval.
+- Choose light, dark, or system appearance, show or hide the menu bar icon, configure the `brew` path, and set an auto-refresh interval.
 - Receive app updates through Sparkle.
 
 ## Requirements
