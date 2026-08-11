@@ -78,13 +78,18 @@ Please follow these guidelines when contributing.
   `Assisted-by`, `Co-developed-by`, `Generated-by`, or similar trailers. Human
   `Co-authored-by` trailers are allowed.
 - Never commit directly to `main`; create a feature branch and open a PR.
-- PR descriptions should contain a concise summary of changes and any required
-  AI/LLM disclosure. Do not add a standalone test-plan section.
-- When AI/LLM was used to generate or assist with a pull request, disclose the
-  tool and model in the initial PR description, briefly describe its role, and
-  state how the output was reviewed or verified.
-- Keep AI/LLM disclosure factual and concise. Do not add promotional
-  "generated with" footers.
+- PR descriptions should contain a concise summary of changes. Do not add a
+  standalone test-plan section or checklists.
+- When AI/LLM was used to generate or assist with a pull request, the initial
+  PR description must end with exactly one unformatted line as the last line of
+  the PR body: `AI disclosure: <model> with <how the output was verified>.`
+  This is PR body text, not a commit trailer. Omit the line when no AI/LLM was
+  used.
+- Name the model as its vendor names it, for example `Claude Opus 5`. Do not
+  also name a tool or harness unless the harness is the only identifier. Do not
+  describe what the AI did.
+- Do not format the disclosure as a heading, bullet, bold label, or horizontal
+  rule, and do not add a promotional "generated with" footer.
 - Keep each prose paragraph in a PR description on one source line. Do not
   hard-wrap PR body prose like a commit message; preserve intentional Markdown
   line breaks in lists, code blocks, and other structured content.
