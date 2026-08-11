@@ -2,7 +2,7 @@
 import Foundation
 import Testing
 
-@Suite("PipeReader")
+@Suite("PipeReader", .serialized)
 struct PipeReaderTests {
 
     @Test("Event-driven reader drains data through EOF")

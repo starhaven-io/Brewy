@@ -20,55 +20,6 @@ struct CommandResult: Sendable {
     }
 }
 
-// MARK: - Thread-safe Value Containers
-
-private final class LockedFlag: Sendable {
-    private let lock = NSLock()
-    nonisolated(unsafe) private var value = false
-
-    func set() { lock.lock(); value = true; lock.unlock() }
-
-    var isSet: Bool {
-        lock.lock(); defer { lock.unlock() }
-        return value
-    }
-}
-
-/// Thread-safe handle bridging a launched `Process` to a task-cancellation handler,
-/// which may fire before the process has even launched.
-private final class ProcessHandle: @unchecked Sendable {
-    private let lock = NSLock()
-    private var process: Process?
-    private var signalTarget: Int32?
-    private var cancelled = false
-
-    /// Registers the launched process; returns false when cancellation already
-    /// happened, in which case the caller must tear the process down itself.
-    func register(_ process: Process) -> Bool {
-        let signalTarget = CommandRunner.signalTarget(for: process)
-        lock.lock(); defer { lock.unlock() }
-        guard !cancelled else { return false }
-        self.process = process
-        self.signalTarget = signalTarget
-        return true
-    }
-
-    var wasCancelled: Bool {
-        lock.lock(); defer { lock.unlock() }
-        return cancelled
-    }
-
-    func cancel(killGracePeriod: Duration) {
-        lock.lock()
-        cancelled = true
-        let running = process
-        let target = signalTarget
-        lock.unlock()
-        guard let running, let target else { return }
-        CommandRunner.terminateThenKill(running, signalTarget: target, after: killGracePeriod)
-    }
-}
-
 // MARK: - Command Running Protocol
 
 protocol CommandRunning: Sendable {
@@ -214,7 +165,7 @@ enum CommandRunner {
             }.value
         } onCancel: {
             logger.info("Task cancelled, terminating: \(commandDescription)")
-            handle.cancel(killGracePeriod: killGracePeriod)
+            handle.cancel()
         }
 
         let elapsed = ContinuousClock.now - startTime
@@ -309,10 +260,7 @@ enum CommandRunner {
             )
         }
 
-        if !handle.register(process) {
-            // Cancellation raced the launch; the handler never saw the process, so tear it down here.
-            terminateThenKill(process, after: killGracePeriod)
-        }
+        handle.register(process, killGracePeriod: killGracePeriod)
 
         let (stdoutData, stderrData) = drainPipesInParallel(
             stdout: stdoutPipe,
@@ -320,18 +268,19 @@ enum CommandRunner {
             commandDescription: execution.commandDescription,
             onOutput: onOutput
         )
-        let (timedOut, timeoutWork) = scheduleTimeout(
-            for: process,
+        let timeoutWatchdog = scheduleTimeout(
+            handle: handle,
             after: execution.timeout,
             commandDescription: execution.commandDescription
         )
 
         process.waitUntilExit()
-        // Process finished; cancel the pending timeout so it can't fire later.
-        timeoutWork.cancel()
+        handle.processDidExit()
+        timeoutWatchdog.cancel()
+        _ = handle.waitForTermination()
         var drainDeadline: DispatchTime?
         let requestedDrainDeadline = {
-            if drainDeadline == nil, handle.wasCancelled || timedOut.isSet {
+            if drainDeadline == nil, handle.wasInterrupted {
                 drainDeadline = DispatchTime.now() + dispatchInterval(from: pipeDrainGracePeriod)
             }
             return drainDeadline
@@ -340,17 +289,43 @@ enum CommandRunner {
         let err = stderrData.wait(untilRequested: requestedDrainDeadline)
         let stdout = String(data: out, encoding: .utf8) ?? ""
         let stderr = String(data: err, encoding: .utf8) ?? ""
+        return commandResult(
+            process: process,
+            execution: execution,
+            handle: handle,
+            stdout: stdout,
+            stderr: stderr
+        )
+    }
 
-        if handle.wasCancelled {
+    private static func commandResult(
+        process: Process,
+        execution: ProcessExecution,
+        handle: ProcessHandle,
+        stdout: String,
+        stderr: String
+    ) -> CommandResult {
+        let interruption = handle.interruptionAfterWaiting()
+
+        if interruption.cancelled {
             return CommandResult(
-                output: cancelledOutput(stdout: stdout, stderr: stderr),
+                output: cancelledOutput(
+                    stdout: stdout,
+                    stderr: stderr,
+                    terminationSucceeded: interruption.terminationSucceeded
+                ),
                 success: false,
                 cancelled: true
             )
         }
-        if timedOut.isSet {
+        if interruption.timedOut {
             return CommandResult(
-                output: timeoutOutput(stdout: stdout, stderr: stderr, timeout: execution.timeout),
+                output: timeoutOutput(
+                    stdout: stdout,
+                    stderr: stderr,
+                    timeout: execution.timeout,
+                    terminationSucceeded: interruption.terminationSucceeded
+                ),
                 success: false
             )
         }
@@ -375,49 +350,6 @@ enum CommandRunner {
         return (process, stdoutPipe, stderrPipe)
     }
 
-    /// Signals the process group when Foundation launched an isolated group, falling back to
-    /// the direct process otherwise.
-    static func terminateThenKill(_ process: Process, after grace: Duration) {
-        terminateThenKill(process, signalTarget: signalTarget(for: process), after: grace)
-    }
-
-    fileprivate static func signalTarget(for process: Process) -> Int32 {
-        let pid = process.processIdentifier
-        errno = 0
-        let processGroupID = getpgid(pid)
-        if processGroupID == pid || (processGroupID == -1 && errno == ESRCH) {
-            return -pid
-        }
-        logger.warning("Process \(pid) is not its group leader; terminating only the direct process")
-        return pid
-    }
-
-    fileprivate static func terminateThenKill(
-        _ process: Process,
-        signalTarget: Int32,
-        after grace: Duration
-    ) {
-        if signalTarget < 0 {
-            errno = 0
-            guard kill(signalTarget, SIGTERM) == 0 || errno == EPERM else { return }
-        } else {
-            guard process.isRunning else { return }
-            kill(signalTarget, SIGTERM)
-        }
-        // Above .utility: that queue is starved on a loaded machine, and the escalation is
-        // the only thing that stops a descendant which ignores SIGTERM.
-        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + dispatchInterval(from: grace)) { [weak process] in
-            if signalTarget < 0 {
-                errno = 0
-                guard kill(signalTarget, 0) == 0 || errno == EPERM else { return }
-            } else {
-                guard let process, process.isRunning else { return }
-            }
-            logger.warning("SIGTERM did not stop all processes, sending SIGKILL to target \(signalTarget)")
-            kill(signalTarget, SIGKILL)
-        }
-    }
-
     private static func commandOutput(stdout: String, stderr: String, terminationStatus: Int32) -> String {
         if terminationStatus == 0 {
             return stdout.isEmpty ? stderr : stdout
@@ -440,41 +372,68 @@ enum CommandRunner {
         }
     }
 
-    private static func timeoutOutput(stdout: String, stderr: String, timeout: Duration) -> String {
+    private static func timeoutOutput(
+        stdout: String,
+        stderr: String,
+        timeout: Duration,
+        terminationSucceeded: Bool
+    ) -> String {
         let partialOutput = combinedStreams(stdout: stdout, stderr: stderr)
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !partialOutput.isEmpty else {
-            return "Command timed out after \(timeout)."
-        }
-        return "Command timed out after \(timeout).\n\(partialOutput)"
+        let message = partialOutput.isEmpty
+            ? "Command timed out after \(timeout)."
+            : "Command timed out after \(timeout).\n\(partialOutput)"
+        return terminationOutput(message, succeeded: terminationSucceeded)
     }
 
-    private static func cancelledOutput(stdout: String, stderr: String) -> String {
+    private static func cancelledOutput(
+        stdout: String,
+        stderr: String,
+        terminationSucceeded: Bool
+    ) -> String {
         let partialOutput = combinedStreams(stdout: stdout, stderr: stderr)
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !partialOutput.isEmpty else {
-            return "Command was cancelled."
-        }
-        return "Command was cancelled.\n\(partialOutput)"
+        let message = partialOutput.isEmpty
+            ? "Command was cancelled."
+            : "Command was cancelled.\n\(partialOutput)"
+        return terminationOutput(message, succeeded: terminationSucceeded)
+    }
+
+    static func terminationOutput(_ message: String, succeeded: Bool) -> String {
+        guard !succeeded else { return message }
+        return "\(message)\nSome child processes may still be running."
     }
 
     private static func scheduleTimeout(
-        for process: Process,
+        handle: ProcessHandle,
         after timeout: Duration,
         commandDescription: String
-    ) -> (flag: LockedFlag, work: DispatchWorkItem) {
-        let timedOut = LockedFlag()
-        let timeoutWork = DispatchWorkItem { [weak process] in
-            guard let process, process.isRunning else { return }
+    ) -> TimeoutWatchdog {
+        TimeoutWatchdog(deadline: .now() + dispatchInterval(from: timeout)) {
+            guard handle.timeOut() else { return }
             logger.warning("Timeout exceeded, sending SIGTERM: \(commandDescription)")
-            timedOut.set()
-            terminateThenKill(process, after: killGracePeriod)
         }
-        DispatchQueue.global(qos: .userInitiated).asyncAfter(
-            deadline: .now() + dispatchInterval(from: timeout),
-            execute: timeoutWork
-        )
-        return (timedOut, timeoutWork)
+    }
+}
+
+final class TimeoutWatchdog: @unchecked Sendable {
+    private let cancellation: DispatchSemaphore
+    private let thread: Thread
+
+    init(deadline: DispatchTime, action: @escaping @Sendable () -> Void) {
+        let cancellation = DispatchSemaphore(value: 0)
+        self.cancellation = cancellation
+        self.thread = Thread {
+            guard cancellation.wait(timeout: deadline) == .timedOut else { return }
+            action()
+        }
+        thread.name = "Brewy command timeout"
+        thread.qualityOfService = .userInitiated
+        thread.start()
+    }
+
+    func cancel() {
+        cancellation.signal()
     }
 }
 
