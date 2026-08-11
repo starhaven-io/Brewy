@@ -99,15 +99,11 @@ struct ContentView: View {
         }
         .task {
 #if DEBUG
-            if BrewyRuntime.isUITesting {
-                brewService.loadUITestFixtures()
-                return
-            }
+            if BrewyRuntime.isUITesting { return }
 #endif
             if showCasksByDefault {
                 selectedCategory = .casks
             }
-            brewService.loadFromCache()
             brewService.loadTapHealthCache()
             brewService.loadGroups()
             brewService.loadHistory()
@@ -119,17 +115,10 @@ struct ContentView: View {
                 lastSeenVersion = currentVersion
                 showWhatsNew = true
             }
-            async let bundleRefresh: Void = brewService.refreshBundle()
-            await brewService.refresh()
-            await bundleRefresh
+            await brewService.refreshBundle()
         }
         .task(id: autoRefreshInterval) {
-            guard autoRefreshInterval > 0 else { return }
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(autoRefreshInterval))
-                guard !Task.isCancelled else { break }
-                await brewService.refresh(isUserInitiated: false)
-            }
+            brewService.startPackageUpdates(autoRefreshInterval: autoRefreshInterval)
         }
         .onChange(of: selectedCategory) {
             // Cleared here (not in PackageListView, which is torn down when switching to a

@@ -38,6 +38,7 @@ final class SidebarNavigationUITests: XCTestCase {
             "-autoRefreshInterval", "0",
             "-brewfilePath", "",
             "-showCasksByDefault", "NO",
+            "-showDockIcon", "YES",
             "-showMenuBarIcon", "YES",
             "-trustedBrewfilePath", brewfileURL.path,
             "-trustedBrewfileDigest", brewfileDigest
@@ -302,7 +303,8 @@ final class MenuBarSettingsUITests: XCTestCase {
             "-NSConstraintBasedLayoutVisualizeMutuallyExclusiveConstraints", "YES",
             "-autoRefreshInterval", "0",
             "-brewfilePath", "",
-            "-showCasksByDefault", "NO"
+            "-showCasksByDefault", "NO",
+            "-showDockIcon", "YES"
         ]
         app.launchEnvironment["BREWY_UI_TESTING"] = "1"
         app.launchEnvironment["XDG_CONFIG_HOME"] = fixtureDirectory.path

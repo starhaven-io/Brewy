@@ -55,6 +55,11 @@ final class BrewService {
         self.commandRunner = commandRunner
     }
 
+    deinit {
+        initialRefreshTask?.cancel()
+        autoRefreshTask?.cancel()
+    }
+
     var installedFormulae: [BrewPackage] = [] {
         didSet {
             guard !isBatchingUpdates else { return }
@@ -106,6 +111,10 @@ final class BrewService {
     @ObservationIgnored var infoCache: [String: String] = [:]
     @ObservationIgnored private var tapHealthTask: Task<Void, Never>?
     @ObservationIgnored var actionCommandTask: Task<CommandResult, Never>?
+    @ObservationIgnored var packageUpdatesStarted = false
+    @ObservationIgnored var scheduledAutoRefreshInterval: Int?
+    @ObservationIgnored var initialRefreshTask: Task<Void, Never>?
+    @ObservationIgnored var autoRefreshTask: Task<Void, Never>?
 
     // MARK: - Cached Derived State
 

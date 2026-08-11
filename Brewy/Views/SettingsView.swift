@@ -31,8 +31,10 @@ struct SettingsView: View {
     private var appTheme = AppTheme.system.rawValue
     @AppStorage("appIcon")
     private var appIcon = AppIconSelection.current.rawValue
-    @AppStorage("showMenuBarIcon")
+    @AppStorage(AppVisibilitySettings.showMenuBarIconKey)
     private var showMenuBarIcon = true
+    @AppStorage(AppVisibilitySettings.showDockIconKey)
+    private var showDockIcon = true
 
     private var isBrewPathValid: Bool {
         FileManager.default.isExecutableFile(atPath: brewPath)
@@ -90,9 +92,7 @@ struct SettingsView: View {
                 }
             }
 
-            Toggle("Show menu bar icon", isOn: $showMenuBarIcon)
-                .accessibilityIdentifier("show-menu-bar-icon-toggle")
-                .help("Shows package status and quick actions in the menu bar.")
+            appVisibilitySettings
 
             Toggle("Show Casks by default", isOn: $showCasksByDefault)
         }
@@ -102,7 +102,29 @@ struct SettingsView: View {
         .onChange(of: appIcon, initial: true) {
             AppIconSelection.apply(rawValue: appIcon)
         }
-        .frame(width: 560, height: 440)
+        .onChange(of: showDockIcon, initial: true) {
+            AppVisibilitySettings.applyDockIconVisibility(showDockIcon)
+        }
+        .frame(width: 560, height: 470)
+    }
+
+    private var appVisibilitySettings: some View {
+        Group {
+            Toggle("Show Dock icon", isOn: $showDockIcon)
+                .accessibilityIdentifier("show-dock-icon-toggle")
+                .help("Shows Brewy in the Dock and opens its window at launch. At least one app icon must remain visible.")
+                .disabled(!showMenuBarIcon)
+
+            Toggle("Show menu bar icon", isOn: $showMenuBarIcon)
+                .accessibilityIdentifier("show-menu-bar-icon-toggle")
+                .help("Shows package status and quick actions. At least one app icon must remain visible.")
+                .disabled(!showDockIcon)
+
+            Text("Keep at least one icon visible so you can reopen Brewy.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     private var brewfileOverrideSetting: some View {
