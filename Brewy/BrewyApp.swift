@@ -4,6 +4,8 @@ import SwiftUI
 
 @main
 struct BrewyApp: App {
+    @NSApplicationDelegateAdaptor(BrewyApplicationDelegate.self)
+    private var applicationDelegate
     @State private var brewService = Self.makeBrewService()
     // HACK: there is a known color scheme bug in SwiftUI where passing `nil` to `.preferredColorScheme`
     // doesn't change the color of some elements:
@@ -14,6 +16,7 @@ struct BrewyApp: App {
     private let updaterController: SPUStandardUpdaterController
 
     init() {
+        AppVisibilitySettings.prepareDefaults()
         updaterController = SPUStandardUpdaterController(
             startingUpdater: !BrewyRuntime.isRunningTests,
             updaterDelegate: nil,
@@ -25,8 +28,12 @@ struct BrewyApp: App {
     private var appTheme = AppTheme.system.rawValue
     @AppStorage("appIcon")
     private var appIcon = AppIconSelection.current.rawValue
-    @AppStorage("showMenuBarIcon")
+    @AppStorage(AppVisibilitySettings.showMenuBarIconKey)
     private var showMenuBarIcon = true
+    @AppStorage(AppVisibilitySettings.showDockIconKey)
+    private var showDockIcon = true
+    @AppStorage("autoRefreshInterval")
+    private var autoRefreshInterval = 0
 
     private static func colorScheme(for appearance: NSAppearance) -> ColorScheme? {
         switch appearance.bestMatch(from: [.aqua, .darkAqua]) {
@@ -60,12 +67,17 @@ struct BrewyApp: App {
                 .onChange(of: appIcon, initial: true) {
                     AppIconSelection.apply(rawValue: appIcon)
                 }
+                .onChange(of: showDockIcon, initial: true) {
+                    AppVisibilitySettings.applyDockIconVisibility(showDockIcon)
+                }
                 .frame(minWidth: 920, minHeight: 620)
         }
         .windowStyle(.automatic)
         .windowToolbarStyle(.unified)
         .windowResizability(.contentMinSize)
         .defaultSize(width: 960, height: 640)
+        .defaultLaunchBehavior(showDockIcon ? .automatic : .suppressed)
+        .restorationBehavior(showDockIcon ? .automatic : .disabled)
         .commands {
             CommandGroup(after: .appInfo) {
                 CheckForUpdatesView(updater: updaterController.updater)
@@ -104,6 +116,10 @@ struct BrewyApp: App {
                 count > 0 ? "\(count)" : "Brewy",
                 systemImage: count > 0 ? "shippingbox.fill" : "shippingbox"
             )
+            .accessibilityIdentifier("brewy-menu-bar-icon")
+            .task(id: autoRefreshInterval) {
+                brewService.startPackageUpdates(autoRefreshInterval: autoRefreshInterval)
+            }
         }
     }
 }
@@ -172,7 +188,7 @@ private struct MenuBarView: View {
             if homebrewOutdatedCount > 0 {
                 Divider()
                 Button("Upgrade Homebrew Packages") {
-                    openWindow(id: "main")
+                    openMainWindow()
                     Task { await brewService.upgradeAll() }
                 }
             }
@@ -187,10 +203,12 @@ private struct MenuBarView: View {
         }
         .keyboardShortcut("r")
 
+        SettingsLink()
+
         Divider()
 
         Button("Open Brewy") {
-            openWindow(id: "main")
+            openMainWindow()
         }
         .keyboardShortcut("o")
 
@@ -198,5 +216,10 @@ private struct MenuBarView: View {
             NSApplication.shared.terminate(nil)
         }
         .keyboardShortcut("q")
+    }
+
+    private func openMainWindow() {
+        NSApplication.shared.activate()
+        openWindow(id: "main")
     }
 }
