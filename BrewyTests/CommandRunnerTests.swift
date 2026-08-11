@@ -115,7 +115,7 @@ struct BrewServiceTimeoutPropagationTests {
     }
 }
 
-@Suite("CommandRunner Process Execution")
+@Suite("CommandRunner Process Execution", .serialized)
 struct CommandRunnerProcessTests {
 
     @Test("runExecutable captures stdout from echo")
@@ -187,6 +187,29 @@ struct CommandRunnerProcessTests {
         // Deliberately loose: the point is that the child was killed rather than allowed to
         // finish its 30 s sleep. A tighter bound only measures how loaded the machine is.
         #expect(elapsed < .seconds(25))
+    }
+
+    @Test("Timeout watchdog runs on its dedicated thread")
+    func timeoutWatchdogFires() {
+        let fired = DispatchSemaphore(value: 0)
+        let watchdog = TimeoutWatchdog(deadline: .now() + .milliseconds(50)) {
+            fired.signal()
+        }
+
+        #expect(fired.wait(timeout: .now() + .seconds(10)) == .success)
+        withExtendedLifetime(watchdog) {}
+    }
+
+    @Test("Timeout watchdog cancellation prevents its action")
+    func timeoutWatchdogCancellation() {
+        let fired = DispatchSemaphore(value: 0)
+        let watchdog = TimeoutWatchdog(deadline: .now() + .seconds(30)) {
+            fired.signal()
+        }
+
+        watchdog.cancel()
+
+        #expect(fired.wait(timeout: .now() + .milliseconds(200)) == .timedOut)
     }
 
     @Test("runExecutable includes partial output on timeout")

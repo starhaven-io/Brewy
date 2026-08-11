@@ -268,16 +268,15 @@ enum CommandRunner {
             commandDescription: execution.commandDescription,
             onOutput: onOutput
         )
-        let timeoutWork = scheduleTimeout(
-            for: process,
+        let timeoutWatchdog = scheduleTimeout(
             handle: handle,
             after: execution.timeout,
             commandDescription: execution.commandDescription
         )
 
         process.waitUntilExit()
-        // Process finished; cancel the pending timeout so it can't fire later.
-        timeoutWork.cancel()
+        handle.processDidExit()
+        timeoutWatchdog.cancel()
         _ = handle.waitForTermination()
         var drainDeadline: DispatchTime?
         let requestedDrainDeadline = {
@@ -406,21 +405,35 @@ enum CommandRunner {
     }
 
     private static func scheduleTimeout(
-        for process: Process,
         handle: ProcessHandle,
         after timeout: Duration,
         commandDescription: String
-    ) -> DispatchWorkItem {
-        let timeoutWork = DispatchWorkItem { [weak process] in
-            guard let process, process.isRunning else { return }
+    ) -> TimeoutWatchdog {
+        TimeoutWatchdog(deadline: .now() + dispatchInterval(from: timeout)) {
+            guard handle.timeOut() else { return }
             logger.warning("Timeout exceeded, sending SIGTERM: \(commandDescription)")
-            handle.timeOut()
         }
-        DispatchQueue.global(qos: .userInitiated).asyncAfter(
-            deadline: .now() + dispatchInterval(from: timeout),
-            execute: timeoutWork
-        )
-        return timeoutWork
+    }
+}
+
+final class TimeoutWatchdog: @unchecked Sendable {
+    private let cancellation: DispatchSemaphore
+    private let thread: Thread
+
+    init(deadline: DispatchTime, action: @escaping @Sendable () -> Void) {
+        let cancellation = DispatchSemaphore(value: 0)
+        self.cancellation = cancellation
+        self.thread = Thread {
+            guard cancellation.wait(timeout: deadline) == .timedOut else { return }
+            action()
+        }
+        thread.name = "Brewy command timeout"
+        thread.qualityOfService = .userInitiated
+        thread.start()
+    }
+
+    func cancel() {
+        cancellation.signal()
     }
 }
 

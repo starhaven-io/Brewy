@@ -5,7 +5,7 @@ import Testing
 
 private let incompleteTerminationWarning = "Some child processes may still be running."
 
-@Suite("CommandRunner Process Groups")
+@Suite("CommandRunner Process Groups", .serialized)
 struct CommandRunnerProcessGroupTests {
 
     @Test("Timeout waits for a SIGTERM-ignoring descendant")
@@ -42,6 +42,21 @@ struct CommandRunnerProcessGroupTests {
 }
 
 extension CommandRunnerProcessGroupTests {
+    @Test("Process exit suppresses timeout without suppressing late cancellation")
+    func processExitSuppressesOnlyTimeout() {
+        let handle = ProcessHandle()
+
+        handle.processDidExit()
+
+        #expect(!handle.timeOut())
+        #expect(!handle.wasInterrupted)
+
+        handle.cancel()
+        let interruption = handle.interruptionAfterWaiting()
+        #expect(interruption.cancelled)
+        #expect(!interruption.timedOut)
+    }
+
     @Test("Partial group permission failure still reaches SIGKILL promptly")
     func partialPermissionFailureEscalatesPromptly() throws {
         try withSleepProcess { process, processID in
@@ -388,7 +403,8 @@ extension CommandRunnerProcessGroupTests {
 
     private func waitForPIDs(at url: URL, count: Int) async throws -> [Int32] {
         var pids: [Int32] = []
-        for _ in 0..<1_000 {
+        let deadline = ContinuousClock.now.advanced(by: .seconds(30))
+        while ContinuousClock.now < deadline {
             if let contents = try? String(contentsOf: url, encoding: .utf8) {
                 pids = contents.split(separator: " ").compactMap { Int32($0) }
                 if pids.count == count { break }

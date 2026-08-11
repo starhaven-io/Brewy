@@ -259,6 +259,7 @@ final class ProcessHandle: @unchecked Sendable {
     private var termination: ProcessTermination?
     private var cancelled = false
     private var timedOut = false
+    private var processExited = false
     private var finished = false
 
     func register(_ process: Process, killGracePeriod: Duration) {
@@ -288,15 +289,23 @@ final class ProcessHandle: @unchecked Sendable {
         lock.unlock()
     }
 
-    func timeOut() {
+    func processDidExit() {
         lock.lock()
-        guard !finished else {
+        processExited = true
+        lock.unlock()
+    }
+
+    @discardableResult
+    func timeOut() -> Bool {
+        lock.lock()
+        guard !processExited, !finished else {
             lock.unlock()
-            return
+            return false
         }
         timedOut = true
         termination?.start()
         lock.unlock()
+        return true
     }
 
     var wasInterrupted: Bool {
