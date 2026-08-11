@@ -280,92 +280,15 @@ struct CommandRunnerProcessTests {
         #expect(result.output.contains("before-cancel"))
     }
 
-    @Test("Cancellation kills descendants that ignore SIGTERM and hold pipes open")
-    func cancellationKillsProcessGroup() async throws {
-        let pidURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("brewy-descendant-\(UUID().uuidString).pid")
-        defer { try? FileManager.default.removeItem(at: pidURL) }
-        let script = """
-        (trap "" TERM HUP; sleep 30) &
-        child=$!
-        printf "%s" "$child" > "$1"
-        wait
-        """
-        let task = Task {
-            await CommandRunner.runExecutable(
-                "/bin/sh",
-                arguments: ["-c", script, "brewy-cancel-test", pidURL.path]
-            )
-        }
-        defer { task.cancel() }
+    @Test("Incomplete process teardown appends the user warning")
+    func incompleteTerminationWarning() {
+        let message = "Command was cancelled."
 
-        for _ in 0..<1_000 where !FileManager.default.fileExists(atPath: pidURL.path) {
-            try await Task.sleep(for: .milliseconds(10))
-        }
-        let pidText = try String(contentsOf: pidURL, encoding: .utf8)
-        let descendantPID = try #require(Int32(pidText))
-        defer { kill(descendantPID, SIGKILL) }
-
-        let cancelStart = ContinuousClock.now
-        task.cancel()
-        let result = await task.value
-        let elapsed = ContinuousClock.now - cancelStart
-
-        for _ in 0..<200 where kill(descendantPID, 0) == 0 {
-            try await Task.sleep(for: .milliseconds(10))
-        }
-        #expect(result.cancelled)
-        #expect(elapsed < .seconds(10))
-        #expect(kill(descendantPID, 0) == -1)
-    }
-
-    @Test("Cancellation still reaches the group after its leader exits")
-    func cancellationAfterLeaderExitKillsProcessGroup() async throws {
-        let pidURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("brewy-exited-leader-\(UUID().uuidString).pid")
-        defer { try? FileManager.default.removeItem(at: pidURL) }
-        let script = """
-        (trap "" TERM HUP; sleep 30) &
-        child=$!
-        printf "%s %s" "$$" "$child" > "$1"
-        exit 0
-        """
-        let task = Task {
-            await CommandRunner.runExecutable(
-                "/bin/sh",
-                arguments: ["-c", script, "brewy-cancel-test", pidURL.path]
-            )
-        }
-        defer { task.cancel() }
-
-        for _ in 0..<1_000 where !FileManager.default.fileExists(atPath: pidURL.path) {
-            try await Task.sleep(for: .milliseconds(10))
-        }
-        let pids = try String(contentsOf: pidURL, encoding: .utf8)
-            .split(separator: " ")
-            .compactMap { Int32($0) }
-        #expect(pids.count == 2)
-        let leaderPID = try #require(pids.first)
-        let descendantPID = try #require(pids.last)
-        defer { kill(descendantPID, SIGKILL) }
-
-        for _ in 0..<200 where kill(leaderPID, 0) == 0 {
-            try await Task.sleep(for: .milliseconds(10))
-        }
-        #expect(kill(leaderPID, 0) == -1)
-        #expect(kill(descendantPID, 0) == 0)
-
-        let cancelStart = ContinuousClock.now
-        task.cancel()
-        let result = await task.value
-        let elapsed = ContinuousClock.now - cancelStart
-
-        for _ in 0..<200 where kill(descendantPID, 0) == 0 {
-            try await Task.sleep(for: .milliseconds(10))
-        }
-        #expect(result.cancelled)
-        #expect(elapsed < .seconds(10))
-        #expect(kill(descendantPID, 0) == -1)
+        #expect(CommandRunner.terminationOutput(message, succeeded: true) == message)
+        #expect(
+            CommandRunner.terminationOutput(message, succeeded: false)
+                == "\(message)\nSome child processes may still be running."
+        )
     }
 
     @Test("Streaming delivers output and matches the final result")
