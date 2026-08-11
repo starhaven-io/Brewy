@@ -3,36 +3,21 @@
     <channel>
         <title>Brewy</title>
         <item>
-            <title>0.19.0</title>
-            <pubDate>Fri, 31 Jul 2026 00:27:05 +0000</pubDate>
-            <sparkle:version>25</sparkle:version>
-            <sparkle:shortVersionString>0.19.0</sparkle:shortVersionString>
+            <title>0.20.0</title>
+            <pubDate>Tue, 11 Aug 2026 22:14:50 +0000</pubDate>
+            <sparkle:version>26</sparkle:version>
+            <sparkle:shortVersionString>0.20.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
             <description><![CDATA[<h2>What&#x27;s New</h2>
 <ul>
-  <li>add Little Snitch Internet Access Policy</li>
-  <li>live streaming output and safe cancellation for long-running commands</li>
+  <li>add a toggle to hide the menu bar icon</li>
+  <li>add a toggle to hide the Dock icon</li>
 </ul>
 <h2>Fixes</h2>
 <ul>
-  <li>cap persisted action output at 64 KB of UTF-8</li>
-  <li>collapse installed fetches and route background failures non-modally</li>
-</ul>
-<h2>Performance</h2>
-<ul>
-  <li>drain pipes event-driven and re-enable process tests in CI</li>
-</ul>
-<h2>Documentation</h2>
-<ul>
-  <li>add email reporting channel</li>
-  <li>support only the latest released version</li>
-  <li>drop duplicated badges and document the Brewfile trust model</li>
-</ul>
-<h2>Testing</h2>
-<ul>
-  <li>raise SwiftUI coverage with fixture-backed UI tests</li>
+  <li>await process group termination before returning</li>
 </ul>]]></description>
-            <enclosure url="https://github.com/starhaven-io/Brewy/releases/download/0.19.0/Brewy-0.19.0.zip" length="4643637" type="application/octet-stream" sparkle:edSignature="K0q87D7+E3BuWRCkuMzBuTm48ugB6IHCorUGpLdtxjndGYtuZZj7G1joInnVvU31Op+IcwugtbF3Exxuf3T3DA=="/>
+            <enclosure url="https://github.com/starhaven-io/Brewy/releases/download/0.20.0/Brewy-0.20.0.zip" length="4656565" type="application/octet-stream" sparkle:edSignature="5ZdORwtt9UtNfGRIIcRYn7Mc9yhSre27/AslB+KJC94nD6k56mYMkZnsPYBF7CrpWxg0EaZA5PO0AjgZGEQyBg=="/>
         </item>
     </channel>
 </rss>
