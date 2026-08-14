@@ -11,10 +11,10 @@ final class SidebarNavigationUITests: XCTestCase {
     // the same scheme setting as the app, so its presence in this process is a
     // reliable proxy for "the app under test is instrumented too".
     private static let timeoutScale: TimeInterval = isThreadSanitizerActive ? 4 : 1
-    private static let launchTimeout: TimeInterval = 30 * timeoutScale
-    private static let elementTimeout: TimeInterval = 10 * timeoutScale
+    static let launchTimeout: TimeInterval = 30 * timeoutScale
+    static let elementTimeout: TimeInterval = 10 * timeoutScale
 
-    private var app: XCUIApplication!
+    var app: XCUIApplication!
     private var fixtureDirectory: URL!
 
     override func setUp() async throws {
@@ -250,7 +250,7 @@ final class SidebarNavigationUITests: XCTestCase {
     /// Waits for `element` to exist via an explicit `XCTWaiter` expectation and
     /// asserts it appeared. Wrapping `waitForExistence` this way lets every wait
     /// share the TSan-scaled timeouts and keeps the assertion message intact.
-    private func assertExists(
+    func assertExists(
         _ element: XCUIElement,
         timeout: TimeInterval,
         _ message: @autoclosure () -> String,

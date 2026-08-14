@@ -9,10 +9,11 @@ struct DependencyTreeSection: View {
     @State private var pulledInExpanded = false
     // periphery:ignore - Read and written through DisclosureGroup's projected binding.
     @State private var pullsInExpanded = false
-    @State private var reverse: [DependencyTreeNode] = []
-    @State private var forward: [DependencyTreeNode] = []
 
     var body: some View {
+        let reverse = brewService.reverseDependencyTree(for: package.name)
+        let forward = brewService.forwardDependencyTree(for: package.name)
+
         Group {
             if !reverse.isEmpty || !forward.isEmpty {
                 VStack(alignment: .leading, spacing: 12) {
@@ -24,7 +25,8 @@ struct DependencyTreeSection: View {
                             title: "Pulled in by",
                             help: "Installed packages that depend on \(package.name), recursively up to the user-requested install.",
                             nodes: reverse,
-                            isExpanded: $pulledInExpanded
+                            isExpanded: $pulledInExpanded,
+                            accessibilityIdentifier: "dependency-tree-reverse-disclosure"
                         )
                     }
 
@@ -33,17 +35,14 @@ struct DependencyTreeSection: View {
                             title: "Pulls in",
                             help: "What \(package.name) depends on, recursively.",
                             nodes: forward,
-                            isExpanded: $pullsInExpanded
+                            isExpanded: $pullsInExpanded,
+                            accessibilityIdentifier: "dependency-tree-forward-disclosure"
                         )
                     }
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 12)
             }
-        }
-        .task(id: package.id) {
-            reverse = brewService.reverseDependencyTree(for: package.name)
-            forward = brewService.forwardDependencyTree(for: package.name)
         }
     }
 }
@@ -53,6 +52,7 @@ private struct DependencyTreeDisclosure: View {
     let help: String
     let nodes: [DependencyTreeNode]
     @Binding var isExpanded: Bool
+    let accessibilityIdentifier: String
 
     var body: some View {
         DisclosureGroup(isExpanded: $isExpanded) {
@@ -60,6 +60,7 @@ private struct DependencyTreeDisclosure: View {
                 DependencyTreeRows(nodes: nodes, depth: 0)
             }
             .padding(.top, 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
         } label: {
             HStack(spacing: 6) {
                 Text(title)
@@ -74,6 +75,7 @@ private struct DependencyTreeDisclosure: View {
             }
             .help(help)
         }
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 }
 
@@ -126,5 +128,6 @@ private struct DependencyTreeRow: View {
                     .help("Already shown above in this chain")
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

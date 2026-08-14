@@ -31,12 +31,13 @@ struct ContentView: View {
     private var lastSeenVersion = ""
     @State private var selectedCategory: SidebarCategory? = .installed
     @State private var selectedPackage: BrewPackage?
+    @State private var pendingPackageSelection: BrewPackage?
     @State private var selectedTap: BrewTap?
     @State private var selectedServiceItem: BrewServiceItem?
     @State private var selectedGroupItem: PackageGroup?
     @State private var selectedHistoryEntry: ActionHistoryEntry?
     @State private var servicesRefreshTrigger = 0
-    // periphery:ignore - Mutated through PackageListView's searchable binding.
+    // periphery:ignore - Mutated through PackageListView's search binding.
     @State private var searchText = ""
     @State private var showWhatsNew = false
     @State private var showCleanupConfirm = false
@@ -128,6 +129,10 @@ struct ContentView: View {
             selectedServiceItem = nil
             selectedGroupItem = nil
             selectedHistoryEntry = nil
+            if let pendingPackageSelection {
+                selectedPackage = pendingPackageSelection
+                self.pendingPackageSelection = nil
+            }
         }
         .alert(
             "Error",
@@ -214,12 +219,18 @@ struct ContentView: View {
 
     private func navigateToPackage(_ name: String) {
         if let match = brewService.allInstalled.first(where: { $0.name == name }) {
-            switch match.source {
-            case .formula: selectedCategory = .formulae
-            case .cask: selectedCategory = .casks
-            case .mas: selectedCategory = .masApps
+            let destination: SidebarCategory = switch match.source {
+            case .formula: .formulae
+            case .cask: .casks
+            case .mas: .masApps
             }
-            selectedPackage = match
+            if selectedCategory == destination {
+                pendingPackageSelection = nil
+                selectedPackage = match
+            } else {
+                pendingPackageSelection = match
+                selectedCategory = destination
+            }
         }
     }
 }
