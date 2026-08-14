@@ -38,6 +38,7 @@ struct PackageDetailView: View {
             }
             .padding(.vertical)
         }
+        .accessibilityIdentifier("package-detail-scroll")
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(.background)
         // Keyed on version too, so the info reloads after an in-place upgrade (id alone is stable).

@@ -43,6 +43,12 @@ struct UITestCommandRunner: CommandRunning {
         if arguments == ["config"] {
             return CommandResult(output: Self.configOutput, success: true)
         }
+        if arguments == ["cleanup", "--prune=all", "-s", "--dry-run"] {
+            if ProcessInfo.processInfo.environment["BREWY_UI_CLEANUP_PREVIEW_FAILURE"] == "1" {
+                return CommandResult(output: "Fixture cleanup preview failed", success: false)
+            }
+            return CommandResult(output: "Fixture cleanup preview", success: true)
+        }
         if arguments.starts(with: ["bundle", "list"]) {
             return Self.bundleListResult(arguments)
         }
