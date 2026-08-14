@@ -22,11 +22,17 @@ struct DiscoverView: View {
 
     var body: some View {
         let packages = displayedPackages
-        List(selection: $selectedPackage) {
-            if packages.isEmpty {
-                emptyContent
-            } else {
-                if searchText.isEmpty, let result = brewService.lastUpdateResult {
+        VStack(spacing: 0) {
+            ColumnSearchBar(
+                text: $searchText,
+                prompt: "Search all of Homebrew...",
+                accessibilityIdentifier: "discover-search-field"
+            )
+            Divider()
+            List(selection: $selectedPackage) {
+                if packages.isEmpty {
+                    emptyContent
+                } else if searchText.isEmpty, let result = brewService.lastUpdateResult {
                     Section {
                         packageRows(packages)
                     } header: {
@@ -36,9 +42,9 @@ struct DiscoverView: View {
                     packageRows(packages)
                 }
             }
+            .accessibilityIdentifier("discover-package-list")
+            .listStyle(.inset(alternatesRowBackgrounds: true))
         }
-        .listStyle(.inset(alternatesRowBackgrounds: true))
-        .searchable(text: $searchText, prompt: "Search all of Homebrew...")
         .onChange(of: searchText) {
             searchTask?.cancel()
             guard !searchText.isEmpty else {

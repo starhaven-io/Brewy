@@ -79,6 +79,7 @@ struct BrewyApp: App {
         .defaultLaunchBehavior(showDockIcon ? .automatic : .suppressed)
         .restorationBehavior(showDockIcon ? .automatic : .disabled)
         .commands {
+            ColumnSearchCommands()
             CommandGroup(after: .appInfo) {
                 CheckForUpdatesView(updater: updaterController.updater)
             }
@@ -120,6 +121,23 @@ struct BrewyApp: App {
             .task(id: autoRefreshInterval) {
                 brewService.startPackageUpdates(autoRefreshInterval: autoRefreshInterval)
             }
+        }
+    }
+}
+
+private struct ColumnSearchCommands: Commands {
+    @FocusedValue(\.columnSearchFocus)
+    private var columnSearchFocus
+
+    var body: some Commands {
+        CommandGroup(after: .pasteboard) {
+            Divider()
+
+            Button("Find") {
+                columnSearchFocus?.wrappedValue = true
+            }
+            .keyboardShortcut("f", modifiers: .command)
+            .disabled(columnSearchFocus == nil)
         }
     }
 }
