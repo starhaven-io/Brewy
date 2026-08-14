@@ -1,9 +1,131 @@
+import AppKit
 import SwiftUI
 
 // MARK: - Shared Visual Primitives
 
 extension Color {
     static var brewyAccent: Color { .orange }
+}
+
+extension FocusedValues {
+    @Entry var columnSearchFocus: Binding<Bool>?
+}
+
+struct ColumnSearchBar<Accessory: View>: View {
+    @Binding private var text: String
+    // periphery:ignore - Read through NSViewRepresentable and focused-scene projected bindings.
+    @State private var isSearchFocused = false
+    private let prompt: String
+    private let accessibilityIdentifier: String
+    private let accessory: Accessory
+
+    init(
+        text: Binding<String>,
+        prompt: String,
+        accessibilityIdentifier: String,
+        @ViewBuilder accessory: () -> Accessory
+    ) {
+        _text = text
+        self.prompt = prompt
+        self.accessibilityIdentifier = accessibilityIdentifier
+        self.accessory = accessory()
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            NativeSearchField(
+                text: $text,
+                isFocused: $isSearchFocused,
+                prompt: prompt,
+                accessibilityIdentifier: accessibilityIdentifier
+            )
+            accessory
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(.bar)
+        .focusedSceneValue(\.columnSearchFocus, $isSearchFocused)
+    }
+}
+
+extension ColumnSearchBar where Accessory == EmptyView {
+    init(text: Binding<String>, prompt: String, accessibilityIdentifier: String) {
+        self.init(text: text, prompt: prompt, accessibilityIdentifier: accessibilityIdentifier) {
+            EmptyView()
+        }
+    }
+}
+
+private struct NativeSearchField: NSViewRepresentable {
+    @Binding var text: String
+    @Binding var isFocused: Bool
+    let prompt: String
+    let accessibilityIdentifier: String
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(text: $text, isFocused: $isFocused)
+    }
+
+    func makeNSView(context: Context) -> NSSearchField {
+        let searchField = NSSearchField()
+        searchField.delegate = context.coordinator
+        searchField.placeholderString = prompt
+        searchField.identifier = NSUserInterfaceItemIdentifier(accessibilityIdentifier)
+        return searchField
+    }
+
+    func updateNSView(_ searchField: NSSearchField, context: Context) {
+        context.coordinator.text = $text
+        context.coordinator.isFocused = $isFocused
+        searchField.placeholderString = prompt
+
+        if searchField.stringValue != text {
+            searchField.stringValue = text
+        }
+
+        guard isFocused, searchField.currentEditor() == nil else { return }
+        DispatchQueue.main.async {
+            isFocused = false
+            searchField.window?.makeFirstResponder(searchField)
+        }
+    }
+
+    final class Coordinator: NSObject, NSSearchFieldDelegate {
+        var text: Binding<String>
+        var isFocused: Binding<Bool>
+
+        init(text: Binding<String>, isFocused: Binding<Bool>) {
+            self.text = text
+            self.isFocused = isFocused
+        }
+
+        func controlTextDidBeginEditing(_ notification: Notification) {
+            isFocused.wrappedValue = true
+        }
+
+        func controlTextDidChange(_ notification: Notification) {
+            guard let searchField = notification.object as? NSSearchField else { return }
+            text.wrappedValue = searchField.stringValue
+        }
+
+        func controlTextDidEndEditing(_ notification: Notification) {
+            isFocused.wrappedValue = false
+        }
+
+        func control(
+            _ control: NSControl,
+            textView: NSTextView,
+            doCommandBy commandSelector: Selector
+        ) -> Bool {
+            guard commandSelector == #selector(NSResponder.cancelOperation(_:)),
+                  let searchField = control as? NSSearchField else { return false }
+
+            guard !searchField.stringValue.isEmpty else { return false }
+            searchField.stringValue = ""
+            text.wrappedValue = ""
+            return true
+        }
+    }
 }
 
 extension PackageSource {

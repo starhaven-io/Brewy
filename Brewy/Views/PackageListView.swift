@@ -13,7 +13,6 @@ struct PackageListView: View {
     @Binding var searchText: String
     @State private var searchScope: SearchScope = .installed
     @State private var searchTask: Task<Void, Never>?
-    @State private var isSearchPresented = false
     // periphery:ignore - Read and written through toolbar and row-selection bindings.
     @State private var selectedForUpgrade: Set<String> = []
     @State private var isSelectingForUpgrade = false
@@ -23,7 +22,7 @@ struct PackageListView: View {
     }
 
     private var isSearchingAll: Bool {
-        isSearchPresented && searchScope == .all
+        searchScope == .all && !searchText.isEmpty
     }
 
     private var displayedPackages: [BrewPackage] {
@@ -46,21 +45,20 @@ struct PackageListView: View {
 
     var body: some View {
         let packages = displayedPackages
-        return packageList(packages: packages)
-            .listStyle(.inset(alternatesRowBackgrounds: true))
-            .searchable(text: $searchText, isPresented: $isSearchPresented, prompt: searchPrompt)
-            .searchScopes($searchScope, activation: .onSearchPresentation) {
-                ForEach(SearchScope.allCases, id: \.self) { scope in
-                    Text(scope.rawValue).tag(scope)
-                }
-            }
+        return VStack(spacing: 0) {
+            searchControls
+            Divider()
+            packageList(packages: packages)
+                .accessibilityIdentifier("package-list")
+                .listStyle(.inset(alternatesRowBackgrounds: true))
+        }
             .onChange(of: searchText) {
                 searchTask?.cancel()
-                guard isSearchingAll else { return }
                 guard !searchText.isEmpty else {
                     brewService.searchResults = []
                     return
                 }
+                guard isSearchingAll else { return }
                 searchTask = Task {
                     try? await Task.sleep(for: .milliseconds(300))
                     guard !Task.isCancelled else { return }
@@ -68,21 +66,16 @@ struct PackageListView: View {
                 }
             }
             .onChange(of: searchScope) {
+                searchTask?.cancel()
                 guard isSearchingAll else {
                     brewService.searchResults = []
                     return
                 }
                 if !searchText.isEmpty {
-                    searchTask?.cancel()
                     searchTask = Task {
                         await brewService.search(query: searchText)
                     }
                 }
-            }
-            .onChange(of: isSearchPresented) {
-                guard !isSearchPresented else { return }
-                searchTask?.cancel()
-                brewService.searchResults = []
             }
             .onChange(of: selectedCategory) {
                 searchScope = .installed
@@ -106,6 +99,30 @@ struct PackageListView: View {
                     outdatedPackages: isOutdatedCategory ? packages.filter { !$0.isMas } : []
                 )
             }
+    }
+
+    private var searchControls: some View {
+        ColumnSearchBar(
+            text: $searchText,
+            prompt: searchPrompt,
+            accessibilityIdentifier: "package-search-field"
+        ) {
+            Menu {
+                Picker("Search Scope", selection: $searchScope) {
+                    ForEach(SearchScope.allCases, id: \.self) { scope in
+                        Text(scope.rawValue).tag(scope)
+                    }
+                }
+            } label: {
+                Label("Search Scope", systemImage: "line.3.horizontal.decrease.circle")
+                    .labelStyle(.iconOnly)
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .help("Search scope: \(searchScope.rawValue)")
+            .accessibilityValue(searchScope.rawValue)
+            .accessibilityIdentifier("package-search-scope")
+        }
     }
 
     private func packageList(packages: [BrewPackage]) -> some View {
@@ -147,12 +164,6 @@ struct PackageListView: View {
     @ViewBuilder private var emptyContent: some View {
         if brewService.isLoading {
             EmptyView()
-        } else if isSearchingAll, searchText.isEmpty {
-            ContentUnavailableView(
-                "Search Homebrew",
-                systemImage: "magnifyingglass",
-                description: Text("Type a package name to search all of Homebrew.")
-            )
         } else if isSearchingAll {
             ContentUnavailableView.search(text: searchText)
         } else {
@@ -178,7 +189,7 @@ private struct PackageListToolbar: ToolbarContent {
     var body: some ToolbarContent {
         if isOutdated, !outdatedPackages.isEmpty {
             if isSelecting {
-                ToolbarItem(placement: .primaryAction) {
+                ToolbarItem(placement: .navigation) {
                     Button("Upgrade (\(selectedForUpgrade.count))") {
                         let toUpgrade = outdatedPackages.filter { selectedForUpgrade.contains($0.id) }
                         Task {
@@ -189,31 +200,38 @@ private struct PackageListToolbar: ToolbarContent {
                     }
                     .disabled(selectedForUpgrade.isEmpty)
                 }
-                ToolbarItem(placement: .cancellationAction) {
+                ToolbarItem(placement: .navigation) {
                     Button("Cancel") {
                         selectedForUpgrade.removeAll()
                         isSelecting = false
                     }
+                    .keyboardShortcut(.cancelAction)
                 }
             } else {
-                ToolbarItem(placement: .primaryAction) {
-                    Button("Upgrade All") {
-                        Task { await brewService.upgradeAll() }
-                    }
+                ToolbarItem(placement: .navigation) {
+                    upgradeAllButton
                 }
-                ToolbarItem(placement: .secondaryAction) {
+                ToolbarItem(placement: .navigation) {
                     Button("Select") {
                         isSelecting = true
                     }
                 }
             }
         } else if !brewService.homebrewOutdatedPackages.isEmpty {
-            ToolbarItem(placement: .primaryAction) {
-                Button("Upgrade All") {
-                    Task { await brewService.upgradeAll() }
-                }
+            ToolbarItem(placement: .navigation) {
+                upgradeAllButton
             }
         }
+    }
+
+    private var upgradeAllButton: some View {
+        Button {
+            Task { await brewService.upgradeAll() }
+        } label: {
+            Label("Upgrade All", systemImage: "square.and.arrow.up.on.square")
+        }
+        .labelStyle(.iconOnly)
+        .help("Upgrade all outdated packages")
     }
 }
 
@@ -248,15 +266,23 @@ private struct PackageRow: View {
     var onUpgrade: ((BrewPackage) async -> Void)?
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(alignment: .top, spacing: 10) {
             PackageSourceIcon(source: package.source, size: 28)
 
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(package.name)
                         .font(.body)
                         .fontWeight(.semibold)
+                        .lineLimit(1)
+                        .layoutPriority(1)
+                        .help(package.name)
                         .accessibilityIdentifier("package-row-\(package.name)")
+                    Spacer(minLength: 0)
+                    versionLabel
+                        .fixedSize(horizontal: true, vertical: false)
+                }
+                HStack(spacing: 6) {
                     if showInstalledBadge, package.isInstalled {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.caption2)
@@ -264,8 +290,11 @@ private struct PackageRow: View {
                             .accessibilityLabel("Installed")
                     }
                     PackageSourceBadge(source: package.source)
+                        .fixedSize(horizontal: true, vertical: false)
                     if package.pinned {
                         BrewyStatusBadge("pinned", systemImage: "pin.fill", color: .brewyAccent)
+                            .fixedSize(horizontal: true, vertical: false)
+                            .accessibilityIdentifier("package-row-pinned-\(package.name)")
                     }
                 }
                 if !package.description.isEmpty {
@@ -275,8 +304,6 @@ private struct PackageRow: View {
                         .lineLimit(2)
                 }
             }
-            Spacer()
-            versionLabel
             if showUpgradeButton, package.isOutdated, !package.isMas {
                 Button {
                     Task { await onUpgrade?(package) }

@@ -34,6 +34,7 @@ final class SidebarNavigationUITests: XCTestCase {
         app = XCUIApplication()
         app.terminate()
         app.launchArguments += [
+            "-ApplePersistenceIgnoreState", "YES",
             "-NSConstraintBasedLayoutVisualizeMutuallyExclusiveConstraints", "YES",
             "-autoRefreshInterval", "0",
             "-brewfilePath", "",

@@ -86,16 +86,23 @@ private struct PackageHeader: View {
             PackageSourceIcon(source: package.source, size: 44)
 
             VStack(alignment: .leading, spacing: 4) {
+                Text(package.name)
+                    .font(.title2)
+                    .bold()
+                    .help(package.name)
                 HStack(spacing: 8) {
-                    Text(package.name)
-                        .font(.title2)
-                        .bold()
                     PackageSourceBadge(source: package.source, style: .full)
+                        .fixedSize(horizontal: true, vertical: false)
+                        .accessibilityIdentifier("package-detail-source-badge")
                     if package.pinned {
                         BrewyStatusBadge("Pinned", systemImage: "pin.fill", color: .brewyAccent)
+                            .fixedSize(horizontal: true, vertical: false)
+                            .accessibilityIdentifier("package-detail-pinned-badge")
                     }
                     if package.isOutdated {
                         BrewyStatusBadge("Update Available", systemImage: "arrow.up.circle.fill", color: .brewyAccent)
+                            .fixedSize(horizontal: true, vertical: false)
+                            .accessibilityIdentifier("package-detail-outdated-badge")
                     }
                 }
                 if !package.description.isEmpty {
