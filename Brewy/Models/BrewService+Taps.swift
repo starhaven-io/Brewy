@@ -15,7 +15,7 @@ extension BrewService {
         }
         installedTaps = fetchedTaps
         tapsLoaded = true
-        saveToCache()
+        await saveToCache()
     }
 
     // MARK: - Tap Management

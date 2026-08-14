@@ -38,6 +38,8 @@ enum BrewError: LocalizedError {
 @MainActor
 final class BrewService {
     @ObservationIgnored let commandRunner: CommandRunning
+    @ObservationIgnored private let packageCacheURL: URL?
+    @ObservationIgnored private let packageCacheWritesEnabled: Bool
 
     @AppStorage("brewPath")
     @ObservationIgnored var customBrewPath = "/opt/homebrew/bin/brew"
@@ -51,8 +53,14 @@ final class BrewService {
     @AppStorage("trustedBrewfileDigest")
     @ObservationIgnored var trustedBrewfileDigest = ""
 
-    init(commandRunner: CommandRunning = DefaultCommandRunner()) {
+    init(
+        commandRunner: CommandRunning = DefaultCommandRunner(),
+        packageCacheURL: URL? = BrewService.runtimeDefaultPackageCacheURL,
+        packageCacheWritesEnabled: Bool = !BrewyRuntime.isRunningTests
+    ) {
         self.commandRunner = commandRunner
+        self.packageCacheURL = packageCacheURL
+        self.packageCacheWritesEnabled = packageCacheWritesEnabled
     }
 
     deinit {
@@ -185,7 +193,13 @@ extension BrewService {
         return dir
     }()
 
-    nonisolated private static let cacheURL: URL? = cacheDirectory?.appendingPathComponent("packageCache.json")
+    nonisolated private static let defaultPackageCacheURL: URL? =
+        cacheDirectory?.appendingPathComponent("packageCache.json")
+
+    nonisolated private static var runtimeDefaultPackageCacheURL: URL? {
+        guard !BrewyRuntime.isRunningTests else { return nil }
+        return defaultPackageCacheURL
+    }
 
     /// Current schema version for the package cache. Bump when `CachedData` gains a non-optional
     /// field or changes semantics so old caches are deleted rather than silently discarded each launch.
@@ -202,13 +216,15 @@ extension BrewService {
     }
 
     func loadFromCache() {
-        guard let cacheURL = Self.cacheURL else { return }
+        guard let packageCacheURL else { return }
         do {
-            let data = try Data(contentsOf: cacheURL)
+            let data = try Data(contentsOf: packageCacheURL)
             let cached = try JSONDecoder().decode(CachedData.self, from: data)
             guard cached.schemaVersion == Self.cacheSchemaVersion else {
                 logger.warning("Cache schema version \(cached.schemaVersion) != \(Self.cacheSchemaVersion), discarding")
-                try? FileManager.default.removeItem(at: cacheURL)
+                if packageCacheWritesEnabled {
+                    try? FileManager.default.removeItem(at: packageCacheURL)
+                }
                 return
             }
             let masApps = cached.masApps ?? []
@@ -221,13 +237,14 @@ extension BrewService {
             logger.info("Loaded \(cached.formulae.count) formulae and \(cached.casks.count) casks from cache")
         } catch {
             logger.warning("Failed to load cache: \(error.localizedDescription)")
-            try? FileManager.default.removeItem(at: cacheURL)
+            if packageCacheWritesEnabled {
+                try? FileManager.default.removeItem(at: packageCacheURL)
+            }
         }
     }
 
-    func saveToCache() {
-        guard let cacheURL = Self.cacheURL,
-              !BrewyRuntime.isRunningTests else { return }
+    func saveToCache() async {
+        guard let packageCacheURL, packageCacheWritesEnabled else { return }
         let cached = CachedData(
             schemaVersion: Self.cacheSchemaVersion,
             formulae: installedFormulae,
@@ -237,14 +254,14 @@ extension BrewService {
             taps: installedTaps,
             lastUpdated: lastUpdated ?? Date()
         )
-        Task.detached(priority: .utility) {
-            do {
+        do {
+            try await Task.detached(priority: .utility) {
                 let data = try JSONEncoder().encode(cached)
-                try data.write(to: cacheURL, options: .atomic)
-                logger.debug("Cache saved successfully")
-            } catch {
-                logger.error("Failed to save cache: \(error.localizedDescription)")
-            }
+                try data.write(to: packageCacheURL, options: .atomic)
+            }.value
+            logger.debug("Cache saved successfully")
+        } catch {
+            logger.error("Failed to save cache: \(error.localizedDescription)")
         }
     }
 
@@ -362,7 +379,7 @@ extension BrewService {
         let masCount = fetchedMasApps.count
         let outdatedCount = allOutdated.count
         logger.info("Refresh complete: \(fetchedFormulae.count) formulae, \(fetchedCasks.count) casks, \(masCount) mas, \(outdatedCount) outdated")
-        saveToCache()
+        await saveToCache()
         // Cancel any in-flight check unconditionally so a prior refresh's task can't overwrite
         // tapHealthStatuses after the tap list has changed.
         tapHealthTask?.cancel()
