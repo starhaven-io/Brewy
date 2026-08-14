@@ -112,15 +112,11 @@ struct BrewyApp: App {
             MenuBarView()
                 .environment(brewService)
         } label: {
-            let count = brewService.outdatedPackages.count
-            Label(
-                count > 0 ? "\(count)" : "Brewy",
-                systemImage: count > 0 ? "shippingbox.fill" : "shippingbox"
-            )
-            .accessibilityIdentifier("brewy-menu-bar-icon")
-            .task(id: autoRefreshInterval) {
-                brewService.startPackageUpdates(autoRefreshInterval: autoRefreshInterval)
-            }
+            MenuBarStatusLabel(outdatedCount: brewService.outdatedPackages.count)
+                .accessibilityIdentifier("brewy-menu-bar-icon")
+                .task(id: autoRefreshInterval) {
+                    brewService.startPackageUpdates(autoRefreshInterval: autoRefreshInterval)
+                }
         }
     }
 }
@@ -190,6 +186,29 @@ private struct CheckForUpdatesView: View {
 }
 
 // MARK: - Menu Bar View
+
+private struct MenuBarStatusLabel: View {
+    let outdatedCount: Int
+
+    var body: some View {
+        Group {
+            if outdatedCount > 0 {
+                Label("\(outdatedCount)", systemImage: "shippingbox.fill")
+                    .labelStyle(.titleAndIcon)
+            } else {
+                Label("Brewy", systemImage: "shippingbox")
+                    .labelStyle(.iconOnly)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    private var accessibilityLabel: String {
+        guard outdatedCount > 0 else { return "Brewy, all packages up to date" }
+        return "Brewy, \(outdatedCount) package\(outdatedCount == 1 ? "" : "s") outdated"
+    }
+}
 
 private struct MenuBarView: View {
     @Environment(BrewService.self)

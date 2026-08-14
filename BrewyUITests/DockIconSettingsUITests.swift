@@ -106,6 +106,36 @@ final class DockIconSettingsUITests: XCTestCase {
         XCTAssertTrue(settingsWindow.isHittable, "The Settings window should be in the foreground")
     }
 
+    func testMenuBarShowsCountOnlyWhenUpdatesAreAvailable() {
+        let statusItemWithUpdates = app.menuBars.statusItems["brewy-menu-bar-icon"]
+        XCTAssertTrue(
+            statusItemWithUpdates.waitForExistence(timeout: Self.launchTimeout),
+            "The menu bar icon should remain available"
+        )
+        statusItemWithUpdates.click()
+        XCTAssertTrue(
+            app.menuItems["2 packages outdated"].waitForExistence(timeout: Self.transitionTimeout),
+            "The fixture updates should load before measuring the menu bar item"
+        )
+        app.typeKey(.escape, modifierFlags: [])
+        let widthWithUpdates = statusItemWithUpdates.frame.width
+
+        app.terminate()
+        app.launchEnvironment["BREWY_UI_NO_OUTDATED_PACKAGES"] = "1"
+        app.launch()
+
+        let statusItemWithoutUpdates = app.menuBars.statusItems["brewy-menu-bar-icon"]
+        XCTAssertTrue(
+            statusItemWithoutUpdates.waitForExistence(timeout: Self.launchTimeout),
+            "The menu bar icon should remain available without updates"
+        )
+        XCTAssertGreaterThan(
+            widthWithUpdates,
+            statusItemWithoutUpdates.frame.width,
+            "The update count should add visible text next to the menu bar icon"
+        )
+    }
+
     private static var isThreadSanitizerActive: Bool {
         (0..<_dyld_image_count()).contains { index in
             guard let name = _dyld_get_image_name(index) else { return false }

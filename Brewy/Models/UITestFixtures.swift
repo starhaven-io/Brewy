@@ -147,7 +147,9 @@ extension BrewService {
         installedCasks = [firefox]
         installedMasApps = [xcode]
         isMasAvailable = true
-        outdatedPackages = [ripgrep, firefox]
+        outdatedPackages = ProcessInfo.processInfo.environment["BREWY_UI_NO_OUTDATED_PACKAGES"] == "1"
+            ? []
+            : [ripgrep, firefox]
 
         return (ripgrep, pcre2, firefox)
     }
