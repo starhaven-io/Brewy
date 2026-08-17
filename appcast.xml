@@ -3,25 +3,16 @@
     <channel>
         <title>Brewy</title>
         <item>
-            <title>0.21.0</title>
-            <pubDate>Fri, 14 Aug 2026 22:03:12 +0000</pubDate>
-            <sparkle:version>27</sparkle:version>
-            <sparkle:shortVersionString>0.21.0</sparkle:shortVersionString>
+            <title>0.21.1</title>
+            <pubDate>Mon, 17 Aug 2026 17:05:54 +0000</pubDate>
+            <sparkle:version>28</sparkle:version>
+            <sparkle:shortVersionString>0.21.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>What&#x27;s New</h2>
+            <description><![CDATA[<h2>Fixes</h2>
 <ul>
-  <li>show the outdated package count in the menu bar</li>
-</ul>
-<h2>Fixes</h2>
-<ul>
-  <li>render trees reliably and keep navigation selection</li>
-  <li>keep package list search and metadata inside the content column</li>
-</ul>
-<h2>Under the Hood</h2>
-<ul>
-  <li>make package cache persistence testable</li>
+  <li>keep Open Brewy on a single main window</li>
 </ul>]]></description>
-            <enclosure url="https://github.com/starhaven-io/Brewy/releases/download/0.21.0/Brewy-0.21.0.zip" length="4675204" type="application/octet-stream" sparkle:edSignature="QGPkBEs0LmRaxLqkwT7InAgPHa5fi/0J4ZjLsqgJa/1rBj3/hcrqzk8Yv21Ut2S4xRf7dpwh9sX3/noHvLeKBQ=="/>
+            <enclosure url="https://github.com/starhaven-io/Brewy/releases/download/0.21.1/Brewy-0.21.1.zip" length="4675271" type="application/octet-stream" sparkle:edSignature="SRxu5V/mkUhobIkZxZ38eQw2H4TOJScXGRC+uKFapx1yMMpUr9r8jXX0XAeL09hPyU4OiHFQZxEmA0YI205QDw=="/>
         </item>
     </channel>
 </rss>
