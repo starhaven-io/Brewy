@@ -71,6 +71,10 @@ enum AppVisibilitySettings {
         showDockIcon ? .regular : .accessory
     }
 
+    static func shouldTerminateAfterLastWindowClosed(showMenuBarIcon: Bool) -> Bool {
+        !showMenuBarIcon
+    }
+
     @MainActor
     static func applyDockIconVisibility(_ isVisible: Bool) {
         guard !BrewyRuntime.isUnitTesting else { return }
@@ -109,6 +113,14 @@ final class BrewyApplicationDelegate: NSObject, NSApplicationDelegate {
                 Self.repairVisibilityIfNeeded()
             }
         }
+    }
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        // A primary SwiftUI Window requests termination when it closes. Keep the app alive
+        // only while MenuBarExtra remains available as another entry point.
+        AppVisibilitySettings.shouldTerminateAfterLastWindowClosed(
+            showMenuBarIcon: UserDefaults.standard.bool(forKey: AppVisibilitySettings.showMenuBarIconKey)
+        )
     }
 
     func applicationWillTerminate(_ notification: Notification) {
