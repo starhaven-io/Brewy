@@ -11,6 +11,12 @@ struct AppVisibilitySettingsTests {
         #expect(AppVisibilitySettings.activationPolicy(showDockIcon: false) == .accessory)
     }
 
+    @Test("Last-window termination preserves a remaining menu bar entry point")
+    func lastWindowTermination() {
+        #expect(!AppVisibilitySettings.shouldTerminateAfterLastWindowClosed(showMenuBarIcon: true))
+        #expect(AppVisibilitySettings.shouldTerminateAfterLastWindowClosed(showMenuBarIcon: false))
+    }
+
     @Test("Defaults keep both app entry points visible")
     func registersVisibleDefaults() throws {
         let (defaults, suiteName) = try makeDefaults()

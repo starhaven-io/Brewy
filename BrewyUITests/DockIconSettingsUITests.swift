@@ -93,6 +93,145 @@ final class DockIconSettingsUITests: XCTestCase {
         XCTAssertTrue(mainWindow.isHittable, "The main window should be in the foreground")
     }
 
+    func testClosingMainWindowKeepsMenuBarAppRunning() {
+        launch(showDockIcon: true)
+
+        let mainWindow = app.windows.firstMatch
+        XCTAssertTrue(
+            mainWindow.waitForExistence(timeout: Self.launchTimeout),
+            "The main window should open at launch when the Dock icon is visible"
+        )
+        let statusItem = app.menuBars.statusItems["brewy-menu-bar-icon"]
+        XCTAssertTrue(
+            statusItem.waitForExistence(timeout: Self.launchTimeout),
+            "The menu bar icon should be available before closing the main window"
+        )
+
+        mainWindow.buttons[XCUIIdentifierCloseWindow].click()
+
+        XCTAssertFalse(
+            mainWindow.waitForExistence(timeout: 2 * Self.timeoutScale),
+            "Closing the main window should dismiss it"
+        )
+        XCTAssertTrue(
+            statusItem.waitForExistence(timeout: Self.transitionTimeout),
+            "Closing the main window should keep the menu bar icon available"
+        )
+
+        statusItem.click()
+        let openBrewy = statusItem.menuItems["Open Brewy"]
+        XCTAssertTrue(
+            openBrewy.waitForExistence(timeout: Self.transitionTimeout),
+            "The menu bar should still offer an Open Brewy action"
+        )
+        openBrewy.click()
+
+        XCTAssertTrue(
+            app.wait(for: .runningForeground, timeout: Self.transitionTimeout),
+            "Open Brewy should reactivate the app"
+        )
+        XCTAssertTrue(
+            mainWindow.waitForExistence(timeout: Self.transitionTimeout),
+            "Open Brewy should reopen the main window"
+        )
+        XCTAssertEqual(app.windows.count, 1, "Reopening should present one main window")
+    }
+
+    func testClosingMainWindowWithoutMenuBarIconTerminatesApp() {
+        launch(showDockIcon: true, showMenuBarIcon: false)
+
+        let mainWindow = app.windows.firstMatch
+        XCTAssertTrue(
+            mainWindow.waitForExistence(timeout: Self.launchTimeout),
+            "The main window should open at launch when the Dock icon is visible"
+        )
+        XCTAssertFalse(
+            app.menuBars.statusItems["brewy-menu-bar-icon"].exists,
+            "The menu bar icon should be hidden for this configuration"
+        )
+
+        mainWindow.buttons[XCUIIdentifierCloseWindow].click()
+
+        XCTAssertTrue(
+            app.wait(for: .notRunning, timeout: Self.transitionTimeout),
+            "Closing the only entry point should terminate the app"
+        )
+    }
+
+    func testMenuBarOnlyRefreshKeepsAppRunning() {
+        XCTAssertFalse(
+            app.windows.firstMatch.waitForExistence(timeout: 2 * Self.timeoutScale),
+            "The main window should be suppressed when the Dock icon is hidden"
+        )
+
+        let statusItem = app.menuBars.statusItems["brewy-menu-bar-icon"]
+        XCTAssertTrue(
+            statusItem.waitForExistence(timeout: Self.launchTimeout),
+            "The menu bar icon should remain available"
+        )
+        statusItem.click()
+
+        XCTAssertTrue(
+            statusItem.menuItems["2 packages outdated"].waitForExistence(timeout: Self.transitionTimeout),
+            "The menu bar should load package state before refreshing"
+        )
+        let refresh = statusItem.menuItems["Refresh"]
+        XCTAssertTrue(
+            refresh.waitForExistence(timeout: Self.transitionTimeout),
+            "The menu bar should offer a Refresh action"
+        )
+        refresh.click()
+
+        XCTAssertTrue(
+            statusItem.waitForExistence(timeout: Self.transitionTimeout),
+            "Refreshing should keep the menu bar icon available"
+        )
+        XCTAssertFalse(
+            app.windows.firstMatch.waitForExistence(timeout: 2 * Self.timeoutScale),
+            "Refreshing should not open the main window"
+        )
+        statusItem.click()
+        XCTAssertTrue(
+            statusItem.menuItems["Open Brewy"].waitForExistence(timeout: Self.transitionTimeout),
+            "The menu bar should remain usable after refreshing"
+        )
+    }
+
+    func testQuitFromMenuBarTerminatesAppAfterClosingMainWindow() {
+        launch(showDockIcon: true)
+
+        let mainWindow = app.windows.firstMatch
+        XCTAssertTrue(
+            mainWindow.waitForExistence(timeout: Self.launchTimeout),
+            "The main window should open at launch when the Dock icon is visible"
+        )
+        let statusItem = app.menuBars.statusItems["brewy-menu-bar-icon"]
+        XCTAssertTrue(
+            statusItem.waitForExistence(timeout: Self.launchTimeout),
+            "The menu bar icon should remain available"
+        )
+
+        mainWindow.buttons[XCUIIdentifierCloseWindow].click()
+
+        XCTAssertTrue(
+            statusItem.waitForExistence(timeout: Self.transitionTimeout),
+            "Closing the main window should keep the menu bar icon available"
+        )
+        statusItem.click()
+
+        let quitBrewy = statusItem.menuItems["Quit Brewy"]
+        XCTAssertTrue(
+            quitBrewy.waitForExistence(timeout: Self.transitionTimeout),
+            "The menu bar should offer a Quit Brewy action"
+        )
+        quitBrewy.click()
+
+        XCTAssertTrue(
+            app.wait(for: .notRunning, timeout: Self.transitionTimeout),
+            "Quit Brewy should terminate the app"
+        )
+    }
+
     func testMenuBarOnlyLaunchCanOpenSettings() {
         XCTAssertFalse(
             app.windows.firstMatch.waitForExistence(timeout: 2 * Self.timeoutScale),
@@ -155,7 +294,7 @@ final class DockIconSettingsUITests: XCTestCase {
         )
     }
 
-    private func launch(showDockIcon: Bool) {
+    private func launch(showDockIcon: Bool, showMenuBarIcon: Bool = true) {
         app?.terminate()
         app = XCUIApplication()
         app.launchArguments += [
@@ -164,7 +303,7 @@ final class DockIconSettingsUITests: XCTestCase {
             "-brewfilePath", "",
             "-showCasksByDefault", "NO",
             "-showDockIcon", showDockIcon ? "YES" : "NO",
-            "-showMenuBarIcon", "YES"
+            "-showMenuBarIcon", showMenuBarIcon ? "YES" : "NO"
         ]
         app.launchEnvironment["BREWY_UI_TESTING"] = "1"
         app.launchEnvironment["XDG_CONFIG_HOME"] = fixtureDirectory.path
