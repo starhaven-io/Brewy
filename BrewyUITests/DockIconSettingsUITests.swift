@@ -15,19 +15,7 @@ final class DockIconSettingsUITests: XCTestCase {
             .appendingPathComponent("brewy-dock-icon-ui-tests-\(ProcessInfo.processInfo.globallyUniqueString)")
         try FileManager.default.createDirectory(at: fixtureDirectory, withIntermediateDirectories: true)
 
-        app = XCUIApplication()
-        app.terminate()
-        app.launchArguments += [
-            "-ApplePersistenceIgnoreState", "YES",
-            "-autoRefreshInterval", "0",
-            "-brewfilePath", "",
-            "-showCasksByDefault", "NO",
-            "-showDockIcon", "NO",
-            "-showMenuBarIcon", "YES"
-        ]
-        app.launchEnvironment["BREWY_UI_TESTING"] = "1"
-        app.launchEnvironment["XDG_CONFIG_HOME"] = fixtureDirectory.path
-        app.launch()
+        launch(showDockIcon: false)
     }
 
     override func tearDown() async throws {
@@ -72,6 +60,37 @@ final class DockIconSettingsUITests: XCTestCase {
             "Open Brewy should present the main window"
         )
         XCTAssertTrue(mainWindow.isHittable, "The opened main window should be in the foreground")
+    }
+
+    func testOpenBrewyActivatesExistingMainWindow() {
+        launch(showDockIcon: true)
+
+        let mainWindow = app.windows.firstMatch
+        XCTAssertTrue(
+            mainWindow.waitForExistence(timeout: Self.launchTimeout),
+            "The main window should open at launch when the Dock icon is visible"
+        )
+        XCTAssertEqual(app.windows.count, 1, "The app should start with one main window")
+
+        let statusItem = app.menuBars.statusItems["brewy-menu-bar-icon"]
+        XCTAssertTrue(
+            statusItem.waitForExistence(timeout: Self.launchTimeout),
+            "The menu bar icon should remain available"
+        )
+
+        statusItem.click()
+        let openBrewy = statusItem.menuItems["Open Brewy"]
+        XCTAssertTrue(
+            openBrewy.waitForExistence(timeout: Self.transitionTimeout),
+            "The menu bar should offer an Open Brewy action"
+        )
+        openBrewy.click()
+        XCTAssertFalse(
+            app.windows.element(boundBy: 1).waitForExistence(timeout: 2 * Self.timeoutScale),
+            "Open Brewy should not create another main window"
+        )
+        XCTAssertEqual(app.windows.count, 1, "Open Brewy should keep one main window")
+        XCTAssertTrue(mainWindow.isHittable, "The main window should be in the foreground")
     }
 
     func testMenuBarOnlyLaunchCanOpenSettings() {
@@ -134,6 +153,22 @@ final class DockIconSettingsUITests: XCTestCase {
             statusItemWithoutUpdates.frame.width,
             "The update count should add visible text next to the menu bar icon"
         )
+    }
+
+    private func launch(showDockIcon: Bool) {
+        app?.terminate()
+        app = XCUIApplication()
+        app.launchArguments += [
+            "-ApplePersistenceIgnoreState", "YES",
+            "-autoRefreshInterval", "0",
+            "-brewfilePath", "",
+            "-showCasksByDefault", "NO",
+            "-showDockIcon", showDockIcon ? "YES" : "NO",
+            "-showMenuBarIcon", "YES"
+        ]
+        app.launchEnvironment["BREWY_UI_TESTING"] = "1"
+        app.launchEnvironment["XDG_CONFIG_HOME"] = fixtureDirectory.path
+        app.launch()
     }
 
     private static var isThreadSanitizerActive: Bool {

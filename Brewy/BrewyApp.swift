@@ -57,7 +57,7 @@ struct BrewyApp: App {
     }
 
     var body: some Scene {
-        WindowGroup(id: "main") {
+        Window("Brewy", id: "main") {
             ContentView()
                 .environment(brewService)
                 .preferredColorScheme(preferredColorScheme ?? systemColorScheme)
