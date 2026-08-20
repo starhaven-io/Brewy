@@ -143,6 +143,74 @@ extension SidebarNavigationUITests {
         )
     }
 
+    func testLongPackageVersionDoesNotDisplacePackageName() throws {
+        app.terminate()
+        app.launchEnvironment["BREWY_UI_LONG_PACKAGE_VERSION"] = "1"
+        app.launch()
+        app.activate()
+
+        let sidebar = app.outlines.firstMatch
+        assertExists(sidebar, timeout: Self.launchTimeout, "Sidebar should appear")
+        sidebar.staticTexts["Casks"].click()
+
+        let stablePackage = app.staticTexts["package-row-firefox"]
+        assertExists(stablePackage, timeout: Self.elementTimeout, "Stable cask fixture should appear")
+        stablePackage.click()
+        resizeMainWindow(toWidth: 920)
+
+        let packageList = app.outlines["package-list"].firstMatch
+        assertExists(packageList, timeout: Self.elementTimeout, "Package list should appear")
+        let window = app.windows.firstMatch
+        assertExists(window, timeout: Self.elementTimeout, "Main window should appear")
+        XCTAssertLessThanOrEqual(
+            packageList.frame.width,
+            window.frame.width / 2,
+            "The fixture must exercise a constrained package-list column"
+        )
+        let packageName = app.staticTexts["package-row-claude"]
+        assertExists(packageName, timeout: Self.elementTimeout, "Long-version fixture should appear")
+        let version = app.staticTexts["package-row-version-claude"].firstMatch
+        assertExists(version, timeout: Self.elementTimeout, "Package version should appear")
+
+        assertHorizontallyContained(packageName, named: "Package name", in: packageList)
+        assertHorizontallyContained(version, named: "Package version", in: packageList)
+        XCTAssertGreaterThan(
+            packageName.frame.width,
+            packageName.frame.height,
+            "A long version should not squeeze the package name out of the row"
+        )
+        XCTAssertLessThanOrEqual(
+            packageName.frame.maxX,
+            version.frame.minX,
+            "The package name and version should not overlap"
+        )
+        XCTAssertEqual(
+            version.value as? String,
+            "1.32352.1,6c6aa595ae38b202d9e00c026dc94d3a6a42c332",
+            "Accessibility should expose the complete version"
+        )
+
+        let longName = app.staticTexts["package-row-font-bitstream-vera-sans-mono-nerd-font"]
+        assertExists(longName, timeout: Self.elementTimeout, "Long-name fixture should appear")
+        let regularVersion = app.staticTexts[
+            "package-row-version-font-bitstream-vera-sans-mono-nerd-font"
+        ].firstMatch
+        assertExists(regularVersion, timeout: Self.elementTimeout, "Regular version should appear")
+
+        assertHorizontallyContained(longName, named: "Long package name", in: packageList)
+        assertHorizontallyContained(regularVersion, named: "Regular version", in: packageList)
+        XCTAssertGreaterThan(
+            regularVersion.frame.width,
+            regularVersion.frame.height,
+            "A long package name should not reduce a regular version to one glyph"
+        )
+        XCTAssertLessThanOrEqual(
+            longName.frame.maxX,
+            regularVersion.frame.minX,
+            "The long package name and regular version should not overlap"
+        )
+    }
+
     private func packageSearchField() -> XCUIElement {
         app.searchFields["package-search-field"].firstMatch
     }
