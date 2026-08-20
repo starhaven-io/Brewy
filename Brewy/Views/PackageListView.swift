@@ -280,7 +280,6 @@ private struct PackageRow: View {
                         .accessibilityIdentifier("package-row-\(package.name)")
                     Spacer(minLength: 0)
                     versionLabel
-                        .fixedSize(horizontal: true, vertical: false)
                 }
                 HStack(spacing: 6) {
                     if showInstalledBadge, package.isInstalled {
@@ -333,5 +332,10 @@ private struct PackageRow: View {
                     .monospacedDigit()
             }
         }
+        .lineLimit(1)
+        .truncationMode(.middle)
+        .help(package.displayVersion)
+        .accessibilityIdentifier("package-row-version-\(package.name)")
+        .layoutPriority(1)
     }
 }

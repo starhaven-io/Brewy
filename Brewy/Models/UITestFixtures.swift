@@ -145,6 +145,9 @@ extension BrewService {
 
         installedFormulae = [ripgrep, pcre2]
         installedCasks = [firefox]
+        if ProcessInfo.processInfo.environment["BREWY_UI_LONG_PACKAGE_VERSION"] == "1" {
+            installedCasks.append(contentsOf: [makeClaudeFixture(), makeLongNameCaskFixture()])
+        }
         installedMasApps = [xcode]
         isMasAvailable = true
         outdatedPackages = ProcessInfo.processInfo.environment["BREWY_UI_NO_OUTDATED_PACKAGES"] == "1"
@@ -201,6 +204,42 @@ extension BrewService {
             isOutdated: true,
             installedVersion: "127.0",
             latestVersion: "128.0",
+            source: .cask,
+            pinned: false,
+            installedOnRequest: true,
+            dependencies: []
+        )
+    }
+
+    private func makeClaudeFixture() -> BrewPackage {
+        BrewPackage(
+            id: "cask-claude",
+            name: "claude",
+            version: "1.32352.1,6c6aa595ae38b202d9e00c026dc94d3a6a42c332",
+            description: "Anthropic's official Claude AI desktop app",
+            homepage: "https://claude.com/download",
+            isInstalled: true,
+            isOutdated: false,
+            installedVersion: "1.32352.1,6c6aa595ae38b202d9e00c026dc94d3a6a42c332",
+            latestVersion: nil,
+            source: .cask,
+            pinned: false,
+            installedOnRequest: true,
+            dependencies: []
+        )
+    }
+
+    private func makeLongNameCaskFixture() -> BrewPackage {
+        BrewPackage(
+            id: "cask-font-bitstream-vera-sans-mono-nerd-font",
+            name: "font-bitstream-vera-sans-mono-nerd-font",
+            version: "2.3.4",
+            description: "Long-name layout fixture",
+            homepage: "https://example.com/long-name-layout-fixture",
+            isInstalled: true,
+            isOutdated: false,
+            installedVersion: "2.3.4",
+            latestVersion: nil,
             source: .cask,
             pinned: false,
             installedOnRequest: true,
