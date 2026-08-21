@@ -26,7 +26,17 @@ enum BrewyRuntime {
 }
 
 #if DEBUG
-struct UITestCommandRunner: CommandRunning {
+final class UITestCommandRunner: CommandRunning, @unchecked Sendable {
+    private let lock = NSLock()
+    private var analyticsEnabled = true
+    private var analyticsStateFailuresRemaining: Int
+
+    init() {
+        analyticsStateFailuresRemaining = ProcessInfo.processInfo.environment[
+            "BREWY_UI_ANALYTICS_STATE_FAILS_ONCE"
+        ] == "1" ? 1 : 0
+    }
+
     func run(_ arguments: [String], brewPath: String, timeout: Duration) async -> CommandResult {
         if arguments == ["services", "info", "--all", "--json"] {
             return CommandResult(output: Self.servicesJSON, success: true)
@@ -42,6 +52,9 @@ struct UITestCommandRunner: CommandRunning {
         }
         if arguments == ["config"] {
             return CommandResult(output: Self.configOutput, success: true)
+        }
+        if let analyticsResult = analyticsResult(arguments) {
+            return analyticsResult
         }
         if arguments == ["vulns", "--json"] {
             if ProcessInfo.processInfo.environment["BREWY_UI_VULNERABILITY_SCAN_FAILURE"] == "1" {
@@ -74,6 +87,31 @@ struct UITestCommandRunner: CommandRunning {
             return CommandResult(output: "jq needs to be installed or updated.\n", success: false)
         }
         return CommandResult(output: "Fixture command completed.\n", success: true)
+    }
+
+    private func analyticsResult(_ arguments: [String]) -> CommandResult? {
+        switch arguments {
+        case ["analytics", "state"]:
+            return lock.withLock {
+                if analyticsStateFailuresRemaining > 0 {
+                    analyticsStateFailuresRemaining -= 1
+                    return CommandResult(output: "Error: fixture analytics state failed", success: false)
+                }
+                let state = analyticsEnabled ? "enabled" : "disabled"
+                return CommandResult(
+                    output: "InfluxDB analytics are \(state).\nGoogle Analytics were destroyed.\n",
+                    success: true
+                )
+            }
+        case ["analytics", "on"]:
+            lock.withLock { analyticsEnabled = true }
+            return CommandResult(output: "Homebrew analytics have been enabled.\n", success: true)
+        case ["analytics", "off"]:
+            lock.withLock { analyticsEnabled = false }
+            return CommandResult(output: "Homebrew analytics have been disabled.\n", success: true)
+        default:
+            return nil
+        }
     }
 
     func runExecutable(
