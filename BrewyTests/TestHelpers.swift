@@ -28,6 +28,12 @@ final class MockCommandRunner: CommandRunning, @unchecked Sendable {
         }
     }
 
+    func setResult(for arguments: [String], result: CommandResult) {
+        lock.withLock {
+            _results[arguments] = result
+        }
+    }
+
     func setDelay(for arguments: [String], duration: Duration) {
         lock.withLock {
             _delays[arguments] = duration

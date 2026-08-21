@@ -12,11 +12,26 @@ struct CommandResult: Sendable {
     /// True when the process was terminated because the awaiting task was cancelled,
     /// so callers can skip failure alerts for user-requested cancellation.
     let cancelled: Bool
+    /// Raw standard output, kept separate so structured output remains parseable when
+    /// a command intentionally exits nonzero or also emits a warning on standard error.
+    let standardOutput: String
+    let standardError: String
+    let exitCode: Int32?
 
-    init(output: String, success: Bool, cancelled: Bool = false) {
+    init(
+        output: String,
+        success: Bool,
+        cancelled: Bool = false,
+        standardOutput: String? = nil,
+        standardError: String = "",
+        exitCode: Int32? = nil
+    ) {
         self.output = output
         self.success = success
         self.cancelled = cancelled
+        self.standardOutput = standardOutput ?? output
+        self.standardError = standardError
+        self.exitCode = exitCode
     }
 }
 
@@ -187,8 +202,11 @@ enum CommandRunner {
         }
         return paths[0]
     }
+}
 
-    // MARK: - Environment
+// MARK: - Environment and Process Execution
+
+extension CommandRunner {
 
     static func buildEnvironment(
         brewPath: String,
@@ -246,7 +264,12 @@ enum CommandRunner {
         onOutput: (@Sendable (String) -> Void)?
     ) -> CommandResult {
         guard !handle.wasCancelled else {
-            return CommandResult(output: "Command was cancelled.", success: false, cancelled: true)
+            return CommandResult(
+                output: "Command was cancelled.",
+                success: false,
+                cancelled: true,
+                standardOutput: ""
+            )
         }
         let (process, stdoutPipe, stderrPipe) = configuredProcess(for: execution)
 
@@ -254,9 +277,12 @@ enum CommandRunner {
             try process.run()
         } catch {
             logger.error("Failed to launch process: \(error.localizedDescription)")
+            let output = "Failed to run \(execution.commandDescription): \(error.localizedDescription)"
             return CommandResult(
-                output: "Failed to run \(execution.commandDescription): \(error.localizedDescription)",
-                success: false
+                output: output,
+                success: false,
+                standardOutput: "",
+                standardError: output
             )
         }
 
@@ -315,7 +341,10 @@ enum CommandRunner {
                     terminationSucceeded: interruption.terminationSucceeded
                 ),
                 success: false,
-                cancelled: true
+                cancelled: true,
+                standardOutput: stdout,
+                standardError: stderr,
+                exitCode: process.terminationStatus
             )
         }
         if interruption.timedOut {
@@ -326,12 +355,18 @@ enum CommandRunner {
                     timeout: execution.timeout,
                     terminationSucceeded: interruption.terminationSucceeded
                 ),
-                success: false
+                success: false,
+                standardOutput: stdout,
+                standardError: stderr,
+                exitCode: process.terminationStatus
             )
         }
         return CommandResult(
             output: commandOutput(stdout: stdout, stderr: stderr, terminationStatus: process.terminationStatus),
-            success: process.terminationStatus == 0
+            success: process.terminationStatus == 0,
+            standardOutput: stdout,
+            standardError: stderr,
+            exitCode: process.terminationStatus
         )
     }
 
