@@ -463,7 +463,7 @@ final class TimeoutWatchdog: @unchecked Sendable {
             action()
         }
         thread.name = "Brewy command timeout"
-        thread.qualityOfService = .userInitiated
+        thread.qualityOfService = .default
         thread.start()
     }
 
