@@ -23,14 +23,15 @@ extension BrewService {
         }
 
         do {
-            let findings = try JSONDecoder().decode(
-                [FormulaVulnerabilityFinding].self,
+            let report = try JSONDecoder().decode(
+                BrewVulnerabilityReport.self,
                 from: Data(result.standardOutput.utf8)
             )
             vulnerabilityScan = FormulaVulnerabilityScan(
-                findings: findings,
+                findings: report.findings,
                 scannedAt: Date(),
-                warning: Self.nonemptyVulnerabilityMessage(result.standardError)
+                warning: Self.nonemptyVulnerabilityMessage(result.standardError),
+                skippedFormulae: report.skippedFormulae
             )
         } catch {
             vulnerabilityScanError = .commandFailed(command: "vulns --json", output: result.output)
