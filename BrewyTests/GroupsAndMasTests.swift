@@ -181,6 +181,52 @@ struct BrewServicePackageGroupTests {
 @Suite("Mas Output Parsing")
 struct MasOutputParsingTests {
 
+    @Test("parseMasJSONList preserves application paths")
+    func parseMasJSONList() throws {
+        let output = """
+        {"adamID":497799835,"bundleID":"com.apple.dt.Xcode","name":"Xcode","path":"/Applications/Xcode.app","version":"16.4"}
+        {"adamID":0,"bundleID":"com.example.beta","name":"Beta App","path":"/Applications/Beta App.app","version":"2.0"}
+        """
+
+        let result = try #require(MasParser.parseJSONList(output))
+
+        #expect(result.packages.map(\.id) == ["mas-497799835", "mas-0-Beta App"])
+        #expect(result.applicationURLs["mas-497799835"]?.path == "/Applications/Xcode.app")
+        #expect(result.applicationURLs["mas-0-Beta App"]?.path == "/Applications/Beta App.app")
+    }
+
+    @Test("parseMasJSONList tolerates missing Spotlight fields")
+    func parseMasJSONListMissingFields() throws {
+        let output = """
+        {"adamID":497799835,"name":"Xcode","path":"/Applications/Xcode.app"}
+        {"adamID":640199958,"name":"Developer","version":"10.6.5"}
+        """
+
+        let result = try #require(MasParser.parseJSONList(output))
+
+        #expect(result.packages.map(\.id) == ["mas-497799835", "mas-640199958"])
+        #expect(result.packages.map(\.version) == ["", "10.6.5"])
+        #expect(result.applicationURLs["mas-497799835"]?.path == "/Applications/Xcode.app")
+        #expect(result.applicationURLs["mas-640199958"] == nil)
+    }
+
+    @Test("parseMasJSONList preserves valid records beside malformed records")
+    func parseMasJSONListPartialOutput() throws {
+        let output = """
+        {"adamID":497799835,"name":"Xcode","path":"/Applications/Xcode.app","version":"16.4"}
+        not-json
+        """
+
+        let result = try #require(MasParser.parseJSONList(output))
+
+        #expect(result.packages.map(\.id) == ["mas-497799835"])
+    }
+
+    @Test("parseMasJSONList rejects malformed output for legacy fallback")
+    func parseMasJSONListMalformed() {
+        #expect(MasParser.parseJSONList("497799835 Xcode (16.4)") == nil)
+    }
+
     @Test("parseMasList parses standard output")
     func parseMasListStandard() {
         let output = """
@@ -288,5 +334,113 @@ struct MasOutputParsingTests {
         #expect(packages[0].id == "mas-0-App Alpha")
         #expect(packages[1].id == "mas-0-App Beta")
         #expect(packages[0].id != packages[1].id)
+    }
+}
+
+@Suite("Mas Installed App Fetching")
+@MainActor
+struct MasInstalledAppFetchingTests {
+
+    @Test("fetchInstalledMasApps prefers JSON output with application paths")
+    func fetchInstalledMasAppsJSON() async throws {
+        let mock = MockCommandRunner()
+        let output = """
+        {"adamID":497799835,"name":"Xcode","path":"/Applications/Xcode.app","version":"16.4"}
+        """
+        mock.setResult(for: ["list", "--json"], output: output)
+        let service = BrewService(commandRunner: mock, masExecutablePath: "/usr/bin/true")
+
+        let result = try #require(await service.fetchInstalledMasApps())
+
+        #expect(result.packages.map(\.id) == ["mas-497799835"])
+        #expect(result.applicationURLs["mas-497799835"]?.path == "/Applications/Xcode.app")
+        #expect(mock.executedCommands == [["list", "--json"]])
+        #expect(mock.executedExecutables.map(\.path) == ["/usr/bin/true"])
+    }
+
+    @Test("fetchInstalledMasApps falls back for older mas versions")
+    func fetchInstalledMasAppsLegacyFallback() async throws {
+        let mock = MockCommandRunner()
+        mock.setResult(for: ["list", "--json"], output: "unknown option", success: false)
+        mock.setResult(for: ["list"], output: "497799835 Xcode (15.4)")
+        let service = BrewService(commandRunner: mock, masExecutablePath: "/usr/bin/true")
+
+        let result = try #require(await service.fetchInstalledMasApps())
+
+        #expect(result.packages.map(\.id) == ["mas-497799835"])
+        #expect(result.applicationURLs.isEmpty)
+        #expect(mock.executedCommands == [["list", "--json"], ["list"]])
+        #expect(mock.executedExecutables.map(\.path) == ["/usr/bin/true", "/usr/bin/true"])
+    }
+
+    @Test("fetchInstalledMasApps parses JSON emitted by the fallback command")
+    func fetchInstalledMasAppsJSONFallback() async throws {
+        let mock = MockCommandRunner()
+        mock.setResult(for: ["list", "--json"], output: "unknown option", success: false)
+        mock.setResult(
+            for: ["list"],
+            output: #"{"adamID":497799835,"name":"Xcode","path":"/Applications/Xcode.app","version":"16.4"}"#
+        )
+        let service = BrewService(commandRunner: mock, masExecutablePath: "/usr/bin/true")
+
+        let result = try #require(await service.fetchInstalledMasApps())
+
+        #expect(result.packages.map(\.id) == ["mas-497799835"])
+        #expect(result.applicationURLs["mas-497799835"]?.path == "/Applications/Xcode.app")
+    }
+
+    @Test("fetchInstalledMasApps treats empty standard output as an empty list")
+    func fetchInstalledMasAppsEmptyStandardOutput() async throws {
+        let mock = MockCommandRunner()
+        mock.setResult(
+            for: ["list", "--json"],
+            result: CommandResult(
+                output: "Warning: No installed apps found.",
+                success: true,
+                standardOutput: "",
+                standardError: "Warning: No installed apps found."
+            )
+        )
+        let service = BrewService(commandRunner: mock, masExecutablePath: "/usr/bin/true")
+
+        let result = try #require(await service.fetchInstalledMasApps())
+
+        #expect(result.packages.isEmpty)
+        #expect(mock.executedCommands == [["list", "--json"]])
+    }
+
+    @Test("fetchInstalledMasApps re-resolves the executable when no override is set")
+    func fetchInstalledMasAppsReresolvesExecutable() async throws {
+        let mock = MockCommandRunner()
+        let resolver = MasPathResolver(path: "/usr/bin/true")
+        mock.setResult(for: ["list", "--json"], output: "")
+        let service = BrewService(
+            commandRunner: mock,
+            masExecutablePathResolver: resolver.resolve
+        )
+
+        _ = try #require(await service.fetchInstalledMasApps())
+        resolver.path = "/usr/bin/false"
+        _ = try #require(await service.fetchInstalledMasApps())
+
+        #expect(mock.executedExecutables.map(\.path) == ["/usr/bin/true", "/usr/bin/false"])
+    }
+}
+
+private final class MasPathResolver: @unchecked Sendable {
+    private let lock = NSLock()
+    private var _path: String
+
+    init(path: String) {
+        _path = path
+    }
+
+    var path: String {
+        get { lock.withLock { _path } }
+        set { lock.withLock { _path = newValue } }
+    }
+
+    func resolve() -> String {
+        path
     }
 }

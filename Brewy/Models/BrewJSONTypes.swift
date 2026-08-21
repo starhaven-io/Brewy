@@ -59,9 +59,10 @@ struct CaskJSON: Decodable {
     let desc: String?
     let homepage: String?
     let dependencies: [String]
+    let artifacts: [CaskArtifactJSON]
 
     enum CodingKeys: String, CodingKey {
-        case token, version, installed, desc, homepage
+        case token, version, installed, desc, homepage, artifacts
         case dependsOn = "depends_on"
     }
 
@@ -77,10 +78,15 @@ struct CaskJSON: Decodable {
         installed = try container.decodeIfPresent(String.self, forKey: .installed)
         desc = try container.decodeIfPresent(String.self, forKey: .desc)
         homepage = try container.decodeIfPresent(String.self, forKey: .homepage)
+        artifacts = (try? container.decodeIfPresent([CaskArtifactJSON].self, forKey: .artifacts)) ?? []
         // `depends_on` is usually an object but brew sometimes emits an empty array; tolerate
         // either shape so a cask never fails to decode over its dependency field.
         let deps = try? container.decodeIfPresent(DependsOn.self, forKey: .dependsOn)
         dependencies = (deps?.formula ?? []) + (deps?.cask ?? [])
+    }
+
+    var applicationBundleURLs: [URL] {
+        artifacts.compactMap(\.applicationBundleURL)
     }
 
     func toPackage() -> BrewPackage {
@@ -101,6 +107,35 @@ struct CaskJSON: Decodable {
             installedOnRequest: true,
             dependencies: dependencies
         )
+    }
+}
+
+struct CaskArtifactJSON: Decodable {
+    let isApplication: Bool
+    let target: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case app, target
+    }
+
+    init(from decoder: Decoder) throws {
+        guard let container = try? decoder.container(keyedBy: CodingKeys.self) else {
+            isApplication = false
+            target = nil
+            return
+        }
+        let containsApplication = container.contains(.app)
+        let applicationIsNil = containsApplication ? (try? container.decodeNil(forKey: .app)) ?? true : true
+        isApplication = containsApplication && !applicationIsNil
+        target = try? container.decodeIfPresent(String.self, forKey: .target)
+    }
+
+    var applicationBundleURL: URL? {
+        guard isApplication, let target else { return nil }
+        let path = (target as NSString).expandingTildeInPath
+        let url = URL(fileURLWithPath: path)
+        guard url.pathExtension.caseInsensitiveCompare("app") == .orderedSame else { return nil }
+        return url
     }
 }
 

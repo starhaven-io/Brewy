@@ -83,7 +83,7 @@ private struct PackageHeader: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            PackageSourceIcon(source: package.source, size: 44)
+            InstalledPackageIcon(package: package, size: 44)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(package.name)

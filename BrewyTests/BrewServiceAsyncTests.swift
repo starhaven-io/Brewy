@@ -20,6 +20,23 @@ struct RefreshTests {
         #expect(service.installedFormulae[0].name == "wget")
         #expect(service.installedCasks.count == 1)
         #expect(service.installedCasks[0].name == "firefox")
+        #expect(service.installedApplicationURLs["cask-firefox"]?.path == "/Applications/Firefox.app")
+        let searchResult = BrewPackage(
+            id: "cask-search-firefox",
+            name: "firefox",
+            version: "",
+            description: "",
+            homepage: "",
+            isInstalled: true,
+            isOutdated: false,
+            installedVersion: nil,
+            latestVersion: nil,
+            source: .cask,
+            pinned: false,
+            installedOnRequest: false,
+            dependencies: []
+        )
+        #expect(service.installedApplicationURL(for: searchResult)?.path == "/Applications/Firefox.app")
         #expect(service.outdatedPackages.count == 1)
         #expect(service.installedTaps.count == 1)
         #expect(service.installedTaps[0].name == "homebrew/core")
@@ -111,9 +128,25 @@ struct RefreshTests {
 
         #expect(service.installedFormulae.count == 1)
         #expect(service.installedCasks.count == 1)
+        #expect(service.installedApplicationURLs["cask-firefox"]?.path == "/Applications/Firefox.app")
         #expect(service.outdatedPackages.count == 1)
         #expect(service.installedTaps.count == 1)
         #expect(service.lastError != nil)
+    }
+
+    @Test("refresh removes application URLs for uninstalled casks")
+    func refreshRemovesUninstalledApplicationURLs() async {
+        let mock = MockCommandRunner()
+        let (service, _) = makeService(mock: mock)
+        setupRefreshMock(mock)
+        await service.refresh()
+        #expect(service.installedApplicationURLs["cask-firefox"] != nil)
+
+        mock.setResult(for: ["info", "--installed", "--json=v2"], output: TestJSON.emptyFormulae)
+        mock.setResult(for: ["outdated", "--json=v2"], output: TestJSON.emptyOutdated)
+        await service.refresh()
+
+        #expect(service.installedApplicationURLs.isEmpty)
     }
 
     @Test("refresh invalidates info cache when versions change")
