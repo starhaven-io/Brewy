@@ -108,6 +108,9 @@ final class BrewService {
     var bundleEntries: [BrewBundleEntry] = []
     var bundleCheckStatus: BrewBundleCheckStatus = .unknown
     var isBundleLoading = false
+    var vulnerabilityScan: FormulaVulnerabilityScan?
+    var vulnerabilityScanError: BrewError?
+    var isScanningVulnerabilities = false
 
     var tapsLoaded = false
     private var isRefreshing = false
@@ -116,6 +119,7 @@ final class BrewService {
     @ObservationIgnored private var isBackgroundRefresh = false
     @ObservationIgnored private var refreshReportedError = false
     @ObservationIgnored private var isBatchingUpdates = false
+    @ObservationIgnored private(set) var installedFormulaFingerprint: [String: String] = [:]
     @ObservationIgnored var infoCache: [String: String] = [:]
     @ObservationIgnored private var tapHealthTask: Task<Void, Never>?
     @ObservationIgnored var actionCommandTask: Task<CommandResult, Never>?
@@ -158,6 +162,16 @@ final class BrewService {
     }
 
     private func invalidateDerivedState() {
+        let formulaFingerprint = Dictionary(
+            installedFormulae.map { ($0.id, $0.version) },
+            uniquingKeysWith: { _, latest in latest }
+        )
+        if formulaFingerprint != installedFormulaFingerprint {
+            installedFormulaFingerprint = formulaFingerprint
+            vulnerabilityScan = nil
+            vulnerabilityScanError = nil
+        }
+
         let all = installedFormulae + installedCasks + installedMasApps
         allInstalled = all
         installedNames = Set(all.map(\.name))
@@ -473,6 +487,7 @@ extension BrewService {
         case .bundle: []
         case .history: []
         case .discover: searchResults
+        case .security: []
         case .maintenance: []
         }
     }

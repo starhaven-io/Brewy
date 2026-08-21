@@ -6,11 +6,14 @@ import Testing
 @Suite("CommandResult")
 struct CommandResultTests {
 
-    @Test("CommandResult is Sendable and stores output + success")
+    @Test("CommandResult defaults structured output to the legacy output")
     func basicFields() {
         let result = CommandResult(output: "hi", success: true)
         #expect(result.output == "hi")
         #expect(result.success)
+        #expect(result.standardOutput == "hi")
+        #expect(result.standardError.isEmpty)
+        #expect(result.exitCode == nil)
     }
 }
 
@@ -161,6 +164,9 @@ struct CommandRunnerProcessTests {
         #expect(!result.success)
         #expect(result.output.contains("stdout-line"))
         #expect(result.output.contains("stderr-line"))
+        #expect(result.standardOutput == "stdout-line\n")
+        #expect(result.standardError == "stderr-line\n")
+        #expect(result.exitCode == 2)
     }
 
     @Test("runExecutable reports the exit code when failure has no output")

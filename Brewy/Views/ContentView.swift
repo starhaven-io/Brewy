@@ -70,6 +70,9 @@ struct ContentView: View {
             } else if selectedCategory == .discover {
                 DiscoverView(selectedPackage: $selectedPackage)
                     .navigationSplitViewColumnWidth(min: 300, ideal: 350, max: 500)
+            } else if selectedCategory == .security {
+                SecurityView()
+                    .navigationSplitViewColumnWidth(min: 400, ideal: 600, max: .infinity)
             } else if selectedCategory == .maintenance {
                 MaintenanceView()
                     .navigationSplitViewColumnWidth(min: 400, ideal: 600, max: .infinity)
@@ -161,7 +164,7 @@ struct ContentView: View {
     }
 
     @ViewBuilder private var detailView: some View {
-        if selectedCategory == .maintenance || selectedCategory == .bundle
+        if selectedCategory == .maintenance || selectedCategory == .bundle || selectedCategory == .security
             || (selectedCategory == .masApps && !brewService.isMasAvailable) {
             Color.clear
                 .navigationSplitViewColumnWidth(0)

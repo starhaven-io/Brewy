@@ -143,6 +143,7 @@ struct BrewServiceDerivedStateTests {
         #expect(service.packages(for: .outdated)[0].name == "node")
         #expect(service.packages(for: .taps).isEmpty)
         #expect(service.packages(for: .discover).isEmpty)
+        #expect(service.packages(for: .security).isEmpty)
         #expect(service.packages(for: .maintenance).isEmpty)
     }
 

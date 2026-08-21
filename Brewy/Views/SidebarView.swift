@@ -63,6 +63,8 @@ private struct SidebarRow: View {
         case .bundle: brewService.bundleEntryCount
         case .history: brewService.actionHistory.isEmpty ? nil : brewService.actionHistory.count
         case .discover: nil
+        case .security:
+            if let count = brewService.vulnerabilityScan?.openCount, count > 0 { count } else { nil }
         case .maintenance: nil
         default: brewService.packages(for: category).count
         }
@@ -83,6 +85,7 @@ private struct SidebarRow: View {
         case .bundle: .brewyAccent
         case .history: .secondary
         case .discover: .cyan
+        case .security: .red
         case .maintenance: .purple
         }
     }

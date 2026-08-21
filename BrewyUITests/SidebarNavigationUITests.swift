@@ -63,7 +63,7 @@ final class SidebarNavigationUITests: XCTestCase {
         let categories = [
             "Installed", "Formulae", "Casks", "Mac App Store", "Outdated",
             "Pinned", "Leaves", "Taps", "Services", "Groups", "Bundle",
-            "History", "Discover", "Maintenance"
+            "History", "Discover", "Security", "Maintenance"
         ]
 
         let sidebar = app.outlines.firstMatch
@@ -84,7 +84,7 @@ final class SidebarNavigationUITests: XCTestCase {
         let expectedCategories = [
             "Installed", "Formulae", "Casks", "Mac App Store", "Outdated",
             "Pinned", "Leaves", "Taps", "Services", "Groups", "Bundle",
-            "History", "Discover", "Maintenance"
+            "History", "Discover", "Security", "Maintenance"
         ]
 
         for category in expectedCategories {

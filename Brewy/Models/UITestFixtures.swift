@@ -43,6 +43,24 @@ struct UITestCommandRunner: CommandRunning {
         if arguments == ["config"] {
             return CommandResult(output: Self.configOutput, success: true)
         }
+        if arguments == ["vulns", "--json"] {
+            if ProcessInfo.processInfo.environment["BREWY_UI_VULNERABILITY_SCAN_FAILURE"] == "1" {
+                return CommandResult(
+                    output: "Error: fixture vulnerability scan failed",
+                    success: false,
+                    standardOutput: "",
+                    standardError: "Error: fixture vulnerability scan failed",
+                    exitCode: 2
+                )
+            }
+            return CommandResult(
+                output: Self.vulnerabilitiesJSON + "\n" + Self.vulnerabilityNotice,
+                success: false,
+                standardOutput: Self.vulnerabilitiesJSON,
+                standardError: Self.vulnerabilityNotice,
+                exitCode: 1
+            )
+        }
         if arguments == ["cleanup", "--prune=all", "-s", "--dry-run"] {
             if ProcessInfo.processInfo.environment["BREWY_UI_CLEANUP_PREVIEW_FAILURE"] == "1" {
                 return CommandResult(output: "Fixture cleanup preview failed", success: false)
@@ -122,6 +140,37 @@ struct UITestCommandRunner: CommandRunning {
     Core tap last commit: 3 days ago
     Core cask tap last commit: 4 days ago
     """
+
+    private static let vulnerabilitiesJSON = """
+    [
+      {
+        "formula": "ripgrep",
+        "version": "14.1.0",
+        "tag": "14.1.1",
+        "repo_url": "https://github.com/BurntSushi/ripgrep.git",
+        "vulnerabilities": [
+          {
+            "id": "CVE-2026-1234",
+            "severity": "HIGH",
+            "summary": "Fixture open vulnerability",
+            "aliases": [],
+            "fixed_versions": ["14.1.2"]
+          }
+        ],
+        "patched": [
+          {
+            "id": "CVE-2025-4321",
+            "severity": "MEDIUM",
+            "summary": "Fixture formula-patched vulnerability",
+            "aliases": [],
+            "fixed_versions": []
+          }
+        ]
+      }
+    ]
+    """
+
+    private static let vulnerabilityNotice = "Results reflect Homebrew's reported scan target."
 }
 
 extension BrewService {
