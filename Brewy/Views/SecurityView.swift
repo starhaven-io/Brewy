@@ -185,7 +185,7 @@ private struct SecurityScanContent: View {
             )
         }
 
-        SecurityCoverageSection()
+        SecurityCoverageSection(skippedFormulae: scan.skippedFormulae)
     }
 }
 
@@ -397,17 +397,51 @@ private struct SecurityVulnerabilityRow: View {
 }
 
 private struct SecurityCoverageSection: View {
+    let skippedFormulae: [String]?
+
     var body: some View {
         Section("Coverage") {
-            Label(
-                "The JSON report does not include checked or skipped formula counts.",
-                systemImage: "info.circle"
-            )
+            if let skippedFormulae {
+                Label(
+                    "The JSON report does not include the number of formulae checked.",
+                    systemImage: "info.circle"
+                )
+                if skippedFormulae.isEmpty {
+                    Label(
+                        "Homebrew reported no formulae skipped for a missing or unsupported source URL.",
+                        systemImage: "checkmark.circle"
+                    )
+                } else {
+                    DisclosureGroup {
+                        Text(skippedFormulae.joined(separator: ", "))
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                    } label: {
+                        Label(
+                            skippedDescription(count: skippedFormulae.count),
+                            systemImage: "exclamationmark.triangle"
+                        )
+                    }
+                }
+            } else {
+                Label(
+                    "The JSON report does not include checked or skipped formula counts.",
+                    systemImage: "info.circle"
+                )
+            }
             Label(
                 "An empty report means Homebrew returned no findings, not that every installed formula was assessed.",
                 systemImage: "eye.trianglebadge.exclamationmark"
             )
         }
+    }
+
+    private func skippedDescription(count: Int) -> String {
+        if count == 1 {
+            return "1 installed formula was skipped because it has no supported source URL."
+        }
+        return "\(count) installed formulae were skipped because they have no supported source URL."
     }
 }
 

@@ -179,7 +179,7 @@ final class UITestCommandRunner: CommandRunning, @unchecked Sendable {
     Core cask tap last commit: 4 days ago
     """
 
-    private static let vulnerabilitiesJSON = """
+    private static let vulnerabilityFindingsJSON = """
     [
       {
         "formula": "ripgrep",
@@ -206,6 +206,13 @@ final class UITestCommandRunner: CommandRunning, @unchecked Sendable {
         ]
       }
     ]
+    """
+
+    private static let vulnerabilitiesJSON = """
+    {
+      "findings": \(vulnerabilityFindingsJSON),
+      "skipped_formulae": ["fixture-only"]
+    }
     """
 
     private static let vulnerabilityNotice = "Results reflect Homebrew's reported scan target."
