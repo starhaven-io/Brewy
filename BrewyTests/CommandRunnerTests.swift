@@ -195,15 +195,20 @@ struct CommandRunnerProcessTests {
         #expect(elapsed < .seconds(25))
     }
 
-    @Test("Timeout watchdog runs on its dedicated thread")
-    func timeoutWatchdogFires() {
-        let fired = DispatchSemaphore(value: 0)
+    @Test("Timeout watchdog runs on its dedicated thread at default QoS")
+    func timeoutWatchdogFires() async throws {
+        let qualityOfService = LockedQualityOfService()
         let watchdog = TimeoutWatchdog(deadline: .now() + .milliseconds(50)) {
-            fired.signal()
+            qualityOfService.store(Thread.current.qualityOfService)
+        }
+        defer { watchdog.cancel() }
+
+        let deadline = ContinuousClock.now.advanced(by: .seconds(10))
+        while qualityOfService.value == nil, ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(10))
         }
 
-        #expect(fired.wait(timeout: .now() + .seconds(10)) == .success)
-        withExtendedLifetime(watchdog) {}
+        #expect(qualityOfService.value == .default)
     }
 
     @Test("Timeout watchdog cancellation prevents its action")
@@ -345,6 +350,19 @@ struct CommandRunnerProcessTests {
 
         #expect(!result.success)
         #expect(chunks.joined().contains("err-line"))
+    }
+}
+
+private final class LockedQualityOfService: @unchecked Sendable {
+    private let lock = NSLock()
+    private var qualityOfService: QualityOfService?
+
+    var value: QualityOfService? {
+        lock.withLock { qualityOfService }
+    }
+
+    func store(_ qualityOfService: QualityOfService) {
+        lock.withLock { self.qualityOfService = qualityOfService }
     }
 }
 
