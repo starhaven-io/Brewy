@@ -106,6 +106,7 @@ struct BrewyApp: App {
 
         Settings {
             SettingsView()
+                .environment(brewService)
         }
 
         MenuBarExtra(isInserted: $showMenuBarIcon) {

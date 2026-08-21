@@ -111,7 +111,9 @@ final class BrewService {
     var vulnerabilityScan: FormulaVulnerabilityScan?
     var vulnerabilityScanError: BrewError?
     var isScanningVulnerabilities = false
-
+    var homebrewAnalyticsStatus: HomebrewAnalyticsStatus = .unknown
+    var homebrewAnalyticsError: String?
+    var isUpdatingHomebrewAnalytics = false
     var tapsLoaded = false
     private var isRefreshing = false
     private var needsRefresh = false
