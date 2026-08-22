@@ -3,22 +3,20 @@
     <channel>
         <title>Brewy</title>
         <item>
-            <title>0.22.0</title>
-            <pubDate>Fri, 21 Aug 2026 16:39:01 +0000</pubDate>
-            <sparkle:version>30</sparkle:version>
-            <sparkle:shortVersionString>0.22.0</sparkle:shortVersionString>
+            <title>0.23.0</title>
+            <pubDate>Sat, 22 Aug 2026 01:08:42 +0000</pubDate>
+            <sparkle:version>31</sparkle:version>
+            <sparkle:shortVersionString>0.23.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
             <description><![CDATA[<h2>What&#x27;s New</h2>
 <ul>
-  <li>scan installed formulae for known vulnerabilities</li>
-  <li>report and control Homebrew&#x27;s analytics setting</li>
+  <li>show installed application icons</li>
 </ul>
 <h2>Fixes</h2>
 <ul>
-  <li>keep long versions from displacing package names</li>
-  <li>run the timeout watchdog at default QoS</li>
+  <li>decode Homebrew&#x27;s vulnerability findings envelope</li>
 </ul>]]></description>
-            <enclosure url="https://github.com/starhaven-io/Brewy/releases/download/0.22.0/Brewy-0.22.0.zip" length="4744223" type="application/octet-stream" sparkle:edSignature="fH4pQhLxJ7Vo0B5h6AFpynKwaUuLFeny6A4qr2VtXH7K+xz4gPPvK5SAuOcJCgGktMbnIAuq9kst0uCJ+zV1CA=="/>
+            <enclosure url="https://github.com/starhaven-io/Brewy/releases/download/0.23.0/Brewy-0.23.0.zip" length="4772935" type="application/octet-stream" sparkle:edSignature="3x7IzOdsci4KR/pUFEwK/2l0KaBz61cKCDKVuFWrkadL7E4RM/1WrrjEUGPfViULxNYSGB9svEpXGYN1jFb/Ag=="/>
         </item>
     </channel>
 </rss>
