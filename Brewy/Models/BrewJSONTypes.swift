@@ -58,11 +58,12 @@ struct CaskJSON: Decodable {
     let installed: String?
     let desc: String?
     let homepage: String?
+    let url: String?
     let dependencies: [String]
     let artifacts: [CaskArtifactJSON]
 
     enum CodingKeys: String, CodingKey {
-        case token, version, installed, desc, homepage, artifacts
+        case token, version, installed, desc, homepage, url, artifacts
         case dependsOn = "depends_on"
     }
 
@@ -78,6 +79,7 @@ struct CaskJSON: Decodable {
         installed = try container.decodeIfPresent(String.self, forKey: .installed)
         desc = try container.decodeIfPresent(String.self, forKey: .desc)
         homepage = try container.decodeIfPresent(String.self, forKey: .homepage)
+        url = try? container.decodeIfPresent(String.self, forKey: .url)
         artifacts = (try? container.decodeIfPresent([CaskArtifactJSON].self, forKey: .artifacts)) ?? []
         // `depends_on` is usually an object but brew sometimes emits an empty array; tolerate
         // either shape so a cask never fails to decode over its dependency field.
@@ -87,6 +89,10 @@ struct CaskJSON: Decodable {
 
     var applicationBundleURLs: [URL] {
         artifacts.compactMap(\.applicationBundleURL)
+    }
+
+    var repositoryURL: String? {
+        GitHubRepositoryURL.resolve(from: homepage, url)
     }
 
     func toPackage() -> BrewPackage {
@@ -105,7 +111,8 @@ struct CaskJSON: Decodable {
             source: .cask,
             pinned: false,
             installedOnRequest: true,
-            dependencies: dependencies
+            dependencies: dependencies,
+            repositoryURL: repositoryURL
         )
     }
 }

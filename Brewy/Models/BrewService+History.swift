@@ -122,7 +122,8 @@ extension BrewService {
             source: pkg.source,
             pinned: pkg.pinned || outdatedPkg.pinned,
             installedOnRequest: pkg.installedOnRequest,
-            dependencies: pkg.dependencies
+            dependencies: pkg.dependencies,
+            repositoryURL: pkg.repositoryURL
         )
     }
 }

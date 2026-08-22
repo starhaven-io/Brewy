@@ -216,6 +216,7 @@ struct PackageDetailTests {
 
         #expect(enriched?.description == "Fast web browser")
         #expect(enriched?.homepage == "https://www.mozilla.org/firefox/")
+        #expect(enriched?.repositoryURL == "https://github.com/mozilla/gecko-dev")
     }
 
     @Test("fetchPackageDetail returns nil on failure")

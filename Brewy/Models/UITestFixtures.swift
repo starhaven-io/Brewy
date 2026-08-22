@@ -344,7 +344,8 @@ extension BrewService {
             source: .cask,
             pinned: false,
             installedOnRequest: true,
-            dependencies: []
+            dependencies: [],
+            repositoryURL: "https://github.com/mozilla/gecko-dev"
         )
     }
 

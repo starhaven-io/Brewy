@@ -14,6 +14,7 @@ struct BrewPackage: Identifiable, Hashable, Codable {
     let version: String
     let description: String
     let homepage: String
+    let repositoryURL: String?
     let isInstalled: Bool
     let isOutdated: Bool
     let installedVersion: String?
@@ -32,6 +33,38 @@ struct BrewPackage: Identifiable, Hashable, Codable {
             return "\(version) → \(latest)"
         }
         return version
+    }
+
+    init(
+        id: String,
+        name: String,
+        version: String,
+        description: String,
+        homepage: String,
+        isInstalled: Bool,
+        isOutdated: Bool,
+        installedVersion: String?,
+        latestVersion: String?,
+        source: PackageSource,
+        pinned: Bool,
+        installedOnRequest: Bool,
+        dependencies: [String],
+        repositoryURL: String? = nil
+    ) {
+        self.id = id
+        self.name = name
+        self.version = version
+        self.description = description
+        self.homepage = homepage
+        self.repositoryURL = repositoryURL
+        self.isInstalled = isInstalled
+        self.isOutdated = isOutdated
+        self.installedVersion = installedVersion
+        self.latestVersion = latestVersion
+        self.source = source
+        self.pinned = pinned
+        self.installedOnRequest = installedOnRequest
+        self.dependencies = dependencies
     }
 
     static func == (lhs: Self, rhs: Self) -> Bool {

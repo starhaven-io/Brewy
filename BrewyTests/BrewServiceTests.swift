@@ -229,22 +229,31 @@ struct MergeOutdatedStatusTests {
 
     @Test("Marks package as outdated when match found")
     func mergesOutdatedMatch() {
-        let pkg = makePackage(name: "node", installedVersion: "20.10.0")
+        let pkg = BrewPackage(
+            id: "cask-example-app", name: "example-app", version: "1.0",
+            description: "", homepage: "https://example.com",
+            isInstalled: true, isOutdated: false,
+            installedVersion: "1.0", latestVersion: "1.0",
+            source: .cask, pinned: false, installedOnRequest: true,
+            dependencies: [],
+            repositoryURL: "https://github.com/example/example-app"
+        )
         let outdated = BrewPackage(
-            id: "formula-node", name: "node", version: "20.10.0",
+            id: "cask-example-app", name: "example-app", version: "1.0",
             description: "", homepage: "",
             isInstalled: true, isOutdated: true,
-            installedVersion: "20.10.0", latestVersion: "21.5.0",
-            source: .formula, pinned: false, installedOnRequest: true,
+            installedVersion: "1.0", latestVersion: "2.0",
+            source: .cask, pinned: false, installedOnRequest: true,
             dependencies: []
         )
         let outdatedByID = [outdated.id: outdated]
 
         let merged = BrewService.mergeOutdatedStatus(pkg, outdatedByID: outdatedByID)
         #expect(merged.isOutdated == true)
-        #expect(merged.latestVersion == "21.5.0")
-        #expect(merged.name == "node")
-        #expect(merged.installedVersion == "20.10.0")
+        #expect(merged.latestVersion == "2.0")
+        #expect(merged.name == "example-app")
+        #expect(merged.installedVersion == "1.0")
+        #expect(merged.repositoryURL == "https://github.com/example/example-app")
     }
 
     @Test("Returns original package when no outdated match")

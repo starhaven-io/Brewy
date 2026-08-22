@@ -164,11 +164,23 @@ private struct ActionBar: View {
                 notInstalledActionsMenu
             }
 
-            if let url = ExternalURLPolicy.url(from: package.homepage) {
+            if let url = ExternalURLPolicy.url(from: package.homepage),
+               package.repositoryURL == nil ||
+               GitHubRepositoryURL.resolve(from: package.homepage) != package.repositoryURL {
                 Link(destination: url) {
                     Label(package.isMas ? "App Store" : "Homepage", systemImage: package.isMas ? "app.badge.fill" : "globe")
                 }
                 .buttonStyle(.bordered)
+                .accessibilityIdentifier("package-homepage")
+            }
+
+            if let repositoryURL = package.repositoryURL,
+               let url = ExternalURLPolicy.url(from: repositoryURL) {
+                Link(destination: url) {
+                    Label("GitHub", systemImage: "chevron.left.forwardslash.chevron.right")
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("package-upstream-repository")
             }
 
             Spacer()
