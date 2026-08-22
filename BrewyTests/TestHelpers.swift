@@ -83,7 +83,8 @@ enum TestJSON {
     "installed":[{"version":"1.24.5","installed_on_request":true}],\
     "dependencies":["openssl@3","libidn2"]}],\
     "casks":[{"token":"firefox","version":"122.0",\
-    "desc":"Web browser","homepage":"https://www.mozilla.org/firefox/"}]}
+    "desc":"Web browser","homepage":"https://www.mozilla.org/firefox/",\
+    "artifacts":[{"app":["Firefox.app"],"target":"/Applications/Firefox.app"}]}]}
     """
 
     static let outdated = """

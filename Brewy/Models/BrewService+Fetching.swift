@@ -3,7 +3,46 @@ import OSLog
 
 private let logger = Logger(subsystem: "io.linnane.brewy", category: "BrewService+Fetching")
 
+struct InstalledBrewPackages {
+    let formulae: [BrewPackage]
+    let casks: [BrewPackage]
+    let applicationURLs: [String: URL]
+}
+
+struct MergedRefreshPackages {
+    let formulae: [BrewPackage]
+    let casks: [BrewPackage]
+    let masApps: [BrewPackage]
+    let outdated: [BrewPackage]
+
+    var installedIDs: Set<String> {
+        Set((formulae + casks + masApps).map(\.id))
+    }
+}
+
 extension BrewService {
+
+    nonisolated static func mergeRefreshPackages(
+        formulae: [BrewPackage],
+        casks: [BrewPackage],
+        masApps: [BrewPackage],
+        outdated: [BrewPackage]
+    ) -> MergedRefreshPackages {
+        let outdatedByID = Dictionary(outdated.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
+        let formulae = formulae.map { mergeOutdatedStatus($0, outdatedByID: outdatedByID) }
+        let casks = casks.map { mergeOutdatedStatus($0, outdatedByID: outdatedByID) }
+        let masApps = masApps.map { mergeOutdatedStatus($0, outdatedByID: outdatedByID) }
+        let mergedByID = Dictionary(
+            (formulae + casks + masApps).filter(\.isOutdated).map { ($0.id, $0) },
+            uniquingKeysWith: { _, last in last }
+        )
+        return MergedRefreshPackages(
+            formulae: formulae,
+            casks: casks,
+            masApps: masApps,
+            outdated: outdated.map { mergedByID[$0.id] ?? $0 }
+        )
+    }
 
     // MARK: - Fetch Installed Packages
 
@@ -11,21 +50,29 @@ extension BrewService {
     /// instead of clobbering them to empty; a successful-but-empty response still returns `[]`s.
     /// One `brew info --installed --json=v2` invocation carries both formulae and casks in the
     /// JSON v2 envelope, so a refresh needs a single pass over the installed set, not two.
-    func fetchInstalledPackages() async -> (formulae: [BrewPackage], casks: [BrewPackage])? {
+    func fetchInstalledPackages() async -> InstalledBrewPackages? {
         let result = await runBrewCommand(["info", "--installed", "--json=v2"])
         guard result.success, let data = result.output.data(using: .utf8) else {
             if !result.success {
                 reportFetchError(command: "info --installed", output: result.output)
             }
-            return result.success ? ([], []) : nil
+            return result.success ? InstalledBrewPackages(formulae: [], casks: [], applicationURLs: [:]) : nil
         }
 
-        let packages: (formulae: [BrewPackage], casks: [BrewPackage])? = await Task.detached(priority: .userInitiated) {
+        let packages: InstalledBrewPackages? = await Task.detached(priority: .userInitiated) {
             do {
                 let response = try JSONDecoder().decode(BrewInfoResponse.self, from: data)
-                return (
-                    (response.formulae ?? []).map { $0.toPackage() },
-                    (response.casks ?? []).map { $0.toPackage() }
+                let casks = response.casks ?? []
+                let applicationURLs = Dictionary(
+                    casks.compactMap { cask in
+                        cask.applicationBundleURLs.first.map { ("cask-\(cask.token)", $0) }
+                    },
+                    uniquingKeysWith: { _, latest in latest }
+                )
+                return InstalledBrewPackages(
+                    formulae: (response.formulae ?? []).map { $0.toPackage() },
+                    casks: casks.map { $0.toPackage() },
+                    applicationURLs: applicationURLs
                 )
             } catch {
                 logger.error("Failed to parse installed packages JSON: \(error.localizedDescription)")

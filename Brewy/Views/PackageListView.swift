@@ -267,7 +267,7 @@ private struct PackageRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
-            PackageSourceIcon(source: package.source, size: 28)
+            InstalledPackageIcon(package: package, size: 28)
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {

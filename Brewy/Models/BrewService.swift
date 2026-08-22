@@ -6,38 +6,12 @@ import SwiftUI
 
 private let logger = Logger(subsystem: "io.linnane.brewy", category: "BrewService")
 
-// MARK: - Error Types
-
-enum BrewError: LocalizedError {
-    case commandFailed(command: String, output: String)
-
-    var errorDescription: String? {
-        switch self {
-        case .commandFailed(let command, let output):
-            return Self.summarize(command: command, output: output)
-        }
-    }
-
-    private static let maxOutputChars = 800
-
-    private static func summarize(command: String, output: String) -> String {
-        let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return "brew \(command) failed." }
-
-        let lines = trimmed.split(separator: "\n", omittingEmptySubsequences: false)
-        if let errorLine = lines.first(where: { $0.lowercased().hasPrefix("error:") }) {
-            return String(errorLine)
-        }
-        let tail = lines.suffix(6).joined(separator: "\n")
-        if tail.count <= maxOutputChars { return tail }
-        return "…" + String(tail.suffix(maxOutputChars))
-    }
-}
-
 @Observable
 @MainActor
 final class BrewService {
     @ObservationIgnored let commandRunner: CommandRunning
+    @ObservationIgnored private let masExecutablePathOverride: String?
+    @ObservationIgnored private let masExecutablePathResolver: @Sendable () -> String
     @ObservationIgnored private let packageCacheURL: URL?
     @ObservationIgnored private let packageCacheWritesEnabled: Bool
 
@@ -55,10 +29,14 @@ final class BrewService {
 
     init(
         commandRunner: CommandRunning = DefaultCommandRunner(),
+        masExecutablePath: String? = nil,
+        masExecutablePathResolver: @escaping @Sendable () -> String = CommandRunner.resolvedMasPath,
         packageCacheURL: URL? = BrewService.runtimeDefaultPackageCacheURL,
         packageCacheWritesEnabled: Bool = !BrewyRuntime.isRunningTests
     ) {
         self.commandRunner = commandRunner
+        masExecutablePathOverride = masExecutablePath
+        self.masExecutablePathResolver = masExecutablePathResolver
         self.packageCacheURL = packageCacheURL
         self.packageCacheWritesEnabled = packageCacheWritesEnabled
     }
@@ -66,6 +44,10 @@ final class BrewService {
     deinit {
         initialRefreshTask?.cancel()
         autoRefreshTask?.cancel()
+    }
+
+    var masExecutablePath: String {
+        masExecutablePathOverride ?? masExecutablePathResolver()
     }
 
     var installedFormulae: [BrewPackage] = [] {
@@ -86,6 +68,7 @@ final class BrewService {
             invalidateDerivedState()
         }
     }
+    private(set) var installedApplicationURLs: [String: URL] = [:]
     var isMasAvailable = false
     var outdatedPackages: [BrewPackage] = []
     var installedTaps: [BrewTap] = []
@@ -152,13 +135,15 @@ final class BrewService {
         formulae: [BrewPackage],
         casks: [BrewPackage],
         masApps: [BrewPackage],
-        outdated: [BrewPackage]
+        outdated: [BrewPackage],
+        applicationURLs: [String: URL]
     ) {
         isBatchingUpdates = true
         installedFormulae = formulae
         installedCasks = casks
         installedMasApps = masApps
         outdatedPackages = outdated
+        installedApplicationURLs = applicationURLs
         isBatchingUpdates = false
         invalidateDerivedState()
     }
@@ -194,6 +179,7 @@ final class BrewService {
     func dependents(of name: String) -> [BrewPackage] {
         reverseDependencies[name] ?? []
     }
+
 }
 
 // MARK: - Cache
@@ -248,7 +234,7 @@ extension BrewService {
             outdatedPackages = cached.outdated
             installedTaps = cached.taps
             tapsLoaded = !cached.taps.isEmpty
-            isMasAvailable = !masApps.isEmpty || FileManager.default.isExecutableFile(atPath: CommandRunner.resolvedMasPath())
+            isMasAvailable = !masApps.isEmpty || FileManager.default.isExecutableFile(atPath: masExecutablePath)
             lastUpdated = cached.lastUpdated
             logger.info("Loaded \(cached.formulae.count) formulae and \(cached.casks.count) casks from cache")
         } catch {
@@ -357,34 +343,45 @@ extension BrewService {
         let fetchedFormulae = fetchedInstalled?.formulae ?? installedFormulae
         let fetchedCasks = fetchedInstalled?.casks ?? installedCasks
         let fetchedOutdated = await outdated ?? outdatedPackages.filter { $0.source != .mas }
-        let fetchedMasApps = await masApps ?? installedMasApps
+        let fetchedMas = await masApps
+        let fetchedMasApps = fetchedMas?.packages ?? installedMasApps
         let fetchedMasOutdated = await masOutdated ?? outdatedPackages.filter(\.isMas)
         let fetchedTaps = await taps ?? installedTaps
-        let allOutdated = fetchedOutdated + fetchedMasOutdated
-        let outdatedByID = Dictionary(allOutdated.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
-        let mergedFormulae = fetchedFormulae.map { Self.mergeOutdatedStatus($0, outdatedByID: outdatedByID) }
-        let mergedCasks = fetchedCasks.map { Self.mergeOutdatedStatus($0, outdatedByID: outdatedByID) }
-        let mergedMasApps = fetchedMasApps.map { Self.mergeOutdatedStatus($0, outdatedByID: outdatedByID) }
-        let mergedByID = Dictionary(
-            (mergedFormulae + mergedCasks + mergedMasApps).filter(\.isOutdated).map { ($0.id, $0) },
-            uniquingKeysWith: { _, last in last }
+        let merged = Self.mergeRefreshPackages(
+            formulae: fetchedFormulae,
+            casks: fetchedCasks,
+            masApps: fetchedMasApps,
+            outdated: fetchedOutdated + fetchedMasOutdated
         )
-        let displayedOutdated = allOutdated.map { mergedByID[$0.id] ?? $0 }
+        let applicationURLs = Self.refreshedApplicationURLs(
+            existingURLs: installedApplicationURLs,
+            brewURLs: fetchedInstalled?.applicationURLs,
+            masURLs: fetchedMas?.applicationURLs,
+            installedIDs: merged.installedIDs
+        )
 
         applyRefreshResults(
-            formulae: mergedFormulae,
-            casks: mergedCasks,
-            masApps: mergedMasApps,
-            outdated: displayedOutdated
+            formulae: merged.formulae,
+            casks: merged.casks,
+            masApps: merged.masApps,
+            outdated: merged.outdated,
+            applicationURLs: applicationURLs
         )
         lastUpdated = Date()
 
+        let masCount = fetchedMasApps.count
+        let outdatedCount = merged.outdated.count
+        logger.info("Refresh complete: \(fetchedFormulae.count) formulae, \(fetchedCasks.count) casks, \(masCount) mas, \(outdatedCount) outdated")
+        await finishRefresh(previousVersions: previousVersions, taps: fetchedTaps)
+    }
+
+    private func finishRefresh(previousVersions: [String: String], taps: [BrewTap]) async {
         let currentVersions = Dictionary(allInstalled.map { ($0.id, $0.version) }, uniquingKeysWith: { _, last in last })
         for id in infoCache.keys where currentVersions[id] != previousVersions[id] {
             infoCache.removeValue(forKey: id)
         }
 
-        installedTaps = fetchedTaps
+        installedTaps = taps
         tapsLoaded = true
         updateBundleEntryStatuses()
 
@@ -392,9 +389,6 @@ extension BrewService {
             backgroundRefreshError = nil
         }
 
-        let masCount = fetchedMasApps.count
-        let outdatedCount = allOutdated.count
-        logger.info("Refresh complete: \(fetchedFormulae.count) formulae, \(fetchedCasks.count) casks, \(masCount) mas, \(outdatedCount) outdated")
         await saveToCache()
         // Cancel any in-flight check unconditionally so a prior refresh's task can't overwrite
         // tapHealthStatuses after the tap list has changed.
