@@ -31,12 +31,14 @@ final class BrewService {
         commandRunner: CommandRunning = DefaultCommandRunner(),
         masExecutablePath: String? = nil,
         masExecutablePathResolver: @escaping @Sendable () -> String = CommandRunner.resolvedMasPath,
+        installedApplicationURLs: [String: URL] = [:],
         packageCacheURL: URL? = BrewService.runtimeDefaultPackageCacheURL,
         packageCacheWritesEnabled: Bool = !BrewyRuntime.isRunningTests
     ) {
         self.commandRunner = commandRunner
         masExecutablePathOverride = masExecutablePath
         self.masExecutablePathResolver = masExecutablePathResolver
+        self.installedApplicationURLs = installedApplicationURLs
         self.packageCacheURL = packageCacheURL
         self.packageCacheWritesEnabled = packageCacheWritesEnabled
     }

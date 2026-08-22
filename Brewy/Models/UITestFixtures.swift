@@ -119,11 +119,54 @@ final class UITestCommandRunner: CommandRunning, @unchecked Sendable {
         arguments: [String],
         timeout: Duration
     ) async -> CommandResult {
+        if executablePath == "/usr/bin/codesign" {
+            let output = arguments.contains("--display")
+                ? Self.codeSigningMetadata
+                : "/Applications/Firefox.app: valid on disk"
+            return CommandResult(
+                output: output,
+                success: true,
+                standardOutput: "",
+                standardError: output
+            )
+        }
+        if executablePath == "/usr/sbin/spctl" {
+            if ProcessInfo.processInfo.environment["BREWY_UI_GATEKEEPER_FAILURE"] == "1" {
+                let output = "/Applications/Firefox.app: internal error in Code Signing subsystem"
+                return CommandResult(
+                    output: output,
+                    success: false,
+                    standardOutput: "",
+                    standardError: output,
+                    exitCode: 1
+                )
+            }
+            return CommandResult(
+                output: Self.gatekeeperAssessment,
+                success: true,
+                standardOutput: "",
+                standardError: Self.gatekeeperAssessment
+            )
+        }
         if executablePath == "/usr/bin/du" {
             return CommandResult(output: "2048\t/private/tmp/brewy-ui-cache\n", success: true)
         }
         return CommandResult(output: "Fixture command completed.\n", success: true)
     }
+
+    private static let codeSigningMetadata = """
+    Authority=Developer ID Application: Mozilla Corporation (43AQ936H96)
+    Authority=Developer ID Certification Authority
+    Authority=Apple Root CA
+    Notarization Ticket=stapled
+    TeamIdentifier=43AQ936H96
+    """
+
+    private static let gatekeeperAssessment = """
+    /Applications/Firefox.app: accepted
+    source=Notarized Developer ID
+    origin=Developer ID Application: Mozilla Corporation (43AQ936H96)
+    """
 
     private static func bundleListResult(_ arguments: [String]) -> CommandResult {
         let output: String

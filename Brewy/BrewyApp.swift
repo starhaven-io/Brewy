@@ -46,7 +46,13 @@ struct BrewyApp: App {
     private static func makeBrewService() -> BrewService {
 #if DEBUG
         if BrewyRuntime.isUITesting {
-            return BrewService(commandRunner: UITestCommandRunner())
+            return BrewService(
+                commandRunner: UITestCommandRunner(),
+                installedApplicationURLs: [
+                    "cask-firefox": URL(fileURLWithPath: "/Applications/Firefox.app"),
+                    "mas-497799835": URL(fileURLWithPath: "/Applications/Xcode.app")
+                ]
+            )
         }
 #endif
         return BrewService()

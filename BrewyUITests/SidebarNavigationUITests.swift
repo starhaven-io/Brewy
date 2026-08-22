@@ -155,6 +155,75 @@ final class SidebarNavigationUITests: XCTestCase {
         )
     }
 
+    func testCaskSecurityDetailsRenderFixtureData() throws {
+        let sidebar = app.outlines.firstMatch
+        assertExists(sidebar, timeout: Self.launchTimeout, "Sidebar should exist")
+        sidebar.staticTexts["Casks"].click()
+
+        let package = app.staticTexts["package-row-firefox"]
+        assertExists(package, timeout: Self.elementTimeout, "Fixture cask should appear")
+        package.click()
+
+        let checkSecurity = app.buttons["application-security-check"]
+        assertExists(checkSecurity, timeout: Self.elementTimeout, "Security check should be explicit")
+        let signing = app.descendants(matching: .any)["application-security-signing"].firstMatch
+        XCTAssertFalse(signing.exists, "Opening package details must not run the security check")
+        checkSecurity.click()
+
+        assertExists(signing, timeout: Self.elementTimeout, "Code-signing status should load")
+        XCTAssertEqual(signing.label, "Code Signing: Signature Valid")
+
+        let gatekeeper = app.descendants(matching: .any)["application-security-gatekeeper"].firstMatch
+        assertExists(gatekeeper, timeout: Self.elementTimeout, "Gatekeeper status should load")
+        XCTAssertEqual(gatekeeper.label, "Gatekeeper: Accepted")
+
+        let notarization = app.descendants(matching: .any)["application-security-notarization"].firstMatch
+        assertExists(notarization, timeout: Self.elementTimeout, "Notarization status should load")
+        XCTAssertEqual(notarization.label, "Notarization: Stapled Ticket")
+
+        let signer = app.descendants(matching: .any)["application-security-signer"].firstMatch
+        assertExists(signer, timeout: Self.elementTimeout, "Signing identity should load")
+        XCTAssertEqual(
+            signer.label,
+            "Signed By: Developer ID Application: Mozilla Corporation (43AQ936H96)"
+        )
+        assertExists(
+            app.buttons["application-security-retry"],
+            timeout: Self.elementTimeout,
+            "Loaded security details should be refreshable"
+        )
+    }
+
+    func testCaskSecurityDetailsKeepGatekeeperErrorsUnavailable() throws {
+        app.terminate()
+        app.launchEnvironment["BREWY_UI_GATEKEEPER_FAILURE"] = "1"
+        app.launch()
+        app.activate()
+
+        let sidebar = app.outlines.firstMatch
+        assertExists(sidebar, timeout: Self.launchTimeout, "Sidebar should exist")
+        sidebar.staticTexts["Casks"].click()
+
+        let package = app.staticTexts["package-row-firefox"]
+        assertExists(package, timeout: Self.elementTimeout, "Fixture cask should appear")
+        package.click()
+
+        let checkSecurity = app.buttons["application-security-check"]
+        assertExists(checkSecurity, timeout: Self.elementTimeout, "Security check should be explicit")
+        checkSecurity.click()
+
+        let gatekeeper = app.descendants(matching: .any)["application-security-gatekeeper"].firstMatch
+        assertExists(gatekeeper, timeout: Self.elementTimeout, "Gatekeeper status should load")
+        XCTAssertEqual(
+            gatekeeper.label,
+            "Gatekeeper: Unavailable. Internal error in Code Signing subsystem"
+        )
+        XCTAssertFalse(
+            gatekeeper.label.contains("Rejected"),
+            "A subsystem failure must not be presented as a security rejection"
+        )
+    }
+
     func testManagementViewsRenderFixtureDetails() throws {
         let sidebar = app.outlines.firstMatch
         assertExists(sidebar, timeout: Self.launchTimeout, "Sidebar should exist")
