@@ -60,7 +60,7 @@ struct InstalledPackageIcon: View {
             if let applicationIcon {
                 Image(nsImage: applicationIcon)
                     .resizable()
-                    .aspectRatio(contentMode: .fit)
+                    .scaledToFit()
             } else {
                 PackageSourceIcon(source: package.source, size: size)
             }

@@ -27,6 +27,14 @@ struct PackageDetailView: View {
                 Divider()
                     .padding(.horizontal)
                 PackageInfoSection(package: displayPackage)
+                if package.isInstalled,
+                   !package.isFormula,
+                   let applicationURL = brewService.installedApplicationURL(for: package) {
+                    Divider()
+                        .padding(.horizontal)
+                    ApplicationSecuritySection(package: package)
+                        .id(applicationURL)
+                }
                 if !package.isMas {
                     Divider()
                         .padding(.horizontal)

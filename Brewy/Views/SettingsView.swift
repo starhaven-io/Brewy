@@ -307,7 +307,7 @@ private struct AppIconPreviewTile: View {
 
             Image(nsImage: icon.previewImage)
                 .resizable()
-                .aspectRatio(contentMode: .fit)
+                .scaledToFit()
                 .padding(imageInset)
         }
         .frame(width: 54, height: 54)
