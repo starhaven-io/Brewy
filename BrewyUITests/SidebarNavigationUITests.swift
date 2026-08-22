@@ -8,8 +8,7 @@ final class SidebarNavigationUITests: XCTestCase {
     // sidebar can take much longer than the unscaled timeouts to render, which
     // flaked these waits in CI's TSan job. Scale every timeout and settle delay
     // up when the sanitizer runtime is loaded: the UI-test bundle is built with
-    // the same scheme setting as the app, so its presence in this process is a
-    // reliable proxy for "the app under test is instrumented too".
+    // the same scheme setting as the app, so its presence reliably means the app under test is instrumented.
     private static let timeoutScale: TimeInterval = isThreadSanitizerActive ? 4 : 1
     static let launchTimeout: TimeInterval = 30 * timeoutScale
     static let elementTimeout: TimeInterval = 10 * timeoutScale
@@ -155,6 +154,14 @@ final class SidebarNavigationUITests: XCTestCase {
         )
     }
 
+    func testPackageDetailKeepsHomepageWithoutRepository() throws {
+        let package = app.staticTexts["package-row-pcre2"]
+        assertExists(package, timeout: Self.launchTimeout, "Fixture package should appear")
+        package.click()
+        let homepage = app.descendants(matching: .any)["package-homepage"].firstMatch
+        assertExists(homepage, timeout: Self.elementTimeout, "A package without a repository should keep its Homepage link")
+    }
+
     func testCaskSecurityDetailsRenderFixtureData() throws {
         let sidebar = app.outlines.firstMatch
         assertExists(sidebar, timeout: Self.launchTimeout, "Sidebar should exist")
@@ -163,6 +170,12 @@ final class SidebarNavigationUITests: XCTestCase {
         let package = app.staticTexts["package-row-firefox"]
         assertExists(package, timeout: Self.elementTimeout, "Fixture cask should appear")
         package.click()
+
+        let github = app.descendants(matching: .any)["package-upstream-repository"].firstMatch
+        assertExists(github, timeout: Self.elementTimeout, "Cask details should expose its GitHub link")
+        XCTAssertEqual(github.label, "GitHub")
+        let homepage = app.descendants(matching: .any)["package-homepage"].firstMatch
+        assertExists(homepage, timeout: Self.elementTimeout, "A distinct cask homepage should remain available")
 
         let checkSecurity = app.buttons["application-security-check"]
         assertExists(checkSecurity, timeout: Self.elementTimeout, "Security check should be explicit")

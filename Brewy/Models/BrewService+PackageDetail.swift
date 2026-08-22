@@ -31,7 +31,8 @@ extension BrewService {
                         source: package.source,
                         pinned: package.pinned,
                         installedOnRequest: package.installedOnRequest,
-                        dependencies: package.dependencies
+                        dependencies: package.dependencies,
+                        repositoryURL: cask.repositoryURL ?? (cask.url == nil ? package.repositoryURL : nil)
                     )
                 }
                 if let formula = response.formulae?.first {
@@ -48,7 +49,8 @@ extension BrewService {
                         source: package.source,
                         pinned: package.pinned,
                         installedOnRequest: package.installedOnRequest,
-                        dependencies: formula.dependencies ?? package.dependencies
+                        dependencies: formula.dependencies ?? package.dependencies,
+                        repositoryURL: package.repositoryURL
                     )
                 }
                 return nil

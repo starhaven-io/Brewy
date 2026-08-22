@@ -11,7 +11,11 @@ struct PackageCacheTests {
         defer { fixture.remove() }
 
         let formula = makePackage(name: "wget", pinned: true, dependencies: ["openssl@3"])
-        let cask = makePackage(name: "firefox", source: .cask)
+        let cask = makePackage(
+            name: "firefox",
+            source: .cask,
+            repositoryURL: "https://github.com/mozilla/gecko-dev"
+        )
         let mas = makePackage(name: "Xcode", source: .mas)
         let outdated = makePackage(
             name: "wget",
@@ -47,6 +51,7 @@ struct PackageCacheTests {
 
         #expect(reader.installedFormulae == [formula])
         #expect(reader.installedCasks == [cask])
+        #expect(reader.installedCasks.first?.repositoryURL == "https://github.com/mozilla/gecko-dev")
         #expect(reader.installedMasApps == [mas])
         #expect(reader.outdatedPackages == [outdated])
         #expect(reader.installedTaps == [tap])
@@ -77,6 +82,31 @@ struct PackageCacheTests {
 
         #expect(reader.installedFormulae.map(\.name) == ["wget"])
         #expect(reader.installedMasApps.isEmpty)
+    }
+
+    @Test("Package cache tolerates snapshots written before repository URLs were stored")
+    func loadsLegacySnapshotWithoutRepositoryURL() async throws {
+        let fixture = try CacheFixture()
+        defer { fixture.remove() }
+
+        let writer = BrewService(
+            commandRunner: MockCommandRunner(),
+            packageCacheURL: fixture.url,
+            packageCacheWritesEnabled: true
+        )
+        writer.installedCasks = [makePackage(name: "firefox", source: .cask)]
+        await writer.saveToCache()
+        try fixture.mutateJSON { object in
+            guard var casks = object["casks"] as? [[String: Any]], !casks.isEmpty else { return }
+            casks[0].removeValue(forKey: "repositoryURL")
+            object["casks"] = casks
+        }
+
+        let reader = BrewService(commandRunner: MockCommandRunner(), packageCacheURL: fixture.url)
+        reader.loadFromCache()
+
+        #expect(reader.installedCasks.map(\.name) == ["firefox"])
+        #expect(reader.installedCasks.first?.repositoryURL == nil)
     }
 
     @Test("Package cache rejects and deletes an incompatible schema")

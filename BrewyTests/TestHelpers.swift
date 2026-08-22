@@ -117,7 +117,8 @@ enum TestJSON {
 
     static let caskDetail = """
     {"formulae":[],"casks":[{"token":"firefox","version":"123.0",\
-    "desc":"Fast web browser","homepage":"https://www.mozilla.org/firefox/"}]}
+    "desc":"Fast web browser","homepage":"https://www.mozilla.org/firefox/",\
+    "url":"https://github.com/mozilla/gecko-dev/releases/download/v123.0/firefox.dmg"}]}
     """
 }
 
@@ -142,6 +143,7 @@ func makePackage(
     isOutdated: Bool = false,
     installedVersion: String? = nil,
     latestVersion: String? = nil,
+    repositoryURL: String? = nil,
     dependencies: [String] = []
 ) -> BrewPackage {
     let prefix: String
@@ -163,7 +165,8 @@ func makePackage(
         source: source,
         pinned: pinned,
         installedOnRequest: true,
-        dependencies: dependencies
+        dependencies: dependencies,
+        repositoryURL: repositoryURL
     )
 }
 
