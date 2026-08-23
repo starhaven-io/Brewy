@@ -3,20 +3,17 @@
     <channel>
         <title>Brewy</title>
         <item>
-            <title>0.23.0</title>
-            <pubDate>Sat, 22 Aug 2026 01:08:42 +0000</pubDate>
-            <sparkle:version>31</sparkle:version>
-            <sparkle:shortVersionString>0.23.0</sparkle:shortVersionString>
+            <title>0.24.0</title>
+            <pubDate>Sun, 23 Aug 2026 03:58:48 +0000</pubDate>
+            <sparkle:version>32</sparkle:version>
+            <sparkle:shortVersionString>0.24.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
             <description><![CDATA[<h2>What&#x27;s New</h2>
 <ul>
-  <li>show installed application icons</li>
-</ul>
-<h2>Fixes</h2>
-<ul>
-  <li>decode Homebrew&#x27;s vulnerability findings envelope</li>
+  <li>show code signing and Gatekeeper details for installed apps</li>
+  <li>link casks to their GitHub repository</li>
 </ul>]]></description>
-            <enclosure url="https://github.com/starhaven-io/Brewy/releases/download/0.23.0/Brewy-0.23.0.zip" length="4772935" type="application/octet-stream" sparkle:edSignature="3x7IzOdsci4KR/pUFEwK/2l0KaBz61cKCDKVuFWrkadL7E4RM/1WrrjEUGPfViULxNYSGB9svEpXGYN1jFb/Ag=="/>
+            <enclosure url="https://github.com/starhaven-io/Brewy/releases/download/0.24.0/Brewy-0.24.0.zip" length="4802694" type="application/octet-stream" sparkle:edSignature="K8X4bldDsnGgahR8v59Yj1Ri9T9R6AtQM5/DteeBR37sAjSOnisI1Y8YVtGMBZx9clwIEzYtRUktf04sr9wwCQ=="/>
         </item>
     </channel>
 </rss>
