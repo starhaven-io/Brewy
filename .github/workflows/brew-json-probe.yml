@@ -44,12 +44,7 @@ jobs:
           brew install --cask font-fira-code
 
       - name: Build probe
-        run: |
-          xcrun swiftc -o /tmp/brew-json-probe \
-            Brewy/Models/BrewJSONTypes.swift \
-            Brewy/Models/PackageModel.swift \
-            Brewy/Models/ExternalURLPolicy.swift \
-            scripts/brew-json-probe/main.swift
+        run: bash scripts/brew-json-probe/build.sh /tmp/brew-json-probe
 
       - name: Run probe against real brew
         run: /tmp/brew-json-probe

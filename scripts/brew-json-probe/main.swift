@@ -1,6 +1,6 @@
-// Compiled standalone in CI (with BrewJSONTypes.swift, PackageModel.swift, and
-// ExternalURLPolicy.swift) and run against the runner's real Homebrew to catch
-// upstream JSON schema drift before users hit it. See .github/workflows/brew-json-probe.yml.
+// Compiled standalone in CI with its supporting model and URL policy sources,
+// then run against the runner's real Homebrew to catch upstream JSON schema drift
+// before users hit it. See .github/workflows/brew-json-probe.yml.
 import Foundation
 
 struct ProbeFailure: Error, CustomStringConvertible {
@@ -42,12 +42,18 @@ func probe() throws {
     }
 
     // Decode additional live cask metadata without installing large applications.
-    let caskData = try runBrew(["info", "--json=v2", "--cask", "--", "firefox", "iterm2"])
+    let caskData = try runBrew(["info", "--json=v2", "--cask", "--", "firefox", "iterm2", "rectangle"])
     let caskInfo = try JSONDecoder().decode(BrewInfoResponse.self, from: caskData)
     let probedCasks = (caskInfo.casks ?? []).map { $0.toPackage() }
     print("cask metadata: \(probedCasks.count) casks decoded")
-    guard probedCasks.count == 2 else {
-        throw ProbeFailure(description: "expected 2 casks decoded, got \(probedCasks.count)")
+    guard probedCasks.count == 3 else {
+        throw ProbeFailure(description: "expected 3 casks decoded, got \(probedCasks.count)")
+    }
+    guard probedCasks.first(where: { $0.name == "rectangle" })?.repositoryURL != nil else {
+        throw ProbeFailure(description: "rectangle GitHub repository URL was not decoded")
+    }
+    guard caskInfo.casks?.first(where: { $0.token == "firefox" })?.applicationBundleURLs.isEmpty == false else {
+        throw ProbeFailure(description: "firefox application artifact was not decoded")
     }
 
     let outdatedData = try runBrew(["outdated", "--json=v2"])

@@ -37,6 +37,10 @@ install-hooks:
 
 # Test
 
+# Compile the standalone live Homebrew JSON decoder
+brew-json-probe-build:
+    bash scripts/brew-json-probe/build.sh /private/tmp/brewy-brew-json-probe
+
 # Run unit tests (skips UI tests that require code signing locally)
 test:
     xcodebuild test \
@@ -120,6 +124,7 @@ check:
     else
         skip lychee lychee lychee
     fi
+    run bash scripts/brew-json-probe/build.sh /private/tmp/brewy-brew-json-probe
     run xcodebuild test \
         -project Brewy.xcodeproj \
         -scheme Brewy \
