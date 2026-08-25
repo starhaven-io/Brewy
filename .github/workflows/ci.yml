@@ -58,6 +58,7 @@ jobs:
           if [[ "${EVENT_NAME}" == "push" ]]; then
             add_check '{"name":"Lint","check":"lint","runner":"macos-26"}'
             add_check '{"name":"Periphery","check":"periphery","runner":"macos-26"}'
+            add_check '{"name":"Build Brew JSON Probe","check":"probe-build","runner":"macos-26"}'
             add_check '{"name":"Test (Thread Sanitizer)","check":"test-tsan","runner":"macos-26","xcodebuild_flags":"-enableCodeCoverage YES -enableThreadSanitizer YES","result_bundle":"TestResults-TSAN","environment":"codecov"}'
             {
               echo "matrix=${MATRIX}"
@@ -101,6 +102,10 @@ jobs:
             # first place Release-only breakage (optimization warnings, stray references
             # to DEBUG-gated test fixtures) can surface.
             add_check '{"name":"Build (Release)","check":"build-release","runner":"macos-26"}'
+          fi
+
+          if grep -qE '^Brewy/Models/|^scripts/brew-json-probe/|^\.github/workflows/(brew-json-probe|ci)\.yml$' <<< "${CHANGED}"; then
+            add_check '{"name":"Build Brew JSON Probe","check":"probe-build","runner":"macos-26"}'
           fi
 
           # Source or periphery-config changes: dead-code scan
@@ -156,6 +161,9 @@ jobs:
           fetch-depth: ${{ matrix.fetch_depth || 1 }}
           persist-credentials: false
 
+      - name: Build Brew JSON probe
+        if: matrix.check == 'probe-build'
+        run: bash scripts/brew-json-probe/build.sh /tmp/brew-json-probe
 
       - name: Restore Homebrew downloads
         id: homebrew-cache
