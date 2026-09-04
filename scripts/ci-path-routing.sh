@@ -101,7 +101,8 @@ validate_ci_path_routing() {
     'Brewy/space name.swift'
     'Brewy/Info.plist'
     'Brewy/Brewy.entitlements'
-    'Brewy/Assets.xcassets/AppIcon.appiconset/Contents.json'
+    'Brewy/AppIcon.icon/icon.json'
+    'Brewy/AppIcon.icon/Assets/box.svg'
     'BrewyTests/Fixtures/appcast.xml'
     'BrewyUITests/Fixtures/screenshot.png'
   )

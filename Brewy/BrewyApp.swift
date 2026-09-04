@@ -26,8 +26,6 @@ struct BrewyApp: App {
 
     @AppStorage("appTheme")
     private var appTheme = AppTheme.system.rawValue
-    @AppStorage("appIcon")
-    private var appIcon = AppIconSelection.current.rawValue
     @AppStorage(AppVisibilitySettings.showMenuBarIconKey)
     private var showMenuBarIcon = true
     @AppStorage(AppVisibilitySettings.showDockIconKey)
@@ -69,9 +67,6 @@ struct BrewyApp: App {
                 .preferredColorScheme(preferredColorScheme ?? systemColorScheme)
                 .onReceive(NSApplication.shared.publisher(for: \.effectiveAppearance)) { appearance in
                     systemColorScheme = Self.colorScheme(for: appearance)
-                }
-                .onChange(of: appIcon, initial: true) {
-                    AppIconSelection.apply(rawValue: appIcon)
                 }
                 .onChange(of: showDockIcon, initial: true) {
                     AppVisibilitySettings.applyDockIconVisibility(showDockIcon)

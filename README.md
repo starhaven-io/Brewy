@@ -81,10 +81,6 @@ Report suspected vulnerabilities privately by emailing [security@starhaven.io](m
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the development setup, local checks, and commit conventions.
 
-## Acknowledgements
-
-Thanks to [@bevanjkay](https://github.com/bevanjkay) for the classic app icon idea.
-
 <!-- fleet:block license-section -->
 
 ## License
