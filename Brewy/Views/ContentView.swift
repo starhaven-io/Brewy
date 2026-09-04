@@ -87,7 +87,7 @@ struct ContentView: View {
         } detail: {
             detailView
         }
-        .environment(\.selectPackage) { name in navigateToPackage(name) }
+        .environment(\.selectPackage) { packageID in navigateToPackage(packageID) }
         .overlay {
             if brewService.isPerformingAction {
                 ZStack {
@@ -220,8 +220,8 @@ struct ContentView: View {
         }
     }
 
-    private func navigateToPackage(_ name: String) {
-        if let match = brewService.allInstalled.first(where: { $0.name == name }) {
+    private func navigateToPackage(_ packageID: String) {
+        if let match = brewService.allInstalled.first(where: { $0.id == packageID }) {
             let destination: SidebarCategory = switch match.source {
             case .formula: .formulae
             case .cask: .casks

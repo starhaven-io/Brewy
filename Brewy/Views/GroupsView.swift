@@ -138,6 +138,8 @@ private struct CreateGroupSheet: View {
                                 )
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel("Use \(icon) icon")
+                        .accessibilityAddTraits(selectedIcon == icon ? .isSelected : [])
                     }
                 }
             }
@@ -242,7 +244,7 @@ struct GroupDetailView: View {
             Section("Packages") {
                 ForEach(groupPackages) { package in
                     GroupPackageRow(package: package) {
-                        selectPackage(package.name)
+                        selectPackage(package.id)
                     } onRemove: {
                         brewService.removeFromGroup(group, packageID: package.id)
                     }
@@ -298,6 +300,7 @@ private struct GroupPackageRow: View {
             }
             .buttonStyle(.plain)
             .help("Go to \(package.name)")
+            .accessibilityLabel("Go to \(package.name)")
         }
         .contextMenu {
             Button("Go to Package", systemImage: "arrow.right.circle") {
@@ -361,6 +364,8 @@ private struct EditGroupSheet: View {
                                 )
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel("Use \(icon) icon")
+                        .accessibilityAddTraits(selectedIcon == icon ? .isSelected : [])
                     }
                 }
             }

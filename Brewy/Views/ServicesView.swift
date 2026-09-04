@@ -5,6 +5,7 @@ struct ServicesView: View {
     private var brewService
     @State private var services: [BrewServiceItem] = []
     @State private var isLoading = true
+    @State private var loadErrorMessage: String?
     @State private var errorMessage: String?
     @State private var showCleanupConfirmation = false
     @Binding var selectedService: BrewServiceItem?
@@ -12,6 +13,20 @@ struct ServicesView: View {
 
     var body: some View {
         List(selection: $selectedService) {
+            if let loadErrorMessage, !services.isEmpty {
+                Section {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("Unable to Refresh Services", systemImage: "exclamationmark.triangle")
+                            .font(.headline)
+                        Text(loadErrorMessage)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                        Button("Retry") { Task { await loadServices() } }
+                            .disabled(isLoading)
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
             ForEach(services) { service in
                 ServiceRow(service: service)
                     .tag(service)
@@ -20,6 +35,14 @@ struct ServicesView: View {
         .overlay {
             if isLoading && services.isEmpty {
                 ProgressView("Loading services…")
+            } else if let loadErrorMessage, services.isEmpty {
+                ContentUnavailableView {
+                    Label("Unable to Load Services", systemImage: "exclamationmark.triangle")
+                } description: {
+                    Text(loadErrorMessage)
+                } actions: {
+                    Button("Retry") { Task { await loadServices() } }
+                }
             } else if !isLoading && services.isEmpty {
                 ContentUnavailableView(
                     "No Services",
@@ -70,16 +93,19 @@ struct ServicesView: View {
 
     func loadServices() async {
         isLoading = true
-        let fetched = await brewService.fetchServices()
-        guard !Task.isCancelled else {
-            isLoading = false
-            return
+        defer { isLoading = false }
+        do {
+            let fetched = try await brewService.fetchServices()
+            guard !Task.isCancelled else { return }
+            services = fetched
+            loadErrorMessage = nil
+            if let selected = selectedService {
+                selectedService = fetched.first { $0.id == selected.id }
+            }
+        } catch {
+            guard !Task.isCancelled else { return }
+            loadErrorMessage = error.localizedDescription
         }
-        services = fetched
-        if let selected = selectedService {
-            selectedService = fetched.first { $0.id == selected.id }
-        }
-        isLoading = false
     }
 
     private func cleanupServices() async {
@@ -172,7 +198,6 @@ struct ServiceDetailView: View {
     @State private var isPerformingAction = false
     @State private var actionOutput: String?
     @State private var errorMessage: String?
-    @State private var useSudo = false
 
     var body: some View {
         Form {
@@ -254,27 +279,24 @@ struct ServiceDetailView: View {
 
     private var actionsSection: some View {
         Section {
-            Toggle("Run as root (sudo)", isOn: $useSudo)
-                .font(.callout)
-
             HStack(spacing: 12) {
                 if service.running || service.status == "started" {
                     Button {
-                        Task { await performAction { await brewService.stopService(service.name, asSudo: useSudo) } }
+                        Task { await performAction { await brewService.stopService(service.name) } }
                     } label: {
                         Label("Stop", systemImage: "stop.fill")
                     }
                     .tint(.red)
 
                     Button {
-                        Task { await performAction { await brewService.restartService(service.name, asSudo: useSudo) } }
+                        Task { await performAction { await brewService.restartService(service.name) } }
                     } label: {
                         Label("Restart", systemImage: "arrow.clockwise")
                     }
                     .tint(Color.brewyAccent)
                 } else {
                     Button {
-                        Task { await performAction { await brewService.startService(service.name, asSudo: useSudo) } }
+                        Task { await performAction { await brewService.startService(service.name) } }
                     } label: {
                         Label("Start", systemImage: "play.fill")
                     }

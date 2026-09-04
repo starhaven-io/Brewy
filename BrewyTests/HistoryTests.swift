@@ -121,6 +121,18 @@ struct ActionHistoryEntryTests {
         #expect(entry.isRetryable == false)
     }
 
+    @Test("isRetryable blocks Brewfile-consuming bundle history")
+    func bundleReadIsNotRetryable() {
+        let entry = ActionHistoryEntry(
+            id: UUID(), command: "bundle",
+            arguments: ["bundle", "check", "--file", "/tmp/Brewfile"],
+            packageName: nil, packageSource: nil,
+            status: .failure, output: "Error", timestamp: Date()
+        )
+
+        #expect(entry.isRetryable == false)
+    }
+
     @Test("isMutatingCommand is true for mutating commands")
     func isMutatingCommandForMutations() {
         for command in ["cleanup", "pin", "unpin"] {
@@ -155,6 +167,7 @@ struct ActionHistoryEntryTests {
         #expect(entry.isMutatingCommand)
         #expect(entry.isBundleDump)
         #expect(entry.bundleDumpURL?.path == "/tmp/Brewfile")
+        #expect(entry.isRetryable)
     }
 
     @Test("Status raw values encode correctly")

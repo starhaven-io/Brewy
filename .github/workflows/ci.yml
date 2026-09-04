@@ -59,7 +59,9 @@ jobs:
             add_check '{"name":"Lint","check":"lint","runner":"macos-26"}'
             add_check '{"name":"Periphery","check":"periphery","runner":"macos-26"}'
             add_check '{"name":"Build Brew JSON Probe","check":"probe-build","runner":"macos-26"}'
-            add_check '{"name":"Test (Thread Sanitizer)","check":"test-tsan","runner":"macos-26","xcodebuild_flags":"-enableCodeCoverage YES -enableThreadSanitizer YES","result_bundle":"TestResults-TSAN","environment":"codecov"}'
+            add_check '{"name":"Test (Thread Sanitizer)","check":"test-tsan","runner":"macos-26","xcodebuild_flags":"-only-testing:BrewyTests -enableCodeCoverage YES -enableThreadSanitizer YES","result_bundle":"TestResults-TSAN","environment":"codecov"}'
+            add_check '{"name":"Test (signed UI runner)","check":"test-ui","runner":"macos-26","xcodebuild_flags":"-only-testing:BrewyUITests","result_bundle":"TestResults-UI"}'
+            add_check '{"name":"Release helper validation","check":"release-helpers","runner":"ubuntu-slim"}'
             {
               echo "matrix=${MATRIX}"
               echo "run_codeql=false"
@@ -73,30 +75,48 @@ jobs:
           # certify every relevant leg for the current commit. Collapsing to a
           # commits-only matrix on `edited` lets a green run overwrite a prior failing
           # one on the same SHA, bypassing tests, lint, CodeQL and the rest.
-          CHANGED=$(git diff --name-only "${BASE_SHA}...HEAD")
-
-          NEEDS_LINT=0
-          NEEDS_TESTS=0
-          RUN_CODEQL=false
-          RUN_ZIZMOR=false
-
-          # Swift or CI workflow changes: lint + sanitizer tests
-          if grep -qE '\.swift$|^Brewy\.xcodeproj/|^\.swiftlint\.yml$|^\.github/workflows/ci\.yml$' <<< "${CHANGED}"; then
+          # Routing policy is a merge control, so never source its implementation
+          # from the untrusted PR checkout. During the helper's first introduction,
+          # fail closed to every route until a trusted base revision exists.
+          ROUTER_FILE="${RUNNER_TEMP}/brewy-ci-path-routing.sh"
+          if git show "${BASE_SHA}:scripts/ci-path-routing.sh" > "${ROUTER_FILE}"; then
+            # shellcheck source=scripts/ci-path-routing.sh
+            source "${ROUTER_FILE}"
+            reset_ci_routes
+            HAS_TRUSTED_ROUTER=true
+          else
             NEEDS_LINT=1
             NEEDS_TESTS=1
+            NEEDS_PROBE=1
+            NEEDS_PERIPHERY=1
+            NEEDS_RELEASE_HELPERS=1
+            RUN_CODEQL=true
+            RUN_ZIZMOR=true
+            HAS_TRUSTED_ROUTER=false
           fi
 
-          # Docs, typo config, or release workflow changes: lint/typos
-          if grep -qE '\.md$|^_typos\.toml$|^\.github/workflows/release\.yml$' <<< "${CHANGED}"; then
-            NEEDS_LINT=1
-          fi
+          # Consume raw NUL-delimited names. Human-oriented git output C-quotes
+          # control characters, which can otherwise bypass anchored path routes.
+          # Materialize first so `set -e` observes a failed diff producer; Bash does
+          # not propagate process-substitution failures through a successful loop.
+          CHANGED_PATHS_FILE="${RUNNER_TEMP}/brewy-ci-changed-paths"
+          git diff --name-only -z "${BASE_SHA}...HEAD" > "${CHANGED_PATHS_FILE}"
+          while IFS= read -r -d '' path; do
+            if [[ "${HAS_TRUSTED_ROUTER}" == "true" ]]; then
+              if [[ "${path}" == "scripts/ci-path-routing.sh" ]]; then
+                select_all_ci_routes
+              else
+                route_ci_path "${path}"
+              fi
+            fi
+          done < "${CHANGED_PATHS_FILE}"
 
           if [[ "${NEEDS_LINT}" -eq 1 ]]; then
             add_check '{"name":"Lint","check":"lint","runner":"macos-26"}'
           fi
           if [[ "${NEEDS_TESTS}" -eq 1 ]]; then
-            add_check '{"name":"Test (Thread Sanitizer)","check":"test-tsan","runner":"macos-26","xcodebuild_flags":"-enableCodeCoverage YES -enableThreadSanitizer YES","result_bundle":"TestResults-TSAN","environment":"codecov"}'
-            # UI test runner is incompatible with ASan (crashes at launch); TSan covers the UI tests.
+            add_check '{"name":"Test (Thread Sanitizer)","check":"test-tsan","runner":"macos-26","xcodebuild_flags":"-only-testing:BrewyTests -enableCodeCoverage YES -enableThreadSanitizer YES","result_bundle":"TestResults-TSAN","environment":"codecov"}'
+            add_check '{"name":"Test (signed UI runner)","check":"test-ui","runner":"macos-26","xcodebuild_flags":"-only-testing:BrewyUITests","result_bundle":"TestResults-UI"}'
             add_check '{"name":"Test (Address Sanitizer)","check":"test-asan","runner":"macos-26","xcodebuild_flags":"-enableAddressSanitizer YES -skip-testing:BrewyUITests","result_bundle":"TestResults-ASAN"}'
             # Everything else builds Debug; without this leg the release workflow is the
             # first place Release-only breakage (optimization warnings, stray references
@@ -104,23 +124,16 @@ jobs:
             add_check '{"name":"Build (Release)","check":"build-release","runner":"macos-26"}'
           fi
 
-          if grep -qE '^Brewy/Models/|^scripts/brew-json-probe/|^\.github/workflows/(brew-json-probe|ci)\.yml$' <<< "${CHANGED}"; then
+          if [[ "${NEEDS_PROBE}" -eq 1 ]]; then
             add_check '{"name":"Build Brew JSON Probe","check":"probe-build","runner":"macos-26"}'
           fi
 
-          # Source or periphery-config changes: dead-code scan
-          if grep -qE '\.swift$|^Brewy\.xcodeproj/|^\.periphery\.yml$|^\.github/workflows/ci\.yml$' <<< "${CHANGED}"; then
+          if [[ "${NEEDS_PERIPHERY}" -eq 1 ]]; then
             add_check '{"name":"Periphery","check":"periphery","runner":"macos-26"}'
           fi
 
-          # Source changes: CodeQL (excludes xcodeproj-only changes like version bumps)
-          if grep -qE '^Brewy/|^BrewyTests/|^BrewyUITests/' <<< "${CHANGED}"; then
-            RUN_CODEQL=true
-          fi
-
-          # Workflow changes: Actions security audit
-          if grep -qE '^\.github/workflows/' <<< "${CHANGED}"; then
-            RUN_ZIZMOR=true
+          if [[ "${NEEDS_RELEASE_HELPERS}" -eq 1 ]]; then
+            add_check '{"name":"Release helper validation","check":"release-helpers","runner":"ubuntu-slim"}'
           fi
 
           {
@@ -145,9 +158,9 @@ jobs:
     environment:
       name: ${{ matrix.environment }}
       deployment: false
-    # Cap at 45m: lint/commits finish in seconds, CodeQL runs ~20m, sanitizer
-    # test jobs ~10m. Anything past this is a hang — fail fast instead of
-    # burning up to 6h of the default runner budget.
+    # Cap matrix legs at 45m; sanitizer tests normally finish in about 10m and
+    # the other legs are quicker. Anything past this is a hang — fail fast
+    # instead of burning up to 6h of the default runner budget.
     timeout-minutes: 45
     permissions:
       contents: read
@@ -164,6 +177,10 @@ jobs:
       - name: Build Brew JSON probe
         if: matrix.check == 'probe-build'
         run: bash scripts/brew-json-probe/build.sh /tmp/brew-json-probe
+
+      - name: Validate release helpers
+        if: matrix.check == 'release-helpers'
+        run: python3 scripts/validate-release-helpers.py
 
       - name: Restore Homebrew downloads
         id: homebrew-cache
@@ -200,6 +217,10 @@ jobs:
       - name: Typos
         if: matrix.check == 'lint'
         run: typos
+
+      - name: Validate CI path routing
+        if: matrix.check == 'lint'
+        run: bash scripts/ci-path-routing.sh --self-test
 
       - name: Install Periphery
         if: matrix.check == 'periphery'
@@ -245,12 +266,28 @@ jobs:
       - name: Test
         if: startsWith(matrix.check, 'test-')
         env:
+          MATRIX_CHECK: ${{ matrix.check }}
           XCODEBUILD_FLAGS: ${{ matrix.xcodebuild_flags }}
           RESULT_BUNDLE: ${{ matrix.result_bundle }}
         run: |
           EXTRA_XCODEBUILD_FLAGS=()
           if [[ -n "${XCODEBUILD_FLAGS}" ]]; then
             read -r -a EXTRA_XCODEBUILD_FLAGS <<< "${XCODEBUILD_FLAGS}"
+          fi
+          if [[ "${MATRIX_CHECK}" == "test-ui" ]]; then
+            SIGNING_FLAGS=(
+              CODE_SIGN_STYLE=Manual
+              CODE_SIGN_IDENTITY=-
+              CODE_SIGNING_REQUIRED=YES
+              CODE_SIGNING_ALLOWED=YES
+              DEVELOPMENT_TEAM=
+            )
+          else
+            SIGNING_FLAGS=(
+              CODE_SIGN_IDENTITY=
+              CODE_SIGNING_REQUIRED=NO
+              CODE_SIGNING_ALLOWED=NO
+            )
           fi
           xcodebuild test \
             -project Brewy.xcodeproj \
@@ -259,11 +296,27 @@ jobs:
             -derivedDataPath ./DerivedData \
             "${EXTRA_XCODEBUILD_FLAGS[@]}" \
             -resultBundlePath "${RESULT_BUNDLE}.xcresult" \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
+            "${SIGNING_FLAGS[@]}" \
             SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
             EXCLUDED_ARCHS=x86_64
+
+      - name: Verify UI test runner signature
+        if: success() && matrix.check == 'test-ui'
+        env:
+          RESULT_BUNDLE: ${{ matrix.result_bundle }}
+        run: |
+          BREWY_APP=$(find ./DerivedData/Build/Products -name 'Brewy.app' -type d -print -quit)
+          UI_TEST_BUNDLE=$(find ./DerivedData/Build/Products -name 'BrewyUITests.xctest' -type d -print -quit)
+          RUNNER_APP=$(find ./DerivedData/Build/Products -name 'BrewyUITests-Runner.app' -type d -print -quit)
+          test -n "${BREWY_APP}"
+          test -n "${UI_TEST_BUNDLE}"
+          test -n "${RUNNER_APP}"
+          codesign --verify --deep --strict --verbose=2 "${BREWY_APP}"
+          codesign --verify --strict --verbose=2 "${UI_TEST_BUNDLE}"
+          codesign --verify --deep --strict --verbose=2 "${RUNNER_APP}"
+          xcrun xcresulttool get test-results summary \
+            --path "${RESULT_BUNDLE}.xcresult" --compact |
+            python3 -c 'import json, sys; assert json.load(sys.stdin)["totalTestCount"] > 0'
 
       - name: Coverage Summary
         if: success() && matrix.check == 'test-tsan'
@@ -358,7 +411,7 @@ jobs:
     with:
       languages: '["swift"]'
       runner: "macos-26"
-      timeout-minutes: 30
+      timeout-minutes: 45
       build-mode: "manual"
       build-profile: "brewy-xcode"
 
@@ -373,7 +426,7 @@ jobs:
 
   conclusion:
     name: conclusion
-    needs: [commits, check, codeql, zizmor]
+    needs: [generate-matrix, commits, check, codeql, zizmor]
     runs-on: ubuntu-slim
     timeout-minutes: 15
     if: always()
@@ -384,8 +437,30 @@ jobs:
           CHECK_RESULT: ${{ needs.check.result }}
           CODEQL_RESULT: ${{ needs.codeql.result }}
           ZIZMOR_RESULT: ${{ needs.zizmor.result }}
+          GENERATOR_RESULT: ${{ needs.generate-matrix.result }}
+          MATRIX: ${{ needs.generate-matrix.outputs.matrix }}
+          RUN_CODEQL: ${{ needs.generate-matrix.outputs.run_codeql }}
+          RUN_ZIZMOR: ${{ needs.generate-matrix.outputs.run_zizmor }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          test "${COMMITS_RESULT}" = "success" || test "${COMMITS_RESULT}" = "skipped"
-          test "${CHECK_RESULT}" = "success" || test "${CHECK_RESULT}" = "skipped"
-          test "${CODEQL_RESULT}" = "success" || test "${CODEQL_RESULT}" = "skipped"
-          test "${ZIZMOR_RESULT}" = "success" || test "${ZIZMOR_RESULT}" = "skipped"
+          test "${GENERATOR_RESULT}" = "success"
+          if [[ "${EVENT_NAME}" == "pull_request" ]]; then
+            test "${COMMITS_RESULT}" = "success"
+          else
+            test "${COMMITS_RESULT}" = "skipped"
+          fi
+          if [[ "${MATRIX}" == "[]" ]]; then
+            test "${CHECK_RESULT}" = "skipped"
+          else
+            test "${CHECK_RESULT}" = "success"
+          fi
+          if [[ "${RUN_CODEQL}" == "true" ]]; then
+            test "${CODEQL_RESULT}" = "success"
+          else
+            test "${CODEQL_RESULT}" = "skipped"
+          fi
+          if [[ "${RUN_ZIZMOR}" == "true" ]]; then
+            test "${ZIZMOR_RESULT}" = "success"
+          else
+            test "${ZIZMOR_RESULT}" = "skipped"
+          fi

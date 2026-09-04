@@ -1,13 +1,16 @@
 extension BrewService {
     nonisolated static let actionOutputByteLimit = 262_144
 
-    /// Streams command output into a bounded display buffer. The returned result retains the
-    /// full output for error handling and byte-bounded history persistence.
+    /// Streams command output into a bounded display buffer. The command runner independently
+    /// bounds captured output used for error handling and history persistence.
     func runBrewCommandStreaming(_ arguments: [String]) async -> CommandResult {
         let brewPath = CommandRunner.resolvedBrewPath(preferred: customBrewPath)
         let timeout = CommandRunner.timeout(forBrewArguments: arguments)
         let baseline = actionOutput
-        let (stream, continuation) = AsyncStream.makeStream(of: String.self)
+        let (stream, continuation) = AsyncStream.makeStream(
+            of: String.self,
+            bufferingPolicy: .bufferingNewest(64)
+        )
         // A single consumer applies chunks in arrival order; Task-per-chunk would not
         // guarantee ordering.
         let appender = Task { @MainActor [weak self] in

@@ -56,6 +56,42 @@ test:
         SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
         EXCLUDED_ARCHS=x86_64
 
+# Run UI tests with an ad hoc-signed app, test bundle, and runner
+test-ui:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    xcodebuild test \
+        -project Brewy.xcodeproj \
+        -scheme Brewy \
+        -destination 'platform=macOS' \
+        -only-testing:BrewyUITests \
+        -derivedDataPath {{ quote(derived_data_path) }} \
+        CODE_SIGN_STYLE=Manual \
+        CODE_SIGN_IDENTITY=- \
+        CODE_SIGNING_REQUIRED=YES \
+        CODE_SIGNING_ALLOWED=YES \
+        DEVELOPMENT_TEAM= \
+        SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
+        EXCLUDED_ARCHS=x86_64
+    products={{ quote(derived_data_path) }}/Build/Products
+    brewy_app=$(find "${products}" -name 'Brewy.app' -type d -print -quit)
+    ui_test_bundle=$(find "${products}" -name 'BrewyUITests.xctest' -type d -print -quit)
+    runner_app=$(find "${products}" -name 'BrewyUITests-Runner.app' -type d -print -quit)
+    test -n "${brewy_app}"
+    test -n "${ui_test_bundle}"
+    test -n "${runner_app}"
+    codesign --verify --deep --strict --verbose=2 "${brewy_app}"
+    codesign --verify --strict --verbose=2 "${ui_test_bundle}"
+    codesign --verify --deep --strict --verbose=2 "${runner_app}"
+
+# Validate release-note formatting and appcast rendering
+release-helpers:
+    python3 scripts/validate-release-helpers.py
+
+# Exercise path routing with control characters and unknown names
+ci-routing:
+    bash scripts/ci-path-routing.sh --self-test
+
 # Lint
 
 # fleet:block audit
@@ -124,6 +160,8 @@ check:
     else
         skip lychee lychee lychee
     fi
+    run bash scripts/ci-path-routing.sh --self-test
+    run python3 scripts/validate-release-helpers.py
     run bash scripts/brew-json-probe/build.sh /private/tmp/brewy-brew-json-probe
     run xcodebuild test \
         -project Brewy.xcodeproj \

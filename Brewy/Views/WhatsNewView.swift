@@ -1,5 +1,47 @@
 import SwiftUI
 
+enum ReleaseNotesFeed {
+    enum FeedError: LocalizedError {
+        case responseTooLarge
+
+        var errorDescription: String? {
+            "The release-notes feed is larger than Brewy accepts."
+        }
+    }
+
+    static func load(from url: URL, session: URLSession = .shared) async throws -> (Data, HTTPURLResponse) {
+        let (bytes, response) = try await session.bytes(from: url)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw URLError(.badServerResponse)
+        }
+        if httpResponse.expectedContentLength > AppcastParser.maximumFeedByteCount {
+            throw FeedError.responseTooLarge
+        }
+
+        var data = Data()
+        data.reserveCapacity(min(Int(max(0, httpResponse.expectedContentLength)), AppcastParser.maximumFeedByteCount))
+        for try await byte in bytes {
+            guard data.count < AppcastParser.maximumFeedByteCount else {
+                throw FeedError.responseTooLarge
+            }
+            data.append(byte)
+        }
+        return (data, httpResponse)
+    }
+
+    @MainActor
+    static func parseAndRender(_ data: Data) async -> (AppcastRelease?, AttributedString?) {
+        let release = await Task.detached(priority: .userInitiated) {
+            AppcastParser().parse(data: data)
+        }.value
+        guard !Task.isCancelled else { return (nil, nil) }
+        let notes = release?.descriptionHTML.flatMap {
+            ReleaseNotesHTML.attributedString(from: $0)
+        }
+        return (release, notes)
+    }
+}
+
 struct WhatsNewView: View {
     @Environment(\.dismiss)
     private var dismiss
@@ -106,24 +148,19 @@ struct WhatsNewView: View {
         }
 
         do {
-            let (data, response) = try await URLSession.shared.data(from: url)
+            let (data, response) = try await ReleaseNotesFeed.load(from: url)
 
-            guard let httpResponse = response as? HTTPURLResponse,
-                  (200...299).contains(httpResponse.statusCode) else {
+            guard (200...299).contains(response.statusCode) else {
                 errorMessage = "Failed to load release notes.\nPlease check your internet connection."
                 isLoading = false
                 return
             }
 
-            let parser = AppcastParser()
-            let loaded = parser.parse(data: data)
+            let parsed = await ReleaseNotesFeed.parseAndRender(data)
             guard !Task.isCancelled else { return }
-            release = loaded
-
-            if let html = loaded?.descriptionHTML {
-                parsedNotes = ReleaseNotesHTML.attributedString(from: html)
-            }
-            if loaded == nil {
+            release = parsed.0
+            parsedNotes = parsed.1
+            if parsed.0 == nil {
                 errorMessage = "No release notes found."
             }
             isLoading = false

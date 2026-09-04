@@ -11,15 +11,21 @@ final class MockCommandRunner: CommandRunning, @unchecked Sendable {
     private var _executedCommands: [[String]] = []
     private var _executedExecutables: [(path: String, arguments: [String])] = []
     private var _recordedTimeouts: [[String]: Duration] = [:]
+    private var _standardInputs: [(arguments: [String], data: Data)] = []
+    private var _commandHandler: (@Sendable ([String]) -> CommandResult?)?
 
     var executedCommands: [[String]] {
         lock.withLock { _executedCommands }
     }
 
     /// Records the executable/brew path alongside arguments so tests can assert *which* binary ran
-    /// (brew vs mas vs sudo) — `executedCommands` keys on arguments alone.
+    /// (`brew` vs `mas`) — `executedCommands` keys on arguments alone.
     var executedExecutables: [(path: String, arguments: [String])] {
         lock.withLock { _executedExecutables }
+    }
+
+    var standardInputs: [(arguments: [String], data: Data)] {
+        lock.withLock { _standardInputs }
     }
 
     func setResult(for arguments: [String], output: String, success: Bool = true) {
@@ -40,35 +46,60 @@ final class MockCommandRunner: CommandRunning, @unchecked Sendable {
         }
     }
 
+    func setCommandHandler(_ handler: @escaping @Sendable ([String]) -> CommandResult?) {
+        lock.withLock {
+            _commandHandler = handler
+        }
+    }
+
     /// The timeout the service passed for these arguments (last invocation wins).
     func recordedTimeout(for arguments: [String]) -> Duration? {
         lock.withLock { _recordedTimeouts[arguments] }
     }
 
     func run(_ arguments: [String], brewPath: String, timeout: Duration) async -> CommandResult {
-        let (delay, result) = lock.withLock {
+        let (delay, result, handler) = lock.withLock {
             _executedCommands.append(arguments)
             _executedExecutables.append((path: brewPath, arguments: arguments))
             _recordedTimeouts[arguments] = timeout
-            return (_delays[arguments], _results[arguments] ?? CommandResult(output: "", success: false))
+            return (_delays[arguments], _results[arguments], _commandHandler)
         }
         if let delay {
             try? await Task.sleep(for: delay)
         }
-        return result
+        return result ?? handler?(arguments) ?? CommandResult(output: "", success: false)
+    }
+
+    func run(
+        _ arguments: [String],
+        brewPath: String,
+        standardInput: Data,
+        timeout: Duration
+    ) async -> CommandResult {
+        let (delay, result, handler) = lock.withLock {
+            _executedCommands.append(arguments)
+            _executedExecutables.append((path: brewPath, arguments: arguments))
+            _recordedTimeouts[arguments] = timeout
+            _standardInputs.append((arguments: arguments, data: standardInput))
+            return (_delays[arguments], _results[arguments], _commandHandler)
+        }
+        if let delay {
+            try? await Task.sleep(for: delay)
+        }
+        return result ?? handler?(arguments) ?? CommandResult(output: "", success: false)
     }
 
     func runExecutable(_ executablePath: String, arguments: [String], timeout: Duration) async -> CommandResult {
-        let (delay, result) = lock.withLock {
+        let (delay, result, handler) = lock.withLock {
             _executedCommands.append(arguments)
             _executedExecutables.append((path: executablePath, arguments: arguments))
             _recordedTimeouts[arguments] = timeout
-            return (_delays[arguments], _results[arguments] ?? CommandResult(output: "", success: false))
+            return (_delays[arguments], _results[arguments], _commandHandler)
         }
         if let delay {
             try? await Task.sleep(for: delay)
         }
-        return result
+        return result ?? handler?(arguments) ?? CommandResult(output: "", success: false)
     }
 }
 

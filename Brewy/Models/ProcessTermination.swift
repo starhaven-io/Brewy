@@ -289,6 +289,16 @@ final class ProcessHandle: @unchecked Sendable {
         lock.unlock()
     }
 
+    func terminate() {
+        lock.lock()
+        guard !finished, !processExited else {
+            lock.unlock()
+            return
+        }
+        termination?.start()
+        lock.unlock()
+    }
+
     func processDidExit() {
         lock.lock()
         processExited = true

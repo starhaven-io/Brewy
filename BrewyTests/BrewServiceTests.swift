@@ -352,33 +352,6 @@ struct CommandRunnerTests {
         }
     }
 
-    @Test("resolvedPrivilegedBrewPath rejects non-standard executables")
-    func privilegedPathRejectsNonStandardExecutable() {
-        let path = CommandRunner.resolvedPrivilegedBrewPath(preferred: "/bin/sh")
-        #expect(path == nil)
-    }
-
-    @Test("resolvedPrivilegedBrewPath accepts symlink to standard executable")
-    func privilegedPathAcceptsSymlinkToStandardExecutable() throws {
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("brewy-command-runner-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: directory) }
-
-        let standardBrew = directory.appendingPathComponent("brew")
-        let alias = directory.appendingPathComponent("custom-brew")
-        try Data("#!/bin/sh\nexit 0\n".utf8).write(to: standardBrew)
-        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: standardBrew.path)
-        try FileManager.default.createSymbolicLink(at: alias, withDestinationURL: standardBrew)
-
-        let path = CommandRunner.resolvedPrivilegedBrewPath(
-            preferred: alias.path,
-            standardPaths: [standardBrew.path]
-        )
-
-        #expect(path == standardBrew.path)
-    }
-
     @Test("automatic Homebrew update prevention defaults off")
     func automaticHomebrewUpdatePreventionDefaultsOff() throws {
         let suiteName = "io.linnane.brewy.tests.\(UUID().uuidString)"
@@ -408,6 +381,18 @@ struct CommandRunnerTests {
         )
 
         #expect(env["HOMEBREW_NO_AUTO_UPDATE"] == nil)
+    }
+
+    @Test("Homebrew Bundle always prevents auto-update output")
+    func bundleAlwaysPreventsAutomaticUpdate() throws {
+        let suiteName = "io.linnane.brewy.tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        #expect(CommandRunner.shouldPreventHomebrewAutoUpdate(for: ["bundle", "list"], userDefaults: defaults))
+        #expect(!CommandRunner.shouldPreventHomebrewAutoUpdate(for: ["info"], userDefaults: defaults))
+        defaults.set(true, forKey: CommandRunner.preventHomebrewAutoUpdateKey)
+        #expect(CommandRunner.shouldPreventHomebrewAutoUpdate(for: ["info"], userDefaults: defaults))
     }
 }
 

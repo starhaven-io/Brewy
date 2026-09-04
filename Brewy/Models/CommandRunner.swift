@@ -39,6 +39,12 @@ struct CommandResult: Sendable {
 
 protocol CommandRunning: Sendable {
     func run(_ arguments: [String], brewPath: String, timeout: Duration) async -> CommandResult
+    func run(
+        _ arguments: [String],
+        brewPath: String,
+        standardInput: Data,
+        timeout: Duration
+    ) async -> CommandResult
     func runExecutable(_ executablePath: String, arguments: [String], timeout: Duration) async -> CommandResult
     /// Runs the command, delivering output incrementally as it arrives. `onOutput` may be
     /// called from arbitrary threads; the returned result still carries the full output.
@@ -84,6 +90,20 @@ struct DefaultCommandRunner: CommandRunning {
         await CommandRunner.runExecutable(executablePath, arguments: arguments, timeout: timeout)
     }
 
+    func run(
+        _ arguments: [String],
+        brewPath: String,
+        standardInput: Data,
+        timeout: Duration
+    ) async -> CommandResult {
+        await CommandRunner.runExecutable(
+            brewPath,
+            arguments: arguments,
+            standardInput: standardInput,
+            timeout: timeout
+        )
+    }
+
     func runStreaming(
         _ arguments: [String],
         brewPath: String,
@@ -99,6 +119,7 @@ struct DefaultCommandRunner: CommandRunning {
 enum CommandRunner {
 
     static let defaultTimeout: Duration = .seconds(300)
+    static let capturedOutputByteLimit = 16 * 1_024 * 1_024
 
     /// Mutating commands legitimately run far past `defaultTimeout` (large downloads, source
     /// builds, post-install scripts); SIGKILLing them mid-flight can leave a broken keg.
@@ -132,16 +153,6 @@ enum CommandRunner {
         return preferred
     }
 
-    static func resolvedPrivilegedBrewPath(
-        preferred: String,
-        standardPaths: [String] = standardBrewPaths
-    ) -> String? {
-        if FileManager.default.isExecutableFile(atPath: preferred) {
-            return standardBrewPath(matching: preferred, standardPaths: standardPaths)
-        }
-        return standardPaths.first { FileManager.default.isExecutableFile(atPath: $0) }
-    }
-
     static func preventsHomebrewAutoUpdate(userDefaults: UserDefaults = .standard) -> Bool {
         userDefaults.bool(forKey: preventHomebrewAutoUpdateKey)
     }
@@ -157,6 +168,7 @@ enum CommandRunner {
     static func runExecutable(
         _ executablePath: String,
         arguments: [String],
+        standardInput: Data? = nil,
         timeout: Duration = defaultTimeout,
         onOutput: (@Sendable (String) -> Void)? = nil
     ) async -> CommandResult {
@@ -164,14 +176,15 @@ enum CommandRunner {
         let commandDescription = "\(execName) \(arguments.joined(separator: " "))"
         logger.info("Running: \(commandDescription)")
         let startTime = ContinuousClock.now
-        let preventHomebrewAutoUpdate = preventsHomebrewAutoUpdate()
+        let preventHomebrewAutoUpdate = shouldPreventHomebrewAutoUpdate(for: arguments)
 
         let execution = ProcessExecution(
             executablePath: executablePath,
             arguments: arguments,
             timeout: timeout,
             commandDescription: commandDescription,
-            preventHomebrewAutoUpdate: preventHomebrewAutoUpdate
+            preventHomebrewAutoUpdate: preventHomebrewAutoUpdate,
+            standardInput: standardInput
         )
         let handle = ProcessHandle()
         let result = await withTaskCancellationHandler {
@@ -232,15 +245,14 @@ extension CommandRunner {
         return env
     }
 
-    // MARK: - Private
-
-    private static func standardBrewPath(matching path: String, standardPaths: [String]) -> String? {
-        let resolvedPath = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
-        return standardPaths.first { standardPath in
-            FileManager.default.isExecutableFile(atPath: standardPath)
-                && URL(fileURLWithPath: standardPath).resolvingSymlinksInPath().path == resolvedPath
-        }
+    static func shouldPreventHomebrewAutoUpdate(
+        for arguments: [String],
+        userDefaults: UserDefaults = .standard
+    ) -> Bool {
+        preventsHomebrewAutoUpdate(userDefaults: userDefaults) || arguments.first == "bundle"
     }
+
+    // MARK: - Private
 
     /// Convert a `Duration` into a `DispatchTimeInterval` that preserves sub-second precision.
     private static func dispatchInterval(from duration: Duration) -> DispatchTimeInterval {
@@ -256,6 +268,7 @@ extension CommandRunner {
         let timeout: Duration
         let commandDescription: String
         let preventHomebrewAutoUpdate: Bool
+        let standardInput: Data?
     }
 
     private static func executeProcess(
@@ -271,7 +284,7 @@ extension CommandRunner {
                 standardOutput: ""
             )
         }
-        let (process, stdoutPipe, stderrPipe) = configuredProcess(for: execution)
+        let (process, stdinPipe, stdoutPipe, stderrPipe) = configuredProcess(for: execution)
 
         do {
             try process.run()
@@ -299,28 +312,33 @@ extension CommandRunner {
             after: execution.timeout,
             commandDescription: execution.commandDescription
         )
+        let inputError = provideStandardInput(execution.standardInput, to: stdinPipe)
+        if inputError != nil {
+            handle.terminate()
+        }
 
         process.waitUntilExit()
         handle.processDidExit()
         timeoutWatchdog.cancel()
-        _ = handle.waitForTermination()
-        var drainDeadline: DispatchTime?
-        let requestedDrainDeadline = {
-            if drainDeadline == nil, handle.wasInterrupted {
-                drainDeadline = DispatchTime.now() + dispatchInterval(from: pipeDrainGracePeriod)
-            }
-            return drainDeadline
-        }
-        let out = stdoutData.wait(untilRequested: requestedDrainDeadline)
-        let err = stderrData.wait(untilRequested: requestedDrainDeadline)
-        let stdout = String(data: out, encoding: .utf8) ?? ""
-        let stderr = String(data: err, encoding: .utf8) ?? ""
-        return commandResult(
+        let terminationSucceeded = handle.waitForTermination()
+        let drainDeadline = DispatchTime.now() + dispatchInterval(from: pipeDrainGracePeriod)
+        let output = collectOutput(
+            stdoutReader: stdoutData,
+            stderrReader: stderrData,
+            deadline: drainDeadline
+        )
+        let result = commandResult(
             process: process,
             execution: execution,
             handle: handle,
-            stdout: stdout,
-            stderr: stderr
+            stdout: output.stdout,
+            stderr: output.stderr
+        )
+        guard let inputError else { return result }
+        return inputFailureResult(
+            inputError,
+            processResult: result,
+            terminationSucceeded: terminationSucceeded
         )
     }
 
@@ -370,8 +388,9 @@ extension CommandRunner {
         )
     }
 
-    private static func configuredProcess(for execution: ProcessExecution) -> (Process, Pipe, Pipe) {
+    private static func configuredProcess(for execution: ProcessExecution) -> (Process, Pipe?, Pipe, Pipe) {
         let process = Process()
+        let stdinPipe = execution.standardInput == nil ? nil : Pipe()
         let stdoutPipe = Pipe()
         let stderrPipe = Pipe()
         process.executableURL = URL(fileURLWithPath: execution.executablePath)
@@ -380,9 +399,10 @@ extension CommandRunner {
             brewPath: execution.executablePath,
             preventHomebrewAutoUpdate: execution.preventHomebrewAutoUpdate
         )
+        process.standardInput = stdinPipe
         process.standardOutput = stdoutPipe
         process.standardError = stderrPipe
-        return (process, stdoutPipe, stderrPipe)
+        return (process, stdinPipe, stdoutPipe, stderrPipe)
     }
 
     private static func commandOutput(stdout: String, stderr: String, terminationStatus: Int32) -> String {
@@ -439,6 +459,21 @@ extension CommandRunner {
         return "\(message)\nSome child processes may still be running."
     }
 
+    static func inputFailureResult(
+        _ message: String,
+        processResult: CommandResult,
+        terminationSucceeded: Bool
+    ) -> CommandResult {
+        CommandResult(
+            output: terminationOutput(message, succeeded: terminationSucceeded),
+            success: false,
+            cancelled: processResult.cancelled,
+            standardOutput: processResult.standardOutput,
+            standardError: message,
+            exitCode: processResult.exitCode
+        )
+    }
+
     private static func scheduleTimeout(
         handle: ProcessHandle,
         after timeout: Duration,
@@ -449,46 +484,4 @@ extension CommandRunner {
             logger.warning("Timeout exceeded, sending SIGTERM: \(commandDescription)")
         }
     }
-}
-
-final class TimeoutWatchdog: @unchecked Sendable {
-    private let cancellation: DispatchSemaphore
-    private let thread: Thread
-
-    init(deadline: DispatchTime, action: @escaping @Sendable () -> Void) {
-        let cancellation = DispatchSemaphore(value: 0)
-        self.cancellation = cancellation
-        self.thread = Thread {
-            guard cancellation.wait(timeout: deadline) == .timedOut else { return }
-            action()
-        }
-        thread.name = "Brewy command timeout"
-        thread.qualityOfService = .default
-        thread.start()
-    }
-
-    func cancel() {
-        cancellation.signal()
-    }
-}
-
-private func drainPipesInParallel(
-    stdout: Pipe,
-    stderr: Pipe,
-    commandDescription: String,
-    onOutput: (@Sendable (String) -> Void)?
-) -> (stdout: PipeReader, stderr: PipeReader) {
-    let stdoutReader = PipeReader(
-        pipe: stdout,
-        label: "\(commandDescription) stdout",
-        onText: onOutput
-    )
-    let stderrReader = PipeReader(
-        pipe: stderr,
-        label: "\(commandDescription) stderr",
-        onText: onOutput
-    )
-    stdoutReader.start()
-    stderrReader.start()
-    return (stdoutReader, stderrReader)
 }

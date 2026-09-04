@@ -23,15 +23,12 @@ extension BrewService {
     private func saveGroups() {
         guard let url = Self.groupsURL,
               !BrewyRuntime.isRunningTests else { return }
-        let groups = packageGroups
-        Task.detached(priority: .utility) {
-            do {
-                let data = try JSONEncoder().encode(groups)
-                try data.write(to: url, options: .atomic)
-                logger.debug("Groups saved successfully")
-            } catch {
-                logger.error("Failed to save groups: \(error.localizedDescription)")
-            }
+        do {
+            let data = try JSONEncoder().encode(packageGroups)
+            try data.write(to: url, options: .atomic)
+            logger.debug("Groups saved successfully")
+        } catch {
+            logger.error("Failed to save groups: \(error.localizedDescription)")
         }
     }
 

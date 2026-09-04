@@ -8,19 +8,36 @@ private let logger = Logger(subsystem: "io.linnane.brewy", category: "PipeReader
 /// Thread-safe accumulator for data chunks.
 final class LockedData: Sendable {
     private let lock = NSLock()
-    nonisolated(unsafe) private var chunks: [Data] = []
+    private let maximumByteCount: Int
+    nonisolated(unsafe) private var contents = Data()
+    nonisolated(unsafe) private var wasTruncated = false
+
+    init(maximumByteCount: Int) {
+        self.maximumByteCount = max(0, maximumByteCount)
+        contents.reserveCapacity(min(self.maximumByteCount, 65_536))
+    }
 
     func append(_ data: Data) {
         lock.lock()
-        chunks.append(data)
+        let remaining = max(0, maximumByteCount - contents.count)
+        if remaining > 0 {
+            contents.append(data.prefix(remaining))
+        }
+        if data.count > remaining {
+            wasTruncated = true
+        }
         lock.unlock()
     }
 
     func combined() -> Data {
         lock.lock()
-        var result = Data()
-        result.reserveCapacity(chunks.reduce(0) { $0 + $1.count })
-        for chunk in chunks { result.append(chunk) }
+        var result = contents
+        if wasTruncated {
+            let marker = Data("\n… [output truncated]\n".utf8)
+            let contentLimit = max(0, maximumByteCount - marker.count)
+            result = Data(contents.prefix(contentLimit))
+            result.append(marker.prefix(maximumByteCount - result.count))
+        }
         lock.unlock()
         return result
     }
@@ -34,7 +51,7 @@ final class PipeReader: @unchecked Sendable {
     private let fileHandle: FileHandle
     private let label: String
     private let onText: (@Sendable (String) -> Void)?
-    private let accumulator = LockedData()
+    private let accumulator: LockedData
     private let semaphore = DispatchSemaphore(value: 0)
     private let lock = NSLock()
     private var decoder = UTF8StreamDecoder()
@@ -43,10 +60,16 @@ final class PipeReader: @unchecked Sendable {
     private var byteCount = 0
     private var isFinished = false
 
-    init(pipe: Pipe, label: String = "pipe", onText: (@Sendable (String) -> Void)? = nil) {
+    init(
+        pipe: Pipe,
+        label: String = "pipe",
+        maximumByteCount: Int = CommandRunner.capturedOutputByteLimit,
+        onText: (@Sendable (String) -> Void)? = nil
+    ) {
         self.fileHandle = pipe.fileHandleForReading
         self.label = label
         self.onText = onText
+        self.accumulator = LockedData(maximumByteCount: maximumByteCount)
     }
 
     func start() {

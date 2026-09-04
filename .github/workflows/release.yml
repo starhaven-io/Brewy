@@ -55,6 +55,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.sha }}
           persist-credentials: false
 
       - name: Extract version from Xcode project
@@ -75,19 +76,33 @@ jobs:
           echo "build_number=${BUILD_NUMBER}" >> "${GITHUB_OUTPUT}"
           echo "TAG=${TAG}" >> "${GITHUB_ENV}"
 
-      - name: Ensure release tag is available
+      - name: Ensure release can start or resume
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPOSITORY: ${{ github.repository }}
         run: |
-          if gh release view "${TAG}" --repo "${REPOSITORY}" >/dev/null 2>&1; then
-            echo "::error::Release ${TAG} already exists."
-            exit 1
+          if RELEASE_STATE=$(gh release view "${TAG}" \
+            --repo "${REPOSITORY}" \
+            --json isDraft,targetCommitish \
+            --jq '[.isDraft, .targetCommitish] | @tsv' 2>/dev/null); then
+            IFS=$'\t' read -r IS_DRAFT TARGET_COMMITISH <<< "${RELEASE_STATE}"
+            if [[ "${IS_DRAFT}" != "true" ]]; then
+              echo "::error::Release ${TAG} is already published; published assets are immutable."
+              exit 1
+            fi
+            if [[ "${TARGET_COMMITISH}" != "${GITHUB_SHA}" ]]; then
+              echo "::error::Draft ${TAG} targets ${TARGET_COMMITISH}, not dispatch commit ${GITHUB_SHA}."
+              exit 1
+            fi
+            echo "Draft ${TAG} targets this dispatch commit; continuing the retry."
+            exit 0
           fi
+
           if gh api "repos/${REPOSITORY}/git/ref/tags/${TAG}" >/dev/null 2>&1; then
-            echo "::error::Tag ${TAG} already exists."
+            echo "::error::Tag ${TAG} exists without a GitHub release; refusing to adopt it."
             exit 1
           fi
+          gh api "repos/${REPOSITORY}" >/dev/null
 
       - name: Create and unlock temporary macOS keychain
         run: |
@@ -266,33 +281,54 @@ jobs:
           echo "SPARKLE_SIG=$(echo "${SIG_OUTPUT}" | grep -o 'sparkle:edSignature="[^"]*"' | cut -d'"' -f2)" >> "${GITHUB_ENV}"
           echo "SPARKLE_LENGTH=$(echo "${SIG_OUTPUT}" | grep -o 'length="[^"]*"' | cut -d'"' -f2)" >> "${GITHUB_ENV}"
 
-      - name: Create release with generated notes
+      - name: Create or update draft release asset
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ARTIFACT_NAME: ${{ needs.build.outputs.artifact_name }}
           REPOSITORY: ${{ github.repository }}
           COMMIT_SHA: ${{ github.sha }}
         run: |
-          gh release create "${TAG}" \
+          if RELEASE_STATE=$(gh release view "${TAG}" \
             --repo "${REPOSITORY}" \
-            --target "${COMMIT_SHA}" \
-            --title "${TAG}" \
-            --generate-notes \
-            "${ARTIFACT_NAME}"
-          gh release view "${TAG}" \
-            --repo "${REPOSITORY}" \
-            --json body \
+            --json isDraft,targetCommitish \
+            --jq '[.isDraft, .targetCommitish] | @tsv' 2>/dev/null); then
+            IFS=$'\t' read -r IS_DRAFT TARGET_COMMITISH <<< "${RELEASE_STATE}"
+            if [[ "${IS_DRAFT}" != "true" ]]; then
+              echo "::error::Release ${TAG} was published before asset upload; refusing to replace it."
+              exit 1
+            fi
+            if [[ "${TARGET_COMMITISH}" != "${COMMIT_SHA}" ]]; then
+              echo "::error::Draft ${TAG} targets ${TARGET_COMMITISH}, not dispatch commit ${COMMIT_SHA}."
+              exit 1
+            fi
+            gh release upload "${TAG}" "${ARTIFACT_NAME}" --repo "${REPOSITORY}" --clobber
+          else
+            if gh api "repos/${REPOSITORY}/git/ref/tags/${TAG}" >/dev/null 2>&1; then
+              echo "::error::Tag ${TAG} exists without a GitHub release; refusing to adopt it."
+              exit 1
+            fi
+            gh release create "${TAG}" \
+              --repo "${REPOSITORY}" \
+              --target "${COMMIT_SHA}" \
+              --title "${TAG}" \
+              --draft \
+              --generate-notes \
+              "${ARTIFACT_NAME}"
+          fi
+          gh api --method POST "repos/${REPOSITORY}/releases/generate-notes" \
+            -f tag_name="${TAG}" \
+            -f target_commitish="${COMMIT_SHA}" \
             --jq '.body' > "${RUNNER_TEMP}/raw_notes.md"
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: main
+          ref: ${{ github.sha }}
           persist-credentials: false
 
+      - name: Verify release helper revision
+        run: test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+
       - name: Format release notes
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPOSITORY: ${{ github.repository }}
         run: |
           python3 .github/format-release-notes.py \
             "${RUNNER_TEMP}/raw_notes.md" "${TAG}" \
@@ -300,6 +336,22 @@ jobs:
           python3 .github/format-release-notes.py \
             "${RUNNER_TEMP}/raw_notes.md" "${TAG}" --html \
             > "${RUNNER_TEMP}/release_notes.html"
+
+      - name: Update release notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          RELEASE_STATE=$(gh release view "${TAG}" \
+            --repo "${REPOSITORY}" \
+            --json isDraft,targetCommitish \
+            --jq '[.isDraft, .targetCommitish] | @tsv')
+          IFS=$'\t' read -r IS_DRAFT TARGET_COMMITISH <<< "${RELEASE_STATE}"
+          if [[ "${IS_DRAFT}" != "true" || "${TARGET_COMMITISH}" != "${COMMIT_SHA}" ]]; then
+            echo "::error::Release ${TAG} is no longer the matching retryable draft."
+            exit 1
+          fi
           gh release edit "${TAG}" \
             --repo "${REPOSITORY}" \
             --notes-file "${RUNNER_TEMP}/formatted_notes.md"
@@ -317,6 +369,24 @@ jobs:
           envsubst "\$TAG \$PUBDATE \$BUILD_NUMBER \$DOWNLOAD_URL \$SPARKLE_LENGTH \$SPARKLE_SIG \$RELEASE_NOTES_HTML" \
             < .github/appcast-template.xml > appcast.xml
 
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          RELEASE_STATE=$(gh release view "${TAG}" \
+            --repo "${REPOSITORY}" \
+            --json isDraft,targetCommitish \
+            --jq '[.isDraft, .targetCommitish] | @tsv')
+          IFS=$'\t' read -r IS_DRAFT TARGET_COMMITISH <<< "${RELEASE_STATE}"
+          if [[ "${IS_DRAFT}" != "true" || "${TARGET_COMMITISH}" != "${COMMIT_SHA}" ]]; then
+            echo "::error::Release ${TAG} is no longer the matching retryable draft."
+            exit 1
+          fi
+          gh release edit "${TAG}" --repo "${REPOSITORY}" --draft=false
+          test "$(gh release view "${TAG}" --repo "${REPOSITORY}" --json isDraft --jq '.isDraft')" = "false"
+
       - name: Push appcast
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -331,7 +401,7 @@ jobs:
           cp "${RUNNER_TEMP}/appcast.xml" appcast.xml
           git add appcast.xml
           git diff --cached --quiet && exit 0
-          git commit -m "Update appcast for ${TAG}"
+          git commit --signoff -m "Update appcast for ${TAG}"
           git -c "http.extraheader=AUTHORIZATION: Basic ${AUTH_HEADER}" push origin appcast
 
   bump-cask:

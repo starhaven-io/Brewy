@@ -31,7 +31,8 @@ extension BrewService {
                         source: package.source,
                         pinned: package.pinned,
                         installedOnRequest: package.installedOnRequest,
-                        dependencies: package.dependencies,
+                        dependencies: cask.dependencies,
+                        dependencyReferences: cask.dependencyReferences,
                         repositoryURL: cask.repositoryURL ?? (cask.url == nil ? package.repositoryURL : nil)
                     )
                 }
@@ -50,6 +51,9 @@ extension BrewService {
                         pinned: package.pinned,
                         installedOnRequest: package.installedOnRequest,
                         dependencies: formula.dependencies ?? package.dependencies,
+                        dependencyReferences: formula.dependencies.map {
+                            $0.map { PackageReference(name: $0, source: .formula) }
+                        } ?? package.dependencyReferences,
                         repositoryURL: package.repositoryURL
                     )
                 }

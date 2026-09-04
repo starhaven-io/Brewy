@@ -16,12 +16,22 @@ struct BundleRetryTests {
         )
         let mock = MockCommandRunner()
         let (service, _) = makeService(mock: mock)
-        mock.setResult(for: arguments, output: "Using Brewfile\n")
+        let generatedData = Data("brew \"wget\"\n".utf8)
+        mock.setCommandHandler { command in
+            guard Array(command.prefix(4)) == ["bundle", "dump", "--force", "--file"],
+                  let path = command.last else { return nil }
+            do {
+                try generatedData.write(to: URL(fileURLWithPath: path))
+                return CommandResult(output: "Created Brewfile", success: true)
+            } catch {
+                return CommandResult(output: error.localizedDescription, success: false)
+            }
+        }
         for flag in ["--formula", "--cask", "--tap", "--mas"] {
-            mock.setResult(for: ["bundle", "list", flag, "--file", brewfile.path], output: "")
+            mock.setResult(for: ["bundle", "list", flag, "--file=-"], output: "")
         }
         mock.setResult(
-            for: ["bundle", "check", "--verbose", "--file", brewfile.path],
+            for: ["bundle", "check", "--verbose", "--file=-"],
             output: "The Brewfile's dependencies are satisfied.\n"
         )
 

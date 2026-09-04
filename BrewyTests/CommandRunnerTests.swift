@@ -128,6 +128,46 @@ struct CommandRunnerProcessTests {
         #expect(result.output.contains("hello world"))
     }
 
+    @Test("runExecutable provides exact standard-input bytes")
+    func exactStandardInput() async throws {
+        let input = Data("brew \"wget\"\n# approved bytes\n".utf8)
+        let expected = try #require(String(data: input, encoding: .utf8))
+        let result = await CommandRunner.runExecutable(
+            "/bin/cat",
+            arguments: [],
+            standardInput: input
+        )
+
+        #expect(result.success)
+        #expect(result.standardOutput == expected)
+    }
+
+    @Test("runExecutable terminates a child that closes standard input and keeps running")
+    func closedStandardInputTerminatesChild() async {
+        let start = ContinuousClock.now
+        let result = await CommandRunner.runExecutable(
+            "/bin/sh",
+            arguments: ["-c", "exec 0<&-; exec /bin/sleep 30"],
+            standardInput: Data(repeating: 0x41, count: 1_048_576),
+            timeout: .seconds(2)
+        )
+
+        #expect(!result.success)
+        #expect(result.output.contains("Failed to provide command input"))
+        #expect(ContinuousClock.now - start < .seconds(10))
+    }
+
+    @Test("runExecutable preserves invalid UTF-8 as replacement text")
+    func invalidUTF8IsNotDiscarded() async {
+        let result = await CommandRunner.runExecutable(
+            "/bin/sh",
+            arguments: ["-c", "printf '\\377'"]
+        )
+
+        #expect(result.success)
+        #expect(result.standardOutput == "\u{FFFD}")
+    }
+
     @Test("runExecutable reports failure for nonzero exit")
     func nonzeroExit() async {
         let result = await CommandRunner.runExecutable("/usr/bin/false", arguments: [])
@@ -256,6 +296,20 @@ struct CommandRunnerProcessTests {
         #expect(lineCount >= 10_000)
     }
 
+    @Test("runExecutable bounds pipe draining after the leader exits")
+    func exitedLeaderWithOpenPipeReturns() async throws {
+        let start = ContinuousClock.now
+        let result = await CommandRunner.runExecutable(
+            "/bin/sh",
+            arguments: ["-c", "sleep 30 & printf '%s' \"$!\""]
+        )
+        let childPID = try #require(Int32(result.standardOutput))
+        defer { Darwin.kill(childPID, SIGKILL) }
+
+        #expect(result.success)
+        #expect(ContinuousClock.now - start < .seconds(15))
+    }
+
     @Test("Task cancellation terminates the child process")
     func cancellationTerminatesProcess() async {
         let task = Task {
@@ -323,6 +377,27 @@ struct CommandRunnerProcessTests {
             CommandRunner.terminationOutput(message, succeeded: false)
                 == "\(message)\nSome child processes may still be running."
         )
+    }
+
+    @Test("Input failure preserves cancellation state")
+    func inputFailurePreservesCancellation() {
+        let cancelled = CommandResult(
+            output: "Command was cancelled.",
+            success: false,
+            cancelled: true,
+            standardOutput: "partial",
+            exitCode: SIGTERM
+        )
+
+        let result = CommandRunner.inputFailureResult(
+            "Failed to provide command input.",
+            processResult: cancelled,
+            terminationSucceeded: true
+        )
+
+        #expect(result.cancelled)
+        #expect(!result.success)
+        #expect(result.standardOutput == "partial")
     }
 
     @Test("Streaming delivers output and matches the final result")

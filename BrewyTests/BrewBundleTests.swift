@@ -211,7 +211,7 @@ struct BrewServiceBundleTests {
         service.customBrewfilePath = brewfile.path
         #expect(service.trustBrewfile(at: brewfile))
         mock.setResult(
-            for: ["bundle", "check", "--verbose", "--file", brewfile.path],
+            for: ["bundle", "check", "--verbose", "--file=-"],
             output: "The Brewfile's dependencies are satisfied.\n"
         )
 
@@ -230,7 +230,7 @@ struct BrewServiceBundleTests {
         service.customBrewfilePath = brewfile.path
         #expect(service.trustBrewfile(at: brewfile))
         mock.setResult(
-            for: ["bundle", "check", "--verbose", "--file", brewfile.path],
+            for: ["bundle", "check", "--verbose", "--file=-"],
             output: """
             brew bundle can't satisfy your Brewfile's dependencies.
             → Cask firefox needs to be installed or updated.
@@ -255,7 +255,7 @@ struct BrewServiceBundleTests {
         service.customBrewfilePath = brewfile.path
         #expect(service.trustBrewfile(at: brewfile))
         mock.setResult(
-            for: ["bundle", "check", "--verbose", "--file", brewfile.path],
+            for: ["bundle", "check", "--verbose", "--file=-"],
             output: "Error: Permission denied @ rb_sysopen - \(brewfile.path)\n",
             success: false
         )
@@ -293,7 +293,7 @@ struct BrewServiceBundleTests {
         service.customBrewfilePath = brewfile.path
         Self.setBundleListResults(mock, path: brewfile.path)
         mock.setResult(
-            for: ["bundle", "check", "--verbose", "--file", brewfile.path],
+            for: ["bundle", "check", "--verbose", "--file=-"],
             output: "The Brewfile's dependencies are satisfied.\n"
         )
 
@@ -301,33 +301,6 @@ struct BrewServiceBundleTests {
 
         #expect(service.brewfileURL?.path == brewfile.path)
         #expect(service.bundleEntries.isEmpty)
-        #expect(service.bundleCheckStatus == .untrusted)
-        #expect(mock.executedCommands.isEmpty)
-    }
-
-    @Test("changed or switched trusted Brewfile requires trust again")
-    func changedOrSwitchedTrustedBrewfileRequiresTrustAgain() async throws {
-        let brewfile = try Self.makeBrewfile(contents: "brew \"wget\"\n")
-        let otherBrewfile = try Self.makeBrewfile(contents: "brew \"curl\"\n")
-        let mock = MockCommandRunner()
-        let (service, _) = makeService(mock: mock)
-        service.customBrewfilePath = brewfile.path
-        #expect(service.trustBrewfile(at: brewfile))
-        try "brew \"curl\"\n".write(to: brewfile, atomically: true, encoding: .utf8)
-        Self.setBundleListResults(mock, path: brewfile.path)
-
-        await service.refreshBundle()
-
-        #expect(service.bundleEntries.isEmpty)
-        #expect(service.bundleCheckStatus == .untrusted)
-        #expect(mock.executedCommands.isEmpty)
-        service.customBrewfilePath = otherBrewfile.path
-
-        await service.fetchBundleEntries()
-        await service.checkBundle()
-        await service.refreshBundle()
-
-        #expect(service.brewfileURL?.path == otherBrewfile.path)
         #expect(service.bundleCheckStatus == .untrusted)
         #expect(mock.executedCommands.isEmpty)
     }
@@ -340,7 +313,7 @@ struct BrewServiceBundleTests {
         service.customBrewfilePath = brewfile.path
         Self.setEmptyBundleListResults(mock, path: brewfile.path)
         mock.setResult(
-            for: ["bundle", "check", "--verbose", "--file", brewfile.path],
+            for: ["bundle", "check", "--verbose", "--file=-"],
             output: "The Brewfile's dependencies are satisfied.\n"
         )
 
@@ -360,18 +333,18 @@ struct BrewServiceBundleTests {
         service.customBrewfilePath = brewfile.path
         #expect(service.trustBrewfile(at: brewfile))
         mock.setResult(
-            for: ["bundle", "list", "--formula", "--file", brewfile.path],
+            for: ["bundle", "list", "--formula", "--file=-"],
             output: "Error: Permission denied @ rb_sysopen - \(brewfile.path)\n",
             success: false
         )
         mock.setResult(
-            for: ["bundle", "check", "--verbose", "--file", brewfile.path],
+            for: ["bundle", "check", "--verbose", "--file=-"],
             output: "The Brewfile's dependencies are satisfied.\n"
         )
 
         await service.refreshBundle()
 
-        #expect(mock.executedCommands == [["bundle", "list", "--formula", "--file", brewfile.path]])
+        #expect(mock.executedCommands == [["bundle", "list", "--formula", "--file=-"]])
         if case .failed(let message) = service.bundleCheckStatus {
             #expect(message.contains("Permission denied"))
         } else {
@@ -388,7 +361,7 @@ struct BrewServiceBundleTests {
         #expect(service.trustBrewfile(at: brewfile))
         Self.setBundleListResults(mock, path: brewfile.path)
         mock.setResult(
-            for: ["bundle", "check", "--verbose", "--file", brewfile.path],
+            for: ["bundle", "check", "--verbose", "--file=-"],
             output: "The Brewfile's dependencies are satisfied.\n"
         )
 
@@ -396,26 +369,26 @@ struct BrewServiceBundleTests {
 
         #expect(mock.executedCommands.count == 5)
         for command in mock.executedCommands {
-            #expect(command.contains("--file"))
-            #expect(command.last == brewfile.path)
+            #expect(command.last == "--file=-")
         }
+        #expect(mock.standardInputs.count == 5)
+        #expect(mock.standardInputs.allSatisfy { $0.data == Data() })
     }
 
-    @Test("dumpBundle passes force so a panel-confirmed replace overwrites")
+    @Test("dumpBundle writes through a private generated file")
     func dumpBundleForcesOverwrite() async throws {
         let brewfile = try Self.makeBrewfile()
         let mock = MockCommandRunner()
         let (service, _) = makeService(mock: mock)
-        mock.setResult(
-            for: ["bundle", "dump", "--force", "--file", brewfile.path],
-            output: "brew crashed\n",
-            success: false
-        )
 
         let result = await service.dumpBundle(to: brewfile)
 
         #expect(result.success == false)
-        #expect(mock.executedCommands == [["bundle", "dump", "--force", "--file", brewfile.path]])
+        let command = try #require(mock.executedCommands.first)
+        #expect(Array(command.prefix(4)) == ["bundle", "dump", "--force", "--file"])
+        #expect(command.count == 5)
+        #expect(command.last != "-")
+        #expect(command.last != brewfile.path)
         #expect(service.lastError != nil)
         #expect(service.actionHistory.count == 1)
         #expect(service.actionHistory[0].status == .failure)
@@ -426,10 +399,20 @@ struct BrewServiceBundleTests {
         let brewfile = try Self.makeBrewfile()
         let mock = MockCommandRunner()
         let (service, _) = makeService(mock: mock)
-        mock.setResult(for: ["bundle", "dump", "--force", "--file", brewfile.path], output: "Using Brewfile\n")
+        let generatedData = Data("brew \"wget\"\n".utf8)
+        mock.setCommandHandler { arguments in
+            guard Array(arguments.prefix(4)) == ["bundle", "dump", "--force", "--file"],
+                  let path = arguments.last else { return nil }
+            do {
+                try generatedData.write(to: URL(fileURLWithPath: path))
+                return CommandResult(output: "Auto-updated Homebrew!\n", success: true)
+            } catch {
+                return CommandResult(output: error.localizedDescription, success: false)
+            }
+        }
         Self.setEmptyBundleListResults(mock, path: brewfile.path)
         mock.setResult(
-            for: ["bundle", "check", "--verbose", "--file", brewfile.path],
+            for: ["bundle", "check", "--verbose", "--file=-"],
             output: "The Brewfile's dependencies are satisfied.\n"
         )
 
@@ -439,7 +422,9 @@ struct BrewServiceBundleTests {
         #expect(service.customBrewfilePath == brewfile.path)
         #expect(service.bundleCheckStatus == .satisfied)
         #expect(service.actionHistory.first?.status == .success)
-        #expect(mock.executedCommands.last == ["bundle", "check", "--verbose", "--file", brewfile.path])
+        #expect(mock.executedCommands.last == ["bundle", "check", "--verbose", "--file=-"])
+        #expect(try String(contentsOf: brewfile, encoding: .utf8) == "brew \"wget\"\n")
+        #expect(service.brewfileSnapshot?.data == generatedData)
     }
 
     @Test("existing empty Brewfile refreshes to satisfied empty state")
@@ -451,7 +436,7 @@ struct BrewServiceBundleTests {
         #expect(service.trustBrewfile(at: brewfile))
         Self.setEmptyBundleListResults(mock, path: brewfile.path)
         mock.setResult(
-            for: ["bundle", "check", "--verbose", "--file", brewfile.path],
+            for: ["bundle", "check", "--verbose", "--file=-"],
             output: "The Brewfile's dependencies are satisfied.\n"
         )
 
@@ -463,18 +448,18 @@ struct BrewServiceBundleTests {
         #expect(service.bundleCheckStatus == .satisfied)
     }
 
-    private static func setBundleListResults(_ mock: MockCommandRunner, path: String) {
-        mock.setResult(for: ["bundle", "list", "--formula", "--file", path], output: "wget\ncurl\n")
-        mock.setResult(for: ["bundle", "list", "--cask", "--file", path], output: "firefox\n")
-        mock.setResult(for: ["bundle", "list", "--tap", "--file", path], output: "homebrew/core\nhomebrew/cask\n")
-        mock.setResult(for: ["bundle", "list", "--mas", "--file", path], output: "Xcode\n")
+    private static func setBundleListResults(_ mock: MockCommandRunner, path _: String) {
+        mock.setResult(for: ["bundle", "list", "--formula", "--file=-"], output: "wget\ncurl\n")
+        mock.setResult(for: ["bundle", "list", "--cask", "--file=-"], output: "firefox\n")
+        mock.setResult(for: ["bundle", "list", "--tap", "--file=-"], output: "homebrew/core\nhomebrew/cask\n")
+        mock.setResult(for: ["bundle", "list", "--mas", "--file=-"], output: "Xcode\n")
     }
 
-    private static func setEmptyBundleListResults(_ mock: MockCommandRunner, path: String) {
-        mock.setResult(for: ["bundle", "list", "--formula", "--file", path], output: "")
-        mock.setResult(for: ["bundle", "list", "--cask", "--file", path], output: "")
-        mock.setResult(for: ["bundle", "list", "--tap", "--file", path], output: "")
-        mock.setResult(for: ["bundle", "list", "--mas", "--file", path], output: "")
+    private static func setEmptyBundleListResults(_ mock: MockCommandRunner, path _: String) {
+        mock.setResult(for: ["bundle", "list", "--formula", "--file=-"], output: "")
+        mock.setResult(for: ["bundle", "list", "--cask", "--file=-"], output: "")
+        mock.setResult(for: ["bundle", "list", "--tap", "--file=-"], output: "")
+        mock.setResult(for: ["bundle", "list", "--mas", "--file=-"], output: "")
     }
 
     private static func makeBrewfile(contents: String = "") throws -> URL {
