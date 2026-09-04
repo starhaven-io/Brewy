@@ -5,7 +5,7 @@ Thanks for helping improve Brewy. This document covers the local setup, verifica
 ## Requirements
 
 - macOS 15.0 or later (Apple Silicon)
-- Xcode 16 or later
+- Xcode 26 or later
 - [Homebrew](https://brew.sh). Brewy shells out to the local `brew` installation.
 - [`just`](https://github.com/casey/just) for the local task runner (`brew install just`)
 
@@ -52,7 +52,7 @@ Run `just lychee` after changing links in README or CONTRIBUTING.
 
 - Keep README copy aligned with the current app UI, installation flow, and security model.
 - Do not keep stale screenshots or demo recordings in the README.
-- Update `assets/BrewyIcon.png` when the app icon changes.
+- Edit `Brewy/AppIcon.icon` in Icon Composer, then export and update `assets/BrewyIcon.png` when the app icon changes.
 - Update `assets/BrewyScreenshot.png` when the main app UI changes materially.
 - Prefer concise docs that describe what the app does and how to verify changes.
 - Keep PR descriptions short; the repository does not use generated test-plan or tool-attribution sections.

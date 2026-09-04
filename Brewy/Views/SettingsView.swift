@@ -33,8 +33,6 @@ struct SettingsView: View {
     private var showCasksByDefault = false
     @AppStorage("appTheme")
     private var appTheme = AppTheme.system.rawValue
-    @AppStorage("appIcon")
-    private var appIcon = AppIconSelection.current.rawValue
     @AppStorage(AppVisibilitySettings.showMenuBarIconKey)
     private var showMenuBarIcon = true
     @AppStorage(AppVisibilitySettings.showDockIconKey)
@@ -78,36 +76,12 @@ struct SettingsView: View {
                 }
             }
 
-            LabeledContent("App Icon:") {
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 12) {
-                        ForEach(AppIconSelection.allCases) { icon in
-                            AppIconOptionButton(
-                                icon: icon,
-                                isSelected: appIcon == icon.rawValue
-                            ) {
-                                appIcon = icon.rawValue
-                            }
-                        }
-                    }
-
-                    Text("Changes the running app's Dock icon. The Finder icon is unchanged.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-
             appVisibilitySettings
 
             Toggle("Show Casks by default", isOn: $showCasksByDefault)
         }
         .formStyle(.grouped)
         .padding()
-        // Mirrors BrewyApp because the main-window handler does not fire when only the menu bar extra is alive.
-        .onChange(of: appIcon, initial: true) {
-            AppIconSelection.apply(rawValue: appIcon)
-        }
         .onChange(of: showDockIcon, initial: true) {
             AppVisibilitySettings.applyDockIconVisibility(showDockIcon)
         }
@@ -252,69 +226,6 @@ private struct HomebrewAnalyticsSetting: View {
         Task { @MainActor in
             await brewService.setHomebrewAnalyticsEnabled(enabled)
             requestedState = nil
-        }
-    }
-}
-
-private struct AppIconOptionButton: View {
-    let icon: AppIconSelection
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 6) {
-                AppIconPreviewTile(icon: icon)
-
-                Text(icon.title)
-                    .font(.caption)
-                    .foregroundStyle(.primary)
-            }
-            .frame(width: 82, height: 86)
-            .background {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(isSelected ? Color.accentColor.opacity(0.12) : Color.clear)
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(
-                        isSelected ? Color.accentColor : Color.secondary.opacity(0.28),
-                        lineWidth: isSelected ? 2 : 1
-                    )
-            }
-            .contentShape(.rect)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(icon.title)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
-    }
-}
-
-private struct AppIconPreviewTile: View {
-    let icon: AppIconSelection
-
-    private var imageInset: CGFloat {
-        switch icon {
-        case .current: 4
-        case .classic: 0
-        }
-    }
-
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color(nsColor: .controlBackgroundColor))
-
-            Image(nsImage: icon.previewImage)
-                .resizable()
-                .scaledToFit()
-                .padding(imageInset)
-        }
-        .frame(width: 54, height: 54)
-        .clipShape(.rect(cornerRadius: 12))
-        .overlay {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(Color.secondary.opacity(0.18), lineWidth: 1)
         }
     }
 }
