@@ -1,4 +1,5 @@
 schema: 1
+visibility: "public"
 license: "agpl"
 params:
   dependabot:
@@ -19,7 +20,7 @@ params:
     languages: ["swift"]
     paths: ["Brewy/**", "BrewyTests/**", "BrewyUITests/**"]
     runner: "macos-26"
-    timeout-minutes: 30
+    timeout-minutes: 45
     build-mode: "manual"
     build-profile: "brewy-xcode"
   pinprick-audit:
