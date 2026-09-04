@@ -22,6 +22,7 @@ struct ExternalURLPolicyTests {
 }
 
 @Suite("ReleaseNotesHTML")
+@MainActor
 struct ReleaseNotesHTMLTests {
 
     @Test("Removes unsafe link attributes")
@@ -59,6 +60,20 @@ struct ReleaseNotesHTMLTests {
 
         #expect(stripped.range(of: "<img", options: .caseInsensitive) == nil)
         #expect(stripped.range(of: "src=", options: .caseInsensitive) == nil)
+    }
+
+    @Test("Deeply reforming markup is neutralized in one pass")
+    func deeplyReformingMarkupIsNeutralized() {
+        let payload = String(repeating: "<", count: 20) + String(repeating: "img>", count: 20)
+        let stripped = ReleaseNotesHTML.stripUnsafeMarkup(from: payload)
+
+        #expect(stripped.range(of: "<img", options: .caseInsensitive) == nil)
+    }
+
+    @Test("Oversized markup is rejected before HTML conversion")
+    func oversizedMarkupIsRejected() {
+        let payload = String(repeating: "a", count: ReleaseNotesHTML.maximumHTMLByteCount + 1)
+        #expect(ReleaseNotesHTML.attributedString(from: payload) == nil)
     }
 }
 

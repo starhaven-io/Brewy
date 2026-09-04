@@ -2,8 +2,6 @@ import Foundation
 import OSLog
 import SwiftUI
 
-// MARK: - Logging
-
 private let logger = Logger(subsystem: "io.linnane.brewy", category: "BrewService")
 
 @Observable
@@ -110,6 +108,7 @@ final class BrewService {
     @ObservationIgnored var infoCache: [String: String] = [:]
     @ObservationIgnored private var tapHealthTask: Task<Void, Never>?
     @ObservationIgnored var actionCommandTask: Task<CommandResult, Never>?
+    @ObservationIgnored var brewfileSnapshot: BrewfileSnapshot?
     @ObservationIgnored var packageUpdatesStarted = false
     @ObservationIgnored var scheduledAutoRefreshInterval: Int?
     @ObservationIgnored var initialRefreshTask: Task<Void, Never>?
@@ -169,19 +168,14 @@ final class BrewService {
         var reverse: [String: [BrewPackage]] = [:]
         reverse.reserveCapacity(all.count)
         for pkg in all {
-            for dep in pkg.dependencies {
-                reverse[dep, default: []].append(pkg)
+            for dependency in pkg.dependencyReferences {
+                reverse[dependency.id, default: []].append(pkg)
             }
         }
         reverseDependencies = reverse
-        leavesPackages = installedFormulae.filter { reverse[$0.name] == nil || reverse[$0.name]!.isEmpty }
+        leavesPackages = installedFormulae.filter { reverse[$0.id]?.isEmpty ?? true }
         pinnedPackages = all.filter(\.pinned)
     }
-
-    func dependents(of name: String) -> [BrewPackage] {
-        reverseDependencies[name] ?? []
-    }
-
 }
 
 // MARK: - Cache
@@ -207,7 +201,7 @@ extension BrewService {
 
     /// Current schema version for the package cache. Bump when `CachedData` gains a non-optional
     /// field or changes semantics so old caches are deleted rather than silently discarded each launch.
-    static let cacheSchemaVersion = 1
+    static let cacheSchemaVersion = 2
 
     private struct CachedData: Codable {
         let schemaVersion: Int
@@ -460,6 +454,16 @@ extension BrewService {
         return await commandRunner.run(
             arguments,
             brewPath: brewPath,
+            timeout: CommandRunner.timeout(forBrewArguments: arguments)
+        )
+    }
+
+    func runBrewCommand(_ arguments: [String], standardInput: Data) async -> CommandResult {
+        let brewPath = CommandRunner.resolvedBrewPath(preferred: customBrewPath)
+        return await commandRunner.run(
+            arguments,
+            brewPath: brewPath,
+            standardInput: standardInput,
             timeout: CommandRunner.timeout(forBrewArguments: arguments)
         )
     }

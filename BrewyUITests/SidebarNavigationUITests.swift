@@ -1,9 +1,7 @@
-import CryptoKit
 import XCTest
 
 @MainActor
 final class SidebarNavigationUITests: XCTestCase {
-
     // Thread Sanitizer instrumentation slows the app under test enough that the
     // sidebar can take much longer than the unscaled timeouts to render, which
     // flaked these waits in CI's TSan job. Scale every timeout and settle delay
@@ -20,15 +18,7 @@ final class SidebarNavigationUITests: XCTestCase {
         continueAfterFailure = false
         fixtureDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("brewy-ui-tests-\(ProcessInfo.processInfo.globallyUniqueString)")
-        let homebrewDirectory = fixtureDirectory.appendingPathComponent("homebrew")
-        try FileManager.default.createDirectory(at: homebrewDirectory, withIntermediateDirectories: true)
-        let brewfileURL = homebrewDirectory.appendingPathComponent("Brewfile")
-            .resolvingSymlinksInPath()
-        let brewfileData = Data("brew \"ripgrep\"\ncask \"firefox\"\n".utf8)
-        try brewfileData.write(to: brewfileURL)
-        let brewfileDigest = SHA256.hash(data: brewfileData)
-            .map { String(format: "%02x", $0) }
-            .joined()
+        try FileManager.default.createDirectory(at: fixtureDirectory, withIntermediateDirectories: true)
 
         app = XCUIApplication()
         app.terminate()
@@ -39,9 +29,7 @@ final class SidebarNavigationUITests: XCTestCase {
             "-brewfilePath", "",
             "-showCasksByDefault", "NO",
             "-showDockIcon", "YES",
-            "-showMenuBarIcon", "YES",
-            "-trustedBrewfilePath", brewfileURL.path,
-            "-trustedBrewfileDigest", brewfileDigest
+            "-showMenuBarIcon", "YES"
         ]
         app.launchEnvironment["BREWY_UI_TESTING"] = "1"
         app.launchEnvironment["XDG_CONFIG_HOME"] = fixtureDirectory.path
@@ -57,7 +45,6 @@ final class SidebarNavigationUITests: XCTestCase {
     }
 
     // MARK: - Sidebar Category Navigation
-
     func testAllSidebarCategoriesRender() throws {
         let categories = [
             "Installed", "Formulae", "Casks", "Mac App Store", "Outdated",
@@ -66,7 +53,6 @@ final class SidebarNavigationUITests: XCTestCase {
         ]
 
         let sidebar = app.outlines.firstMatch
-
         for (index, category) in categories.enumerated() {
             let row = sidebar.staticTexts[category]
             let timeout = index == 0 ? Self.launchTimeout : Self.elementTimeout
@@ -259,6 +245,10 @@ final class SidebarNavigationUITests: XCTestCase {
             app.staticTexts["homebrew.mxcl.postgresql@17"],
             timeout: Self.elementTimeout,
             "Service details should render"
+        )
+        XCTAssertFalse(
+            app.descendants(matching: .any)["Run as root (sudo)"].exists,
+            "Service actions must not expose a privileged execution path"
         )
 
         sidebar.staticTexts["Groups"].click()
@@ -490,7 +480,6 @@ final class MenuBarSettingsUITests: XCTestCase {
         toggle.click()
         _ = waitUntil { self.checkedValue(of: toggle) == initialMenuBarIconState }
     }
-
     private static var isThreadSanitizerActive: Bool {
         (0..<_dyld_image_count()).contains { index in
             guard let name = _dyld_get_image_name(index) else { return false }

@@ -385,6 +385,49 @@ struct AppcastParserTests {
         // Sparkle feeds list newest first, so the first item (0.2.0) is the one we want.
         #expect(release.version == "0.2.0")
     }
+
+    @Test("Rejects appcasts above the response limit")
+    func rejectsOversizedAppcast() {
+        let data = Data(repeating: 0x41, count: AppcastParser.maximumFeedByteCount + 1)
+        #expect(AppcastParser().parse(data: data) == nil)
+    }
+
+    @Test("Rejects oversized first-item descriptions")
+    func rejectsOversizedDescription() throws {
+        let description = String(repeating: "a", count: AppcastParser.maximumDescriptionByteCount + 1)
+        let xml = "<rss><channel><item><title>Release</title><description>\(description)</description></item></channel></rss>"
+        let data = try #require(xml.data(using: .utf8))
+
+        #expect(AppcastParser().parse(data: data) == nil)
+    }
+
+    @Test("Rejects oversized first-item titles")
+    func rejectsOversizedTitle() throws {
+        let title = String(repeating: "a", count: 5_000)
+        let xml = "<rss><channel><item><title>\(title)</title></item></channel></rss>"
+        let data = try #require(xml.data(using: .utf8))
+
+        #expect(AppcastParser().parse(data: data) == nil)
+    }
+
+    @Test("Stops parsing after the first complete item")
+    func stopsAfterFirstItem() throws {
+        let oversizedSecondDescription = String(
+            repeating: "b",
+            count: AppcastParser.maximumDescriptionByteCount + 1
+        )
+        let xml = """
+        <rss><channel>
+          <item><title>Current</title><sparkle:shortVersionString>2.0</sparkle:shortVersionString></item>
+          <item><title>Old</title><description>\(oversizedSecondDescription)</description></item>
+        </channel></rss>
+        """
+        let data = try #require(xml.data(using: .utf8))
+        let release = try #require(AppcastParser().parse(data: data))
+
+        #expect(release.title == "Current")
+        #expect(release.version == "2.0")
+    }
 }
 
 // MARK: - AppcastRelease Tests

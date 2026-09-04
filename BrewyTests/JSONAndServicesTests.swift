@@ -130,7 +130,7 @@ struct JSONParsingEdgeCaseTests {
 struct ServicesIntegrationTests {
 
     @Test("fetchServices uses info format first, falls back to list")
-    func fetchServicesFallback() async {
+    func fetchServicesFallback() async throws {
         let mock = MockCommandRunner()
         let service = BrewService(commandRunner: mock)
         let serviceJSON = """
@@ -142,14 +142,14 @@ struct ServicesIntegrationTests {
             output: serviceJSON
         )
 
-        let services = await service.fetchServices()
+        let services = try await service.fetchServices()
 
         #expect(services.count == 1)
         #expect(services[0].name == "postgresql@14")
     }
 
     @Test("fetchServices falls back to list when info returns empty")
-    func fetchServicesFallbackToList() async {
+    func fetchServicesFallbackToList() async throws {
         let mock = MockCommandRunner()
         let service = BrewService(commandRunner: mock)
         mock.setResult(for: ["services", "info", "--all", "--json"], output: "[]")
@@ -158,24 +158,36 @@ struct ServicesIntegrationTests {
         """
         mock.setResult(for: ["services", "list", "--json"], output: serviceJSON)
 
-        let services = await service.fetchServices()
+        let services = try await service.fetchServices()
 
         #expect(services.count == 1)
         #expect(services[0].name == "redis")
     }
 
-    @Test("fetchServices returns empty when both service commands fail")
+    @Test("fetchServices reports an error when both service commands fail")
     func fetchServicesDoubleFailure() async {
         let mock = MockCommandRunner()
         let service = BrewService(commandRunner: mock)
         mock.setResult(for: ["services", "info", "--all", "--json"], output: "info failed", success: false)
         mock.setResult(for: ["services", "list", "--json"], output: "list failed", success: false)
 
-        let services = await service.fetchServices()
-
-        #expect(services.isEmpty)
+        await #expect(throws: ServicesFetchError.self) {
+            try await service.fetchServices()
+        }
         #expect(mock.executedCommands.contains(["services", "info", "--all", "--json"]))
         #expect(mock.executedCommands.contains(["services", "list", "--json"]))
+    }
+
+    @Test("fetchServices preserves a valid empty info response when compatibility fallback fails")
+    func fetchServicesValidEmptyResponse() async throws {
+        let mock = MockCommandRunner()
+        let service = BrewService(commandRunner: mock)
+        mock.setResult(for: ["services", "info", "--all", "--json"], output: "[]")
+        mock.setResult(for: ["services", "list", "--json"], output: "unsupported", success: false)
+
+        let services = try await service.fetchServices()
+
+        #expect(services.isEmpty)
     }
 
     @Test("cleanupServices runs brew services cleanup")

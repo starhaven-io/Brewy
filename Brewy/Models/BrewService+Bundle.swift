@@ -1,4 +1,3 @@
-import CryptoKit
 import Foundation
 import OSLog
 
@@ -103,7 +102,7 @@ enum BrewfileDiscovery {
     private static func existingURL(atPath path: String, fileExists: (String) -> Bool) -> URL? {
         let expanded = expandedPath(path)
         guard fileExists(expanded) else { return nil }
-        return URL(fileURLWithPath: expanded).resolvingSymlinksInPath()
+        return URL(fileURLWithPath: expanded).standardizedFileURL
     }
 
     private static func expandedPath(_ path: String) -> String {
@@ -200,9 +199,9 @@ extension BrewService {
         guard !isBundleLoading, bundleCheckStatus != .checking else { return }
         lastError = nil
         guard let brewfileURL = resolveBrewfile() else { return }
-        guard canExecuteBrewfile(brewfileURL) else { return }
-        guard await fetchBundleEntries(brewfileURL: brewfileURL) else { return }
-        await checkBundle(brewfileURL: brewfileURL)
+        guard let snapshot = executableSnapshot(for: brewfileURL) else { return }
+        guard await fetchBundleEntries(snapshot: snapshot) else { return }
+        await checkBundle(snapshot: snapshot)
     }
 
     func updateBundleEntryStatuses() {
@@ -220,14 +219,18 @@ extension BrewService {
 
     @discardableResult
     func fetchBundleEntries(brewfileURL: URL) async -> Bool {
-        guard canExecuteBrewfile(brewfileURL) else { return false }
+        guard let snapshot = executableSnapshot(for: brewfileURL) else { return false }
+        return await fetchBundleEntries(snapshot: snapshot)
+    }
+
+    private func fetchBundleEntries(snapshot: BrewfileSnapshot) async -> Bool {
         isBundleLoading = true
         defer { isBundleLoading = false }
 
         var fetchedEntries: [BrewBundleEntry] = []
         for type in BrewBundleEntryType.allCases {
-            let arguments = ["bundle", "list", type.listFlag, "--file", brewfileURL.path]
-            let result = await runBrewCommand(arguments)
+            let arguments = ["bundle", "list", type.listFlag, "--file=-"]
+            let result = await runBrewCommand(arguments, standardInput: snapshot.data)
             guard result.success else {
                 logger.warning("Failed to list \(type.rawValue) bundle entries: \(result.output.prefix(200))")
                 let message = BrewError.commandFailed(
@@ -253,10 +256,14 @@ extension BrewService {
     }
 
     func checkBundle(brewfileURL: URL) async {
-        guard canExecuteBrewfile(brewfileURL) else { return }
+        guard let snapshot = executableSnapshot(for: brewfileURL) else { return }
+        await checkBundle(snapshot: snapshot)
+    }
+
+    private func checkBundle(snapshot: BrewfileSnapshot) async {
         bundleCheckStatus = .checking
-        let arguments = ["bundle", "check", "--verbose", "--file", brewfileURL.path]
-        let result = await runBrewCommand(arguments)
+        let arguments = ["bundle", "check", "--verbose", "--file=-"]
+        let result = await runBrewCommand(arguments, standardInput: snapshot.data)
         let status = BrewBundleParser.parseCheckResult(success: result.success, output: result.output)
         bundleCheckStatus = status
 
@@ -278,39 +285,98 @@ extension BrewService {
         isPerformingAction = true
         actionOutput = ""
         lastError = nil
+        defer { isPerformingAction = false }
 
-        let arguments = ["bundle", "dump", "--force", "--file", url.path]
-        let result = await runBrewCommandStreaming(arguments)
-        if !result.success, !result.cancelled {
-            logger.warning("Bundle dump failed: \(result.output.prefix(200))")
-            lastError = .commandFailed(command: arguments.joined(separator: " "), output: result.output)
-        }
-        recordAction(arguments: arguments, packageName: nil, packageSource: nil, success: result.success, output: result.output)
-        isPerformingAction = false
+        let recordedArguments = ["bundle", "dump", "--force", "--file", url.path]
+        let temporaryDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("Brewy-Brewfile-\(UUID().uuidString)", isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(
+                at: temporaryDirectory,
+                withIntermediateDirectories: false,
+                attributes: [.posixPermissions: 0o700]
+            )
+            defer { try? FileManager.default.removeItem(at: temporaryDirectory) }
 
-        if result.success {
+            let generatedURL = temporaryDirectory.appendingPathComponent("Brewfile")
+            let executionArguments = ["bundle", "dump", "--force", "--file", generatedURL.path]
+            let executionResult = await runBrewCommand(executionArguments)
+            guard executionResult.success else {
+                return handleBundleDumpFailure(executionResult, arguments: recordedArguments)
+            }
+
+            let generatedSnapshot = try BrewfileSnapshot.read(from: generatedURL)
+            let snapshot = try BrewfileSnapshot(
+                sourcePath: url.standardizedFileURL.path,
+                data: generatedSnapshot.data
+            )
+            try generatedSnapshot.data.write(to: url, options: .atomic)
             customBrewfilePath = url.path
-            trustBrewfile(at: url)
+            adoptTrustedSnapshot(snapshot)
+            let result = CommandResult(output: "Created Brewfile at \(url.path).", success: true)
+            actionOutput = result.output
+            recordAction(
+                arguments: recordedArguments,
+                packageName: nil,
+                packageSource: nil,
+                success: true,
+                output: result.output
+            )
             await refreshBundle()
+            return result
+        } catch {
+            let message = "Unable to write Brewfile at \(url.path): \(error.localizedDescription)"
+            let result = CommandResult(output: message, success: false)
+            lastError = .commandFailed(command: recordedArguments.joined(separator: " "), output: message)
+            recordAction(
+                arguments: recordedArguments,
+                packageName: nil,
+                packageSource: nil,
+                success: false,
+                output: message
+            )
+            return result
         }
+    }
+
+    private func handleBundleDumpFailure(
+        _ result: CommandResult,
+        arguments: [String]
+    ) -> CommandResult {
+        if !result.cancelled {
+            logger.warning("Bundle dump failed: \(result.output.prefix(200))")
+            lastError = .commandFailed(
+                command: arguments.joined(separator: " "),
+                output: result.output
+            )
+        }
+        recordAction(
+            arguments: arguments,
+            packageName: nil,
+            packageSource: nil,
+            success: false,
+            output: result.output
+        )
         return result
     }
 
     @discardableResult
     func trustBrewfile(at url: URL) -> Bool {
-        let resolvedURL = url.resolvingSymlinksInPath()
-        guard let digest = Self.brewfileDigest(at: resolvedURL) else {
-            let message = "Unable to read Brewfile at \(url.path)."
+        do {
+            let snapshot = try BrewfileSnapshot.read(from: url)
+            adoptTrustedSnapshot(snapshot)
+            if brewfileURL?.standardizedFileURL.path == snapshot.sourcePath,
+               bundleCheckStatus == .untrusted {
+                bundleCheckStatus = .unknown
+            }
+            return true
+        } catch {
+            brewfileSnapshot = nil
+            let message = "Unable to trust Brewfile at \(url.path): \(error.localizedDescription)"
             bundleCheckStatus = .failed(message)
             lastError = .commandFailed(command: "bundle trust", output: message)
             return false
         }
-        trustedBrewfilePath = resolvedURL.path
-        trustedBrewfileDigest = digest
-        if brewfileURL?.path == resolvedURL.path, bundleCheckStatus == .untrusted {
-            bundleCheckStatus = .unknown
-        }
-        return true
     }
 
     func trustCurrentBrewfileAndRefresh() async {
@@ -341,28 +407,31 @@ extension BrewService {
         }
     }
 
-    private func canExecuteBrewfile(_ url: URL) -> Bool {
-        guard isTrustedBrewfile(url) else {
+    private func executableSnapshot(for url: URL) -> BrewfileSnapshot? {
+        guard let snapshot = trustedSnapshot(for: url) else {
             bundleEntries = []
             bundleCheckStatus = .untrusted
-            return false
+            return nil
         }
-        return true
+        return snapshot
     }
 
     private func isTrustedBrewfile(_ url: URL) -> Bool {
-        // Homebrew Bundle only accepts a path, so recheck trust immediately before launch.
-        guard trustedBrewfilePath == url.path,
-              let digest = Self.brewfileDigest(at: url) else {
-            return false
-        }
-        return trustedBrewfileDigest == digest
+        trustedSnapshot(for: url) != nil
     }
 
-    private static func brewfileDigest(at url: URL) -> String? {
-        guard let data = try? Data(contentsOf: url) else { return nil }
-        return SHA256.hash(data: data)
-            .map { String(format: "%02x", $0) }
-            .joined()
+    private func trustedSnapshot(for url: URL) -> BrewfileSnapshot? {
+        let sourcePath = url.standardizedFileURL.path
+        guard trustedBrewfilePath == sourcePath else { return nil }
+        guard let snapshot = try? BrewfileSnapshot.read(from: url),
+              snapshot.digest == trustedBrewfileDigest else { return nil }
+        brewfileSnapshot = snapshot
+        return snapshot
+    }
+
+    private func adoptTrustedSnapshot(_ snapshot: BrewfileSnapshot) {
+        brewfileSnapshot = snapshot
+        trustedBrewfilePath = snapshot.sourcePath
+        trustedBrewfileDigest = snapshot.digest
     }
 }

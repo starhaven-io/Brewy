@@ -298,7 +298,7 @@ private struct PackageInfoSection: View {
             }
 
             if !package.dependencies.isEmpty {
-                DependencyTags(label: "Dependencies", packages: package.dependencies)
+                DependencyTags(label: "Dependencies", packages: package.dependencyReferences)
             }
         }
         .padding(.horizontal)
@@ -332,21 +332,21 @@ private struct DependencyTags: View {
     @Environment(BrewService.self)
     private var brewService
     let label: String
-    let packages: [String]
+    let packages: [PackageReference]
 
     var body: some View {
-        let knownNames = brewService.installedNames
+        let knownIDs = brewService.installedIDs
         VStack(alignment: .leading, spacing: 4) {
             Text(label)
                 .font(.caption)
                 .foregroundStyle(.secondary)
             FlowLayout(spacing: 6) {
-                ForEach(packages, id: \.self) { name in
-                    let isInstalled = knownNames.contains(name)
+                ForEach(packages) { package in
+                    let isInstalled = knownIDs.contains(package.id)
                     Button {
-                        selectPackage(name)
+                        selectPackage(package.id)
                     } label: {
-                        Text(name)
+                        Text(package.name)
                             .font(.system(.caption, design: .monospaced))
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
@@ -356,7 +356,7 @@ private struct DependencyTags: View {
                     .buttonStyle(.plain)
                     .disabled(!isInstalled)
                     .opacity(isInstalled ? 1 : 0.5)
-                    .help(isInstalled ? "Go to \(name)" : "\(name) (not installed)")
+                    .help(isInstalled ? "Go to \(package.name)" : "\(package.name) (not installed)")
                 }
             }
         }

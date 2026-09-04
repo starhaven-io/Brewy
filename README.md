@@ -13,8 +13,6 @@ Brewy is a native macOS app for managing [Homebrew](https://brew.sh) packages, c
 
 It is designed for people who already use Homebrew and want a fast, inspectable Mac interface for the work they do repeatedly: reviewing what is installed, upgrading safely, cleaning up old dependencies, and understanding why a package is on the machine.
 
-<p align="center"><img src="assets/BrewyScreenshot.png" alt="Brewy main window showing installed packages, package categories, and package details" width="960"></p>
-
 ## Highlights
 
 - Browse installed formulae, casks, Mac App Store apps, pinned packages, leaves, and outdated packages.
@@ -22,7 +20,7 @@ It is designed for people who already use Homebrew and want a fast, inspectable 
 - Inspect package details, versions, dependencies, reverse dependencies, and recursive dependency trees.
 - Install, uninstall, upgrade, reinstall, fetch, pin, unpin, link, and unlink packages through native macOS controls.
 - Upgrade all outdated Homebrew packages at once, or select exactly which packages to upgrade.
-- Manage Homebrew services, including start, stop, restart, stale-service cleanup, and optional sudo actions.
+- Manage Homebrew services, including start, stop, restart, and stale-service cleanup.
 - Manage taps, with health checks for archived, moved, or missing GitHub repositories.
 - Group packages into custom collections for projects, roles, or cleanup work.
 - Review action history and retry failed commands when it is safe to do so.
@@ -42,13 +40,13 @@ It is designed for people who already use Homebrew and want a fast, inspectable 
 The best way to install Brewy is naturally with Homebrew. It's in [homebrew-cask](https://github.com/Homebrew/homebrew-cask):
 
 ```sh
-brew install brewy
+brew install --cask brewy
 ```
 
 Or install it from the [starhaven-io tap](https://github.com/starhaven-io/homebrew-tap):
 
 ```sh
-brew install starhaven-io/tap/brewy
+brew install --cask starhaven-io/tap/brewy
 ```
 
 You can also grab the latest release from the [GitHub releases page](https://github.com/starhaven-io/Brewy/releases).
@@ -75,7 +73,7 @@ All CLI execution is centralized through `CommandRunner`, which invokes binaries
 
 Destructive maintenance operations show Homebrew dry-run previews before they can run. External links from package data, tap data, and release notes must pass through `ExternalURLPolicy`, which restricts URLs to `http` and `https` before opening them outside the app.
 
-Brewfiles are treated as code, because `brew bundle` executes the Ruby they contain. Brewy never runs a Brewfile until you explicitly trust it in the Bundle view, and it pins a SHA-256 digest of the trusted file: if the file changes on disk for any reason, every bundle operation stops until you review and re-trust it.
+Brewfiles are treated as code, because `brew bundle` executes the Ruby they contain. Brewy never runs a Brewfile until you explicitly trust it in the Bundle view. It opens the selected file or symbolic-link target, requires a regular file no larger than 1 MB, pins its SHA-256 digest, and sends the exact approved bytes to Homebrew over standard input for every operation. If the file or link target changes, Brewy requires review and trust again. Because Homebrew receives the Brewfile through standard input, Brewfile code that depends on its source filename or directory should be run directly with `brew bundle` instead.
 
 Report suspected vulnerabilities privately by emailing [security@starhaven.io](mailto:security@starhaven.io) or using [GitHub's private vulnerability reporting](https://github.com/starhaven-io/Brewy/security/advisories/new). See the [security policy](SECURITY.md) for details.
 

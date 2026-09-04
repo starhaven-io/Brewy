@@ -60,6 +60,7 @@ struct CaskJSON: Decodable {
     let homepage: String?
     let url: String?
     let dependencies: [String]
+    let dependencyReferences: [PackageReference]
     let artifacts: [CaskArtifactJSON]
 
     enum CodingKeys: String, CodingKey {
@@ -84,7 +85,11 @@ struct CaskJSON: Decodable {
         // `depends_on` is usually an object but brew sometimes emits an empty array; tolerate
         // either shape so a cask never fails to decode over its dependency field.
         let deps = try? container.decodeIfPresent(DependsOn.self, forKey: .dependsOn)
-        dependencies = (deps?.formula ?? []) + (deps?.cask ?? [])
+        let formulaDependencies = deps?.formula ?? []
+        let caskDependencies = deps?.cask ?? []
+        dependencies = formulaDependencies + caskDependencies
+        dependencyReferences = formulaDependencies.map { PackageReference(name: $0, source: .formula) }
+            + caskDependencies.map { PackageReference(name: $0, source: .cask) }
     }
 
     var applicationBundleURLs: [URL] {
@@ -112,6 +117,7 @@ struct CaskJSON: Decodable {
             pinned: false,
             installedOnRequest: true,
             dependencies: dependencies,
+            dependencyReferences: dependencyReferences,
             repositoryURL: repositoryURL
         )
     }

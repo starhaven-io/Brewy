@@ -11,8 +11,8 @@ struct DependencyTreeSection: View {
     @State private var pullsInExpanded = false
 
     var body: some View {
-        let reverse = brewService.reverseDependencyTree(for: package.name)
-        let forward = brewService.forwardDependencyTree(for: package.name)
+        let reverse = brewService.reverseDependencyTree(for: package)
+        let forward = brewService.forwardDependencyTree(for: package)
 
         Group {
             if !reverse.isEmpty || !forward.isEmpty {
@@ -102,7 +102,7 @@ private struct DependencyTreeRow: View {
     var body: some View {
         HStack(spacing: 6) {
             Button {
-                if node.isInstalled { selectPackage(node.name) }
+                if let packageID = node.packageID { selectPackage(packageID) }
             } label: {
                 Text(node.name)
                     .font(.system(.callout, design: .monospaced))

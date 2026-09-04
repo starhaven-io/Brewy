@@ -1,6 +1,12 @@
 import Foundation
 
 extension ActionHistoryEntry {
+    var isRetryable: Bool {
+        guard status == .failure, !arguments.isEmpty else { return false }
+        guard arguments.first == "bundle" else { return true }
+        return isBundleDump && bundleDumpURL != nil
+    }
+
     var isMutatingCommand: Bool {
         if isBundleDump { return true }
         guard let command = arguments.first else { return false }

@@ -35,15 +35,16 @@ just build       # debug build without local code signing
 just lint        # SwiftLint (--strict)
 just typos       # spell-check
 just test        # unit tests (BrewyTests; UI tests need code signing)
+just test-ui     # UI tests with an ad hoc-signed test runner
 just periphery   # unused-code scan
 just audit       # GitHub Actions audit (zizmor)
 just lychee      # README and CONTRIBUTING link check
-just check       # everything above
+just check       # full static and unit-test gate
 ```
 
 Once you've run `just install-hooks`, the pre-push hook runs `just check` automatically on `git push`.
 
-CI builds with `SWIFT_TREAT_WARNINGS_AS_ERRORS=YES`, runs SwiftLint in `--strict` mode, audits workflows when they change, scans for unused code, and exercises the test suite under sanitizer configurations. Warnings and lint violations fail the build, so a clean `just check` locally is the best way to avoid CI surprises.
+CI builds with `SWIFT_TREAT_WARNINGS_AS_ERRORS=YES`, runs SwiftLint in `--strict` mode, audits workflows when they change, scans for unused code, exercises unit tests under sanitizer configurations, and runs UI tests with an ad hoc-signed runner. Warnings and lint violations fail the build, so a clean `just check` locally is the best way to avoid CI surprises.
 
 Run `just lychee` after changing links in README or CONTRIBUTING.
 
@@ -60,13 +61,14 @@ Run `just lychee` after changing links in README or CONTRIBUTING.
 
 - **Conventional Commits**: every commit message and PR title must be `type(scope): description`, where `type` is one of `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`. CI enforces this on both the PR title and each commit.
 - **DCO sign-off**: every commit needs a `Signed-off-by:` trailer — use `git commit -s`. The `commit-msg` hook installed by `just install-hooks` rejects commits without it.
-- If you used an AI assistant, include a `Co-Authored-By:` trailer.
+- Do not identify an AI tool or model as an author, co-author, committer, or signatory. AI attribution does not belong in commit trailers.
 
 ## Pull requests
 
 - Never push to `main`. Create a feature branch and open a PR.
 - PRs are squash-merged with the PR number appended (e.g. `feat: add dependency tree (#123)`).
 - Keep PR descriptions to a short summary of the change.
+- If AI assisted with a PR, end the initial PR description with exactly one unformatted line: `AI disclosure: <model> with <how the output was verified>.`
 
 ## Architecture guardrails
 

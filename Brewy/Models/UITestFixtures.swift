@@ -89,6 +89,15 @@ final class UITestCommandRunner: CommandRunning, @unchecked Sendable {
         return CommandResult(output: "Fixture command completed.\n", success: true)
     }
 
+    func run(
+        _ arguments: [String],
+        brewPath: String,
+        standardInput: Data,
+        timeout: Duration
+    ) async -> CommandResult {
+        await run(arguments, brewPath: brewPath, timeout: timeout)
+    }
+
     private func analyticsResult(_ arguments: [String]) -> CommandResult? {
         switch arguments {
         case ["analytics", "state"]:
@@ -464,7 +473,19 @@ extension BrewService {
     }
 
     private func loadUITestBundle() {
-        brewfileURL = resolveBrewfile()
+        let brewfileURL = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "BrewyUITest-\(ProcessInfo.processInfo.processIdentifier)-Brewfile"
+        )
+        let data = Data("brew \"ripgrep\"\nbrew \"jq\"\ncask \"firefox\"\n".utf8)
+        do {
+            try data.write(to: brewfileURL, options: .atomic)
+        } catch {
+            bundleEntries = []
+            bundleCheckStatus = .failed("Unable to create the UI test Brewfile.")
+            return
+        }
+        customBrewfilePath = brewfileURL.path
+        guard trustBrewfile(at: brewfileURL), resolveBrewfile() != nil else { return }
         bundleEntries = [
             BrewBundleEntry(type: .formula, name: "ripgrep", status: .installed),
             BrewBundleEntry(type: .formula, name: "jq", status: .missing),

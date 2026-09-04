@@ -5,16 +5,19 @@ import Testing
 private func makePackage(
     name: String,
     installedOnRequest: Bool = true,
-    dependencies: [String] = []
+    dependencies: [String] = [],
+    source: PackageSource = .formula,
+    dependencyReferences: [PackageReference]? = nil
 ) -> BrewPackage {
     BrewPackage(
-        id: "formula-\(name)", name: name, version: "1.0",
+        id: "\(source.rawValue)-\(name)", name: name, version: "1.0",
         description: "", homepage: "",
         isInstalled: true, isOutdated: false,
         installedVersion: "1.0", latestVersion: nil,
-        source: .formula, pinned: false,
+        source: source, pinned: false,
         installedOnRequest: installedOnRequest,
-        dependencies: dependencies
+        dependencies: dependencies,
+        dependencyReferences: dependencyReferences
     )
 }
 
@@ -67,10 +70,10 @@ struct BrewServiceDependencyTreeTests {
         let ids = Set(tree.flatMap { node -> [String] in
             [node.id] + (node.children?.map(\.id) ?? [])
         })
-        #expect(ids.contains("z>a"))
-        #expect(ids.contains("z>b"))
-        #expect(ids.contains("z>a>top"))
-        #expect(ids.contains("z>b>top"))
+        #expect(ids.contains("formula-z>formula-a"))
+        #expect(ids.contains("formula-z>formula-b"))
+        #expect(ids.contains("formula-z>formula-a>formula-top"))
+        #expect(ids.contains("formula-z>formula-b>formula-top"))
     }
 
     @Test("Reverse tree guards against cycles in the ancestor chain")
@@ -167,11 +170,34 @@ struct BrewServiceDependencyTreeTests {
             )
         ]
 
-        // Building the name-keyed lookup must not trap on the duplicate "docker"; the formula
-        // (which carries the dependency) wins, so the tree resolves down to openssl.
         let tree = service.forwardDependencyTree(for: "docker")
         #expect(tree.count == 1)
         #expect(tree[0].name == "openssl")
+        #expect(service.forwardDependencyTree(for: "docker", source: .cask).isEmpty)
+    }
+
+    @Test("Dependency trees preserve formula and cask identity for duplicate names")
+    func dependencyTreesPreservePackageSource() {
+        let formulaShared = makePackage(name: "shared", source: .formula)
+        let caskShared = makePackage(name: "shared", source: .cask)
+        let formulaParent = makePackage(name: "formula-parent", dependencies: ["shared"])
+        let caskParent = makePackage(
+            name: "cask-parent",
+            dependencies: ["shared"],
+            source: .cask,
+            dependencyReferences: [PackageReference(name: "shared", source: .cask)]
+        )
+        let service = BrewService()
+        service.installedFormulae = [formulaShared, formulaParent]
+        service.installedCasks = [caskShared, caskParent]
+
+        let formulaParents = service.reverseDependencyTree(for: formulaShared)
+        let caskParents = service.reverseDependencyTree(for: caskShared)
+        let caskDependencies = service.forwardDependencyTree(for: caskParent)
+
+        #expect(formulaParents.map(\.packageID) == [formulaParent.id])
+        #expect(caskParents.map(\.packageID) == [caskParent.id])
+        #expect(caskDependencies.map(\.packageID) == [caskShared.id])
     }
 
     @Test("maxNodes bounds the total node count for hub packages")

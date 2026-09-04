@@ -34,7 +34,7 @@ Please follow these guidelines when contributing.
 
 - `Brewy/BrewyApp.swift`: app entry point, window commands, menu bar extra, Sparkle updater.
 - `Brewy/Models/BrewService*.swift`: central state container and Homebrew orchestration split by responsibility.
-- `Brewy/Models/CommandRunner.swift`: the single process-execution path for `brew`, `mas`, `du`, `osascript`, and other executables.
+- `Brewy/Models/CommandRunner.swift`: the single process-execution path for `brew`, `mas`, `du`, and other executables.
 - `Brewy/Models/BrewJSONTypes.swift`: Homebrew JSON v2 Codable response types.
 - `Brewy/Models/MasService.swift`: Mac App Store integration through `mas`.
 - `Brewy/Models/ServicesService.swift`: Homebrew services parsing and control.

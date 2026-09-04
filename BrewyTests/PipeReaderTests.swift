@@ -42,4 +42,20 @@ struct PipeReaderTests {
 
         #expect(String(bytes: data, encoding: .utf8) == "partial")
     }
+
+    @Test("Reader drains to EOF while bounding retained output")
+    func boundsRetainedOutput() async throws {
+        let pipe = Pipe()
+        let reader = PipeReader(pipe: pipe, label: "bounded test", maximumByteCount: 64)
+        reader.start()
+
+        try pipe.fileHandleForWriting.write(contentsOf: Data(repeating: 0x41, count: 4_096))
+        try pipe.fileHandleForWriting.close()
+        let data = await Task.detached(priority: .medium) {
+            reader.wait { nil }
+        }.value
+
+        #expect(data.count <= 64)
+        #expect(String(bytes: data, encoding: .utf8)?.contains("output truncated") == true)
+    }
 }

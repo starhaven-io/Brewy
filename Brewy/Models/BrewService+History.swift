@@ -27,15 +27,12 @@ extension BrewService {
     private func saveHistory() {
         guard let url = Self.historyURL,
               !BrewyRuntime.isRunningTests else { return }
-        let history = actionHistory
-        Task.detached(priority: .utility) {
-            do {
-                let data = try JSONEncoder().encode(history)
-                try data.write(to: url, options: .atomic)
-                logger.debug("History saved successfully")
-            } catch {
-                logger.error("Failed to save history: \(error.localizedDescription)")
-            }
+        do {
+            let data = try JSONEncoder().encode(actionHistory)
+            try data.write(to: url, options: .atomic)
+            logger.debug("History saved successfully")
+        } catch {
+            logger.error("Failed to save history: \(error.localizedDescription)")
         }
     }
 
@@ -69,6 +66,10 @@ extension BrewService {
 
     func retryAction(_ entry: ActionHistoryEntry) async {
         guard entry.isRetryable else { return }
+        if entry.isBundleDump, let url = entry.bundleDumpURL {
+            _ = await dumpBundle(to: url)
+            return
+        }
         guard !isPerformingAction else {
             logger.info("Retry skipped, action already in progress")
             return
@@ -90,11 +91,7 @@ extension BrewService {
             output: result.output
         )
 
-        if result.success, entry.isBundleDump, let url = entry.bundleDumpURL {
-            customBrewfilePath = url.path
-            trustBrewfile(at: url)
-            await refreshBundle()
-        } else if entry.isMutatingCommand {
+        if result.success, entry.isMutatingCommand {
             await refresh()
         }
     }
@@ -123,6 +120,7 @@ extension BrewService {
             pinned: pkg.pinned || outdatedPkg.pinned,
             installedOnRequest: pkg.installedOnRequest,
             dependencies: pkg.dependencies,
+            dependencyReferences: pkg.dependencyReferences,
             repositoryURL: pkg.repositoryURL
         )
     }

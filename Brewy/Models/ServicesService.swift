@@ -8,13 +8,31 @@ private let logger = Logger(subsystem: "io.linnane.brewy", category: "ServicesSe
 enum ServicesParser {
 
     static func parseJSON(_ output: String) -> [BrewServiceItem] {
+        (try? decodeJSON(output)) ?? []
+    }
+
+    static func decodeJSON(_ output: String) throws -> [BrewServiceItem] {
         guard let data = output.data(using: .utf8) else { return [] }
         do {
             return try JSONDecoder().decode([BrewServiceItem].self, from: data)
         } catch {
             logger.error("Failed to parse services JSON: \(error.localizedDescription)")
-            return []
+            throw error
         }
+    }
+}
+
+struct ServicesFetchError: LocalizedError {
+    let commandOutput: String
+
+    var errorDescription: String? {
+        let output = UTF8ByteTruncation.prefix(
+            commandOutput.trimmingCharacters(in: .whitespacesAndNewlines),
+            maxBytes: 4_096
+        )
+        return output.isEmpty
+            ? "Homebrew did not return valid service data."
+            : "Homebrew could not load services.\n\(output)"
     }
 }
 
@@ -22,33 +40,43 @@ enum ServicesParser {
 
 extension BrewService {
 
-    func fetchServices() async -> [BrewServiceItem] {
+    func fetchServices() async throws -> [BrewServiceItem] {
         let brewPath = CommandRunner.resolvedBrewPath(preferred: customBrewPath)
 
         let infoResult = await commandRunner.run(["services", "info", "--all", "--json"], brewPath: brewPath)
+        let infoServices: [BrewServiceItem]?
         if infoResult.success {
-            let services = ServicesParser.parseJSON(infoResult.output)
-            if !services.isEmpty { return services }
+            infoServices = try? ServicesParser.decodeJSON(infoResult.output)
+            if let infoServices, !infoServices.isEmpty { return infoServices }
+        } else {
+            infoServices = nil
         }
 
         let listResult = await commandRunner.run(["services", "list", "--json"], brewPath: brewPath)
         guard listResult.success else {
-            logger.warning("Failed to fetch services: \(listResult.output.prefix(200))")
-            return []
+            if let infoServices { return infoServices }
+            let output = listResult.output.isEmpty ? infoResult.output : listResult.output
+            logger.warning("Failed to fetch services: \(output.prefix(200))")
+            throw ServicesFetchError(commandOutput: output)
         }
-        return ServicesParser.parseJSON(listResult.output)
+        do {
+            return try ServicesParser.decodeJSON(listResult.output)
+        } catch {
+            logger.warning("Homebrew returned invalid services JSON: \(error.localizedDescription)")
+            throw ServicesFetchError(commandOutput: "Homebrew returned invalid service data.")
+        }
     }
 
-    func startService(_ name: String, asSudo: Bool = false) async -> CommandResult {
-        await runServiceCommand(["services", "start", name], asSudo: asSudo)
+    func startService(_ name: String) async -> CommandResult {
+        await runServiceCommand(["services", "start", name])
     }
 
-    func stopService(_ name: String, asSudo: Bool = false) async -> CommandResult {
-        await runServiceCommand(["services", "stop", name], asSudo: asSudo)
+    func stopService(_ name: String) async -> CommandResult {
+        await runServiceCommand(["services", "stop", name])
     }
 
-    func restartService(_ name: String, asSudo: Bool = false) async -> CommandResult {
-        await runServiceCommand(["services", "restart", name], asSudo: asSudo)
+    func restartService(_ name: String) async -> CommandResult {
+        await runServiceCommand(["services", "restart", name])
     }
 
     func cleanupServices() async -> CommandResult {
@@ -60,30 +88,7 @@ extension BrewService {
         return result
     }
 
-    private func runServiceCommand(_ arguments: [String], asSudo: Bool) async -> CommandResult {
-        if asSudo {
-            guard let brewPath = CommandRunner.resolvedPrivilegedBrewPath(preferred: customBrewPath) else {
-                return CommandResult(
-                    output: "Run as root requires Homebrew at /opt/homebrew/bin/brew or /usr/local/bin/brew.",
-                    success: false
-                )
-            }
-            // Run brew as root via the native admin auth dialog. Args pass through osascript's argv
-            // and are shell-quoted with `quoted form of`, so nothing is interpolated into the script.
-            let script = """
-            on run argv
-                set cmd to ""
-                repeat with arg in argv
-                    set cmd to cmd & quoted form of (arg as text) & " "
-                end repeat
-                do shell script cmd with administrator privileges
-            end run
-            """
-            return await commandRunner.runExecutable(
-                "/usr/bin/osascript",
-                arguments: ["-e", script, brewPath] + arguments
-            )
-        }
+    private func runServiceCommand(_ arguments: [String]) async -> CommandResult {
         let brewPath = CommandRunner.resolvedBrewPath(preferred: customBrewPath)
         return await commandRunner.run(arguments, brewPath: brewPath)
     }

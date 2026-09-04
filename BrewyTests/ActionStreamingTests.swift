@@ -46,6 +46,15 @@ private final class StreamingMockRunner: CommandRunning, @unchecked Sendable {
         }
     }
 
+    func run(
+        _ arguments: [String],
+        brewPath: String,
+        standardInput: Data,
+        timeout: Duration
+    ) async -> CommandResult {
+        await run(arguments, brewPath: brewPath, timeout: timeout)
+    }
+
     func runExecutable(_ executablePath: String, arguments: [String], timeout: Duration) async -> CommandResult {
         finalResult
     }

@@ -2,10 +2,17 @@ import Foundation
 
 // MARK: - Package Source
 
-enum PackageSource: String, Codable {
+enum PackageSource: String, Codable, Sendable {
     case formula
     case cask
     case mas
+}
+
+struct PackageReference: Identifiable, Hashable, Codable, Sendable {
+    let name: String
+    let source: PackageSource
+
+    var id: String { "\(source.rawValue)-\(name)" }
 }
 
 struct BrewPackage: Identifiable, Hashable, Codable {
@@ -22,7 +29,9 @@ struct BrewPackage: Identifiable, Hashable, Codable {
     let source: PackageSource
     let pinned: Bool
     let installedOnRequest: Bool
-    let dependencies: [String]
+    let dependencyReferences: [PackageReference]
+
+    var dependencies: [String] { dependencyReferences.map(\.name) }
 
     var isFormula: Bool { source == .formula }
     var isCask: Bool { source == .cask }
@@ -49,6 +58,7 @@ struct BrewPackage: Identifiable, Hashable, Codable {
         pinned: Bool,
         installedOnRequest: Bool,
         dependencies: [String],
+        dependencyReferences: [PackageReference]? = nil,
         repositoryURL: String? = nil
     ) {
         self.id = id
@@ -64,7 +74,8 @@ struct BrewPackage: Identifiable, Hashable, Codable {
         self.source = source
         self.pinned = pinned
         self.installedOnRequest = installedOnRequest
-        self.dependencies = dependencies
+        self.dependencyReferences = dependencyReferences
+            ?? dependencies.map { PackageReference(name: $0, source: .formula) }
     }
 
     static func == (lhs: Self, rhs: Self) -> Bool {
@@ -84,6 +95,7 @@ struct BrewPackage: Identifiable, Hashable, Codable {
 struct DependencyTreeNode: Identifiable, Hashable {
     let id: String
     let name: String
+    let packageID: String?
     let isInstalled: Bool
     let installedOnRequest: Bool
     /// True if walking further would re-enter an ancestor in the same chain.
@@ -191,10 +203,6 @@ struct ActionHistoryEntry: Identifiable, Codable, Hashable {
         "brew " + arguments.joined(separator: " ")
     }
 
-    var isRetryable: Bool {
-        status == .failure && !arguments.isEmpty
-    }
-
     static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.id == rhs.id
     }
@@ -206,7 +214,7 @@ struct ActionHistoryEntry: Identifiable, Codable, Hashable {
 
 // MARK: - Appcast Release
 
-struct AppcastRelease: Identifiable {
+struct AppcastRelease: Identifiable, Sendable {
     let title: String
     let pubDate: String?
     let version: String?
@@ -224,81 +232,6 @@ struct AppcastRelease: Identifiable {
     var publishedDate: Date? {
         guard let pubDate else { return nil }
         return Self.pubDateFormatter.date(from: pubDate)
-    }
-}
-
-// MARK: - Appcast Parser
-
-final class AppcastParser: NSObject, XMLParserDelegate {
-    private var currentElement = ""
-    private var currentTitle = ""
-    private var currentPubDate = ""
-    private var currentVersion = ""
-    private var currentDescription = ""
-    private var release: AppcastRelease?
-    private var insideItem = false
-
-    func parse(data: Data) -> AppcastRelease? {
-        currentElement = ""
-        currentTitle = ""
-        currentPubDate = ""
-        currentVersion = ""
-        currentDescription = ""
-        release = nil
-        insideItem = false
-
-        let parser = XMLParser(data: data)
-        parser.delegate = self
-        parser.parse()
-        return release
-    }
-
-    func parser(_ parser: XMLParser, didStartElement elementName: String,
-                namespaceURI: String?, qualifiedName: String?,
-                attributes: [String: String] = [:]) {
-        currentElement = elementName
-        if elementName == "item" {
-            insideItem = true
-            currentTitle = ""
-            currentPubDate = ""
-            currentVersion = ""
-            currentDescription = ""
-        }
-    }
-
-    func parser(_ parser: XMLParser, foundCharacters string: String) {
-        guard insideItem else { return }
-        switch currentElement {
-        case "title": currentTitle += string
-        case "pubDate": currentPubDate += string
-        case "sparkle:shortVersionString": currentVersion += string
-        case "description": currentDescription += string
-        default: break
-        }
-    }
-
-    func parser(_ parser: XMLParser, foundCDATA CDATABlock: Data) {
-        guard insideItem, currentElement == "description" else { return }
-        if let text = String(data: CDATABlock, encoding: .utf8) {
-            currentDescription += text
-        }
-    }
-
-    func parser(_ parser: XMLParser, didEndElement elementName: String,
-                namespaceURI: String?, qualifiedName: String?) {
-        if elementName == "item" {
-            // Keep the first item; Sparkle feeds list newest first, so ignore older entries.
-            if release == nil {
-                release = AppcastRelease(
-                    title: currentTitle.trimmingCharacters(in: .whitespacesAndNewlines),
-                    pubDate: currentPubDate.trimmingCharacters(in: .whitespacesAndNewlines),
-                    version: currentVersion.trimmingCharacters(in: .whitespacesAndNewlines),
-                    descriptionHTML: currentDescription.isEmpty ? nil : currentDescription
-                )
-            }
-            insideItem = false
-        }
-        currentElement = ""
     }
 }
 
