@@ -158,9 +158,9 @@ jobs:
     environment:
       name: ${{ matrix.environment }}
       deployment: false
-    # Cap at 45m: lint/commits finish in seconds, CodeQL runs ~20m, sanitizer
-    # test jobs ~10m. Anything past this is a hang — fail fast instead of
-    # burning up to 6h of the default runner budget.
+    # Cap matrix legs at 45m; sanitizer tests normally finish in about 10m and
+    # the other legs are quicker. Anything past this is a hang — fail fast
+    # instead of burning up to 6h of the default runner budget.
     timeout-minutes: 45
     permissions:
       contents: read
@@ -411,7 +411,7 @@ jobs:
     with:
       languages: '["swift"]'
       runner: "macos-26"
-      timeout-minutes: 30
+      timeout-minutes: 45
       build-mode: "manual"
       build-profile: "brewy-xcode"
 
