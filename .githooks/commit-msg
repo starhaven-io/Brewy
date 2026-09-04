@@ -32,7 +32,7 @@ case "$subject" in
         ;;
 esac
 
-if ! grep -qE '^Signed-off-by: .+ <.+@.+>' "$msg_file"; then
+if ! printf '%s\n' "$trailers" | grep -qE '^Signed-off-by: .+ <.+@.+>$'; then
     echo "commit-msg hook: missing DCO sign-off." >&2
     echo "  Re-run with 'git commit -s' to add a Signed-off-by trailer." >&2
     exit 1

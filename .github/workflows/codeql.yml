@@ -21,10 +21,10 @@ jobs:
     permissions:
       contents: read
       security-events: write # required to upload SARIF results
-    uses: starhaven-io/.github/.github/workflows/reusable-codeql.yml@9b96b1a5b91cffa111955fdd1ffefe3cb77bf739 # v2026.08.23.1
+    uses: starhaven-io/.github/.github/workflows/reusable-codeql.yml@b1fbde19ff11c4a6ccefe2e46872f3bb7cf4ba0b # v2026.09.04.1
     with:
       languages: '["swift"]'
       runner: "macos-26"
-      timeout-minutes: 30
+      timeout-minutes: 45
       build-mode: "manual"
       build-profile: "brewy-xcode"
