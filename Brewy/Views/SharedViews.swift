@@ -13,7 +13,6 @@ extension FocusedValues {
 
 struct ColumnSearchBar<Accessory: View>: View {
     @Binding private var text: String
-    // periphery:ignore - Read through NSViewRepresentable and focused-scene projected bindings.
     @State private var isSearchFocused = false
     private let prompt: String
     private let accessibilityIdentifier: String

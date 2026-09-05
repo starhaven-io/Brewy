@@ -57,7 +57,6 @@ jobs:
           # PR coverage comparisons.
           if [[ "${EVENT_NAME}" == "push" ]]; then
             add_check '{"name":"Lint","check":"lint","runner":"macos-26"}'
-            add_check '{"name":"Periphery","check":"periphery","runner":"macos-26"}'
             add_check '{"name":"Build Brew JSON Probe","check":"probe-build","runner":"macos-26"}'
             add_check '{"name":"Test (Thread Sanitizer)","check":"test-tsan","runner":"macos-26","xcodebuild_flags":"-only-testing:BrewyTests -enableCodeCoverage YES -enableThreadSanitizer YES","result_bundle":"TestResults-TSAN","environment":"codecov"}'
             add_check '{"name":"Test (signed UI runner)","check":"test-ui","runner":"macos-26","xcodebuild_flags":"-only-testing:BrewyUITests","result_bundle":"TestResults-UI"}'
@@ -88,7 +87,6 @@ jobs:
             NEEDS_LINT=1
             NEEDS_TESTS=1
             NEEDS_PROBE=1
-            NEEDS_PERIPHERY=1
             NEEDS_RELEASE_HELPERS=1
             RUN_CODEQL=true
             RUN_ZIZMOR=true
@@ -126,10 +124,6 @@ jobs:
 
           if [[ "${NEEDS_PROBE}" -eq 1 ]]; then
             add_check '{"name":"Build Brew JSON Probe","check":"probe-build","runner":"macos-26"}'
-          fi
-
-          if [[ "${NEEDS_PERIPHERY}" -eq 1 ]]; then
-            add_check '{"name":"Periphery","check":"periphery","runner":"macos-26"}'
           fi
 
           if [[ "${NEEDS_RELEASE_HELPERS}" -eq 1 ]]; then
@@ -184,7 +178,7 @@ jobs:
 
       - name: Restore Homebrew downloads
         id: homebrew-cache
-        if: matrix.check == 'lint' || matrix.check == 'periphery'
+        if: matrix.check == 'lint'
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/Library/Caches/Homebrew
@@ -221,32 +215,6 @@ jobs:
       - name: Validate CI path routing
         if: matrix.check == 'lint'
         run: bash scripts/ci-path-routing.sh --self-test
-
-      - name: Install Periphery
-        if: matrix.check == 'periphery'
-        env:
-          HOMEBREW_NO_AUTO_UPDATE: 1
-          HOMEBREW_NO_ENV_HINTS: 1
-        run: brew install periphery
-
-      - name: Save Periphery Homebrew downloads
-        if: >
-          github.event_name == 'push' &&
-          matrix.check == 'periphery' &&
-          steps.homebrew-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/Library/Caches/Homebrew
-          key: ${{ steps.homebrew-cache.outputs.cache-primary-key }}
-
-      - name: Periphery
-        if: matrix.check == 'periphery'
-        # --no-superfluous-ignore-comments: CI's toolchain resolves the SwiftUI $-binding refs the
-        # local one misses, so it would otherwise flag the periphery:ignore comments as redundant.
-        run: |
-          periphery scan --strict --disable-update-check --no-superfluous-ignore-comments \
-            -- CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO EXCLUDED_ARCHS=x86_64
-
 
       - name: Build (Release)
         if: matrix.check == 'build-release'

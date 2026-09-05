@@ -12,7 +12,7 @@ Thanks for helping improve Brewy. This document covers the local setup, verifica
 Optional tooling used by the full local gate:
 
 ```sh
-brew install swiftlint typos-cli zizmor periphery lychee
+brew install swiftlint typos-cli zizmor lychee
 ```
 
 ## Getting started
@@ -36,7 +36,6 @@ just lint        # SwiftLint (--strict)
 just typos       # spell-check
 just test        # unit tests (BrewyTests; UI tests need code signing)
 just test-ui     # UI tests with an ad hoc-signed test runner
-just periphery   # unused-code scan
 just audit       # GitHub Actions audit (zizmor)
 just lychee      # README and CONTRIBUTING link check
 just check       # full static and unit-test gate
@@ -44,7 +43,7 @@ just check       # full static and unit-test gate
 
 Once you've run `just install-hooks`, the pre-push hook runs `just check` automatically on `git push`.
 
-CI builds with `SWIFT_TREAT_WARNINGS_AS_ERRORS=YES`, runs SwiftLint in `--strict` mode, audits workflows when they change, scans for unused code, exercises unit tests under sanitizer configurations, and runs UI tests with an ad hoc-signed runner. Warnings and lint violations fail the build, so a clean `just check` locally is the best way to avoid CI surprises.
+CI builds with `SWIFT_TREAT_WARNINGS_AS_ERRORS=YES`, runs SwiftLint in `--strict` mode, audits workflows when they change, exercises unit tests under sanitizer configurations, and runs UI tests with an ad hoc-signed runner. Warnings and lint violations fail the build, so a clean `just check` locally is the best way to avoid CI surprises.
 
 Run `just lychee` after changing links in README or CONTRIBUTING.
 

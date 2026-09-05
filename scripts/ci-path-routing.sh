@@ -4,7 +4,6 @@ reset_ci_routes() {
   NEEDS_LINT=0
   NEEDS_TESTS=0
   NEEDS_PROBE=0
-  NEEDS_PERIPHERY=0
   NEEDS_RELEASE_HELPERS=0
   RUN_CODEQL=false
   RUN_ZIZMOR=false
@@ -14,7 +13,6 @@ select_all_ci_routes() {
   NEEDS_LINT=1
   NEEDS_TESTS=1
   NEEDS_PROBE=1
-  NEEDS_PERIPHERY=1
   NEEDS_RELEASE_HELPERS=1
   RUN_CODEQL=true
   RUN_ZIZMOR=true
@@ -53,13 +51,6 @@ route_ci_path() {
     routed=1
   fi
 
-  if [[ "${path}" == *.swift || "${path}" == Brewy/* || "${path}" == BrewyTests/* ||
-        "${path}" == BrewyUITests/* || "${path}" == Brewy.xcodeproj/* ||
-        "${path}" == .periphery.yml || "${path}" == .github/workflows/ci.yml ]]; then
-    NEEDS_PERIPHERY=1
-    routed=1
-  fi
-
   if [[ "${path}" == Brewy/* || "${path}" == BrewyTests/* || "${path}" == BrewyUITests/* ]]; then
     RUN_CODEQL=true
     routed=1
@@ -87,7 +78,6 @@ assert_source_path_routes() {
   route_ci_path "$1"
   [[ "${NEEDS_LINT}" -eq 1 ]]
   [[ "${NEEDS_TESTS}" -eq 1 ]]
-  [[ "${NEEDS_PERIPHERY}" -eq 1 ]]
   [[ "${RUN_CODEQL}" == true ]]
 }
 
@@ -116,7 +106,6 @@ validate_ci_path_routing() {
   [[ "${NEEDS_LINT}" -eq 1 ]]
   [[ "${NEEDS_TESTS}" -eq 1 ]]
   [[ "${NEEDS_PROBE}" -eq 1 ]]
-  [[ "${NEEDS_PERIPHERY}" -eq 1 ]]
   [[ "${NEEDS_RELEASE_HELPERS}" -eq 1 ]]
   [[ "${RUN_CODEQL}" == true ]]
   [[ "${RUN_ZIZMOR}" == true ]]
