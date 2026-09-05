@@ -21,7 +21,7 @@ jobs:
     name: Check links
     permissions:
       contents: read
-    uses: starhaven-io/.github/.github/workflows/reusable-link-check.yml@b1fbde19ff11c4a6ccefe2e46872f3bb7cf4ba0b # v2026.09.04.1
+    uses: starhaven-io/.github/.github/workflows/reusable-link-check.yml@53fd167c64823089351b4c7cebfefdfde2df0ac6 # v2026.09.04.2
     with:
       args: "--config lychee.toml README.md CONTRIBUTING.md"
       build-site: false
