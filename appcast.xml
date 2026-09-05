@@ -3,17 +3,18 @@
     <channel>
         <title>Brewy</title>
         <item>
-            <title>0.24.0</title>
-            <pubDate>Sun, 23 Aug 2026 03:58:48 +0000</pubDate>
-            <sparkle:version>32</sparkle:version>
-            <sparkle:shortVersionString>0.24.0</sparkle:shortVersionString>
+            <title>0.25.0</title>
+            <pubDate>Sat, 05 Sep 2026 01:05:40 +0000</pubDate>
+            <sparkle:version>33</sparkle:version>
+            <sparkle:shortVersionString>0.25.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>What&#x27;s New</h2>
+            <description><![CDATA[<h2>Fixes</h2>
 <ul>
-  <li>show code signing and Gatekeeper details for installed apps</li>
-  <li>link casks to their GitHub repository</li>
+  <li>restore and guard the brew JSON probe build</li>
+  <li>bind Brewfile trust to exact bytes and harden release and CI checks</li>
+  <li>move the app icon to Icon Composer and drop the classic icon</li>
 </ul>]]></description>
-            <enclosure url="https://github.com/starhaven-io/Brewy/releases/download/0.24.0/Brewy-0.24.0.zip" length="4802694" type="application/octet-stream" sparkle:edSignature="K8X4bldDsnGgahR8v59Yj1Ri9T9R6AtQM5/DteeBR37sAjSOnisI1Y8YVtGMBZx9clwIEzYtRUktf04sr9wwCQ=="/>
+            <enclosure url="https://github.com/starhaven-io/Brewy/releases/download/0.25.0/Brewy-0.25.0.zip" length="3971759" type="application/octet-stream" sparkle:edSignature="mgqQHNCa/sspZVwMXDTEkhC22rFL7RXaPdNrA4pm/65WYo0aFGj9aJiyOXR5xiDWLeceiVvAMtJ6zhTfrivHBw=="/>
         </item>
     </channel>
 </rss>
