@@ -107,10 +107,6 @@ lint:
 typos:
     typos
 
-# Scan for unused code (uses .periphery.yml)
-periphery:
-    periphery scan --clean-build
-
 # Check README and CONTRIBUTING links
 lychee:
     lychee --config lychee.toml README.md CONTRIBUTING.md
@@ -147,13 +143,6 @@ check:
         run zizmor --persona auditor .github/workflows/
     else
         skip audit zizmor zizmor
-    fi
-    if command -v periphery &>/dev/null; then
-        # Match CI: tolerate periphery:ignore comments CI sees as redundant (SwiftUI $-binding refs).
-        run periphery scan --strict --disable-update-check --no-superfluous-ignore-comments --clean-build \
-            -- CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO EXCLUDED_ARCHS=x86_64
-    else
-        skip periphery periphery periphery
     fi
     if command -v lychee &>/dev/null; then
         run lychee --config lychee.toml README.md CONTRIBUTING.md
