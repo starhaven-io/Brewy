@@ -19,4 +19,4 @@ jobs:
     permissions:
       contents: read
       security-events: write # required to upload SARIF results
-    uses: starhaven-io/.github/.github/workflows/reusable-zizmor.yml@53fd167c64823089351b4c7cebfefdfde2df0ac6 # v2026.09.04.2
+    uses: starhaven-io/.github/.github/workflows/reusable-zizmor.yml@78b931b0780f83e92162f641956e95c116467036 # v2026.09.06.1
