@@ -212,7 +212,7 @@ jobs:
       name: release
       deployment: false
     permissions:
-      contents: write # required to create GitHub releases
+      contents: read # required to check out the release helper source
       attestations: write # required to attest the published (notarized + stapled) asset
       id-token: write # required to generate build provenance attestations
     env:
@@ -281,9 +281,19 @@ jobs:
           echo "SPARKLE_SIG=$(echo "${SIG_OUTPUT}" | grep -o 'sparkle:edSignature="[^"]*"' | cut -d'"' -f2)" >> "${GITHUB_ENV}"
           echo "SPARKLE_LENGTH=$(echo "${SIG_OUTPUT}" | grep -o 'length="[^"]*"' | cut -d'"' -f2)" >> "${GITHUB_ENV}"
 
+      - name: Mint release token
+        id: release-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+
       - name: Create or update draft release asset
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.release-token.outputs.token }}
           ARTIFACT_NAME: ${{ needs.build.outputs.artifact_name }}
           REPOSITORY: ${{ github.repository }}
           COMMIT_SHA: ${{ github.sha }}
@@ -339,7 +349,7 @@ jobs:
 
       - name: Update release notes
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.release-token.outputs.token }}
           REPOSITORY: ${{ github.repository }}
           COMMIT_SHA: ${{ github.sha }}
         run: |
@@ -371,7 +381,7 @@ jobs:
 
       - name: Publish release
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.release-token.outputs.token }}
           REPOSITORY: ${{ github.repository }}
           COMMIT_SHA: ${{ github.sha }}
         run: |
@@ -389,11 +399,14 @@ jobs:
 
       - name: Push appcast
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.release-token.outputs.token }}
+          APP_SLUG: ${{ steps.release-token.outputs.app-slug }}
           REPOSITORY: ${{ github.repository }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          BOT_USER="${APP_SLUG}[bot]"
+          BOT_ID=$(gh api "/users/${BOT_USER}" --jq .id)
+          git config user.name "${BOT_USER}"
+          git config user.email "${BOT_ID}+${BOT_USER}@users.noreply.github.com"
           AUTH_HEADER="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
           cp appcast.xml "${RUNNER_TEMP}/appcast.xml"
           git -c "http.extraheader=AUTHORIZATION: Basic ${AUTH_HEADER}" fetch origin appcast
