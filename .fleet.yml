@@ -10,11 +10,11 @@ params:
       group: "swift-dependencies"
       directory: "/"
   link-check:
-    targets: "--config lychee.toml README.md CONTRIBUTING.md"
+    targets: "--config lychee.toml README.md CONTRIBUTING.md SECURITY.md"
     build-site: false
     authenticated-github: true
     schedule: "0 14 * * 1"
-    pull-request-paths: ["README.md", "CONTRIBUTING.md", "lychee.toml"]
+    pull-request-paths: ["README.md", "CONTRIBUTING.md", "SECURITY.md", "lychee.toml"]
     concurrency-group: "link-check-${{ github.ref }}"
   codeql:
     languages: ["swift"]
