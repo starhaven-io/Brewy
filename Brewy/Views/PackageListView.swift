@@ -42,6 +42,14 @@ struct PackageListView: View {
         return base.filter { $0.name.localizedStandardContains(searchText) }
     }
 
+    // Selection follows source-qualified identity; package equality includes displayed metadata.
+    private var selectedPackageID: Binding<String?> {
+        Binding(
+            get: { selectedPackage?.id },
+            set: { id in selectedPackage = displayedPackages.first { $0.id == id } }
+        )
+    }
+
     var body: some View {
         let packages = displayedPackages
         return VStack(spacing: 0) {
@@ -125,7 +133,7 @@ struct PackageListView: View {
     }
 
     private func packageList(packages: [BrewPackage]) -> some View {
-        List(selection: $selectedPackage) {
+        List(selection: selectedPackageID) {
             if packages.isEmpty {
                 emptyContent
             } else {
@@ -146,7 +154,7 @@ struct PackageListView: View {
                             onUpgrade: { pkg in await brewService.upgrade(package: pkg) }
                         )
                     }
-                    .tag(package)
+                    .tag(package.id)
                 }
             }
         }

@@ -88,9 +88,6 @@ enum ApplicationSecurityParser {
             return .valid
         }
         let lowercaseOutput = output.lowercased()
-        if lowercaseOutput.contains("not signed at all") {
-            return .unsigned
-        }
         if verification.cancelled
             || lowercaseOutput.contains("timed out")
             || lowercaseOutput.contains("failed to run")
@@ -98,6 +95,9 @@ enum ApplicationSecurityParser {
             || lowercaseOutput.contains("does not exist")
             || lowercaseOutput.contains("failed to launch process") {
             return .unavailable
+        }
+        if lowercaseOutput.contains("not signed at all") {
+            return .unsigned
         }
         return .invalid
     }
@@ -109,7 +109,7 @@ enum ApplicationSecurityParser {
         if assessment.success {
             return .accepted
         }
-        if assessment.cancelled {
+        if assessment.cancelled || output.localizedCaseInsensitiveContains("timed out") {
             return .unavailable
         }
         if assessment.exitCode == 3 || output.localizedCaseInsensitiveContains("rejected") {

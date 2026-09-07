@@ -107,9 +107,9 @@ lint:
 typos:
     typos
 
-# Check README and CONTRIBUTING links
+# Check README, CONTRIBUTING, and SECURITY links
 lychee:
-    lychee --config lychee.toml README.md CONTRIBUTING.md
+    lychee --config lychee.toml README.md CONTRIBUTING.md SECURITY.md
 
 # Check
 
@@ -145,7 +145,7 @@ check:
         skip audit zizmor zizmor
     fi
     if command -v lychee &>/dev/null; then
-        run lychee --config lychee.toml README.md CONTRIBUTING.md
+        run lychee --config lychee.toml README.md CONTRIBUTING.md SECURITY.md
     else
         skip lychee lychee lychee
     fi

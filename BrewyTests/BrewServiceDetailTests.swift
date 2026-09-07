@@ -300,11 +300,11 @@ struct TapManagementTests {
         let mock = MockCommandRunner()
         let (service, _) = makeService(mock: mock)
         setupRefreshMock(mock)
-        mock.setResult(for: ["tap", "user/repo"], output: "Tapped user/repo")
+        mock.setResult(for: ["tap", "--", "user/repo"], output: "Tapped user/repo")
 
         await service.addTap(name: "user/repo")
 
-        #expect(mock.executedCommands.contains(["tap", "user/repo"]))
+        #expect(mock.executedCommands.contains(["tap", "--", "user/repo"]))
     }
 
     @Test("addTap returns command failure even when refresh clears shared error")
@@ -312,7 +312,7 @@ struct TapManagementTests {
         let mock = MockCommandRunner()
         let (service, _) = makeService(mock: mock)
         setupRefreshMock(mock)
-        mock.setResult(for: ["tap", "bad/repo"], output: "Error: tap failed", success: false)
+        mock.setResult(for: ["tap", "--", "bad/repo"], output: "Error: tap failed", success: false)
 
         let result = await service.addTap(name: "bad/repo")
 
@@ -325,11 +325,11 @@ struct TapManagementTests {
         let mock = MockCommandRunner()
         let (service, _) = makeService(mock: mock)
         setupRefreshMock(mock)
-        mock.setResult(for: ["untap", "user/repo"], output: "Untapped user/repo")
+        mock.setResult(for: ["untap", "--", "user/repo"], output: "Untapped user/repo")
 
         await service.removeTap(name: "user/repo")
 
-        #expect(mock.executedCommands.contains(["untap", "user/repo"]))
+        #expect(mock.executedCommands.contains(["untap", "--", "user/repo"]))
     }
 
     @Test("migrateTap untaps old and taps new")
@@ -337,8 +337,8 @@ struct TapManagementTests {
         let mock = MockCommandRunner()
         let (service, _) = makeService(mock: mock)
         setupRefreshMock(mock)
-        mock.setResult(for: ["untap", "old/tap"], output: "Untapped")
-        mock.setResult(for: ["tap", "new/tap"], output: "Tapped")
+        mock.setResult(for: ["untap", "--", "old/tap"], output: "Untapped")
+        mock.setResult(for: ["tap", "--", "new/tap"], output: "Tapped")
 
         service.tapHealthStatuses["old/tap"] = TapHealthStatus(
             status: .moved, movedTo: "https://github.com/new/homebrew-tap", lastChecked: Date()
@@ -346,8 +346,8 @@ struct TapManagementTests {
 
         await service.migrateTap(from: "old/tap", to: "new/tap")
 
-        #expect(mock.executedCommands.contains(["untap", "old/tap"]))
-        #expect(mock.executedCommands.contains(["tap", "new/tap"]))
+        #expect(mock.executedCommands.contains(["untap", "--", "old/tap"]))
+        #expect(mock.executedCommands.contains(["tap", "--", "new/tap"]))
         #expect(service.tapHealthStatuses["old/tap"] == nil)
     }
 

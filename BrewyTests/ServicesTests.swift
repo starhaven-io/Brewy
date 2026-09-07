@@ -180,7 +180,7 @@ struct BrewServiceServicesControlTests {
         _ = await service.startService("redis")
 
         let last = mock.executedExecutables.last
-        #expect(last?.arguments == ["services", "start", "redis"])
+        #expect(last?.arguments == ["services", "start", "--", "redis"])
         #expect(last?.path.hasSuffix("brew") == true)
     }
 
@@ -190,10 +190,10 @@ struct BrewServiceServicesControlTests {
         let (service, _) = makeService(mock: mock)
 
         _ = await service.stopService("redis")
-        #expect(mock.executedExecutables.last?.arguments == ["services", "stop", "redis"])
+        #expect(mock.executedExecutables.last?.arguments == ["services", "stop", "--", "redis"])
 
         _ = await service.restartService("redis")
-        #expect(mock.executedExecutables.last?.arguments == ["services", "restart", "redis"])
+        #expect(mock.executedExecutables.last?.arguments == ["services", "restart", "--", "redis"])
         #expect(mock.executedExecutables.allSatisfy { $0.path.hasSuffix("brew") })
         #expect(mock.executedExecutables.allSatisfy { $0.path != "/usr/bin/osascript" })
     }

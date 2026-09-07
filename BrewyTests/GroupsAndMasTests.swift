@@ -27,13 +27,13 @@ struct PackageGroupTests {
         #expect(group.packageIDs.count == 2)
     }
 
-    @Test("PackageGroup equality is based on ID")
+    @Test("Group edits preserve identity but change group value")
     func equalityById() {
         let id = UUID()
         let group1 = PackageGroup(id: id, name: "Group A")
         let group2 = PackageGroup(id: id, name: "Group B", systemImage: "star.fill")
-        #expect(group1 == group2)
-        #expect(group1.hashValue == group2.hashValue)
+        #expect(group1.id == group2.id)
+        #expect(group1 != group2)
     }
 
     @Test("PackageGroups with different IDs are not equal")

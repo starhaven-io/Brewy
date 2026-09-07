@@ -196,12 +196,12 @@ extension BrewService {
     }
 
     func refreshBundle() async {
-        guard !isBundleLoading, bundleCheckStatus != .checking else { return }
+        let operationID = beginBundleOperation()
         lastError = nil
         guard let brewfileURL = resolveBrewfile() else { return }
         guard let snapshot = executableSnapshot(for: brewfileURL) else { return }
-        guard await fetchBundleEntries(snapshot: snapshot) else { return }
-        await checkBundle(snapshot: snapshot)
+        guard await fetchBundleEntries(snapshot: snapshot, operationID: operationID) else { return }
+        await checkBundle(snapshot: snapshot, operationID: operationID)
     }
 
     func updateBundleEntryStatuses() {
@@ -213,24 +213,31 @@ extension BrewService {
 
     @discardableResult
     func fetchBundleEntries() async -> Bool {
-        guard let brewfileURL = resolveBrewfile() else { return false }
-        return await fetchBundleEntries(brewfileURL: brewfileURL)
+        let operationID = beginBundleOperation()
+        guard let brewfileURL = resolveBrewfile(),
+              let snapshot = executableSnapshot(for: brewfileURL) else { return false }
+        return await fetchBundleEntries(snapshot: snapshot, operationID: operationID)
     }
 
     @discardableResult
     func fetchBundleEntries(brewfileURL: URL) async -> Bool {
+        let operationID = beginBundleOperation()
         guard let snapshot = executableSnapshot(for: brewfileURL) else { return false }
-        return await fetchBundleEntries(snapshot: snapshot)
+        return await fetchBundleEntries(snapshot: snapshot, operationID: operationID)
     }
 
-    private func fetchBundleEntries(snapshot: BrewfileSnapshot) async -> Bool {
+    private func fetchBundleEntries(snapshot: BrewfileSnapshot, operationID: UUID) async -> Bool {
+        guard isCurrentBundleOperation(operationID) else { return false }
         isBundleLoading = true
-        defer { isBundleLoading = false }
+        defer {
+            if bundleOperationID == operationID { isBundleLoading = false }
+        }
 
         var fetchedEntries: [BrewBundleEntry] = []
         for type in BrewBundleEntryType.allCases {
             let arguments = ["bundle", "list", type.listFlag, "--file=-"]
             let result = await runBrewCommand(arguments, standardInput: snapshot.data)
+            guard isCurrentBundleOperation(operationID, result: result) else { return false }
             guard result.success else {
                 logger.warning("Failed to list \(type.rawValue) bundle entries: \(result.output.prefix(200))")
                 let message = BrewError.commandFailed(
@@ -251,19 +258,24 @@ extension BrewService {
     }
 
     func checkBundle() async {
-        guard let brewfileURL = resolveBrewfile() else { return }
-        await checkBundle(brewfileURL: brewfileURL)
+        let operationID = beginBundleOperation()
+        guard let brewfileURL = resolveBrewfile(),
+              let snapshot = executableSnapshot(for: brewfileURL) else { return }
+        await checkBundle(snapshot: snapshot, operationID: operationID)
     }
 
     func checkBundle(brewfileURL: URL) async {
+        let operationID = beginBundleOperation()
         guard let snapshot = executableSnapshot(for: brewfileURL) else { return }
-        await checkBundle(snapshot: snapshot)
+        await checkBundle(snapshot: snapshot, operationID: operationID)
     }
 
-    private func checkBundle(snapshot: BrewfileSnapshot) async {
+    private func checkBundle(snapshot: BrewfileSnapshot, operationID: UUID) async {
+        guard isCurrentBundleOperation(operationID) else { return }
         bundleCheckStatus = .checking
         let arguments = ["bundle", "check", "--verbose", "--file=-"]
         let result = await runBrewCommand(arguments, standardInput: snapshot.data)
+        guard isCurrentBundleOperation(operationID, result: result) else { return }
         let status = BrewBundleParser.parseCheckResult(success: result.success, output: result.output)
         bundleCheckStatus = status
 
@@ -271,6 +283,24 @@ extension BrewService {
             logger.warning("Bundle check failed: \(result.output.prefix(200))")
             lastError = .commandFailed(command: arguments.joined(separator: " "), output: result.output)
         }
+    }
+
+    // A new selection/refresh supersedes in-flight reads, including a now-untrusted selection.
+    // Older commands may finish after cancellation, but cannot publish data or clear the new spinner.
+    private func beginBundleOperation() -> UUID {
+        bundleOperationID = UUID()
+        isBundleLoading = false
+        bundleCheckStatus = .unknown
+        return bundleOperationID
+    }
+
+    private func isCurrentBundleOperation(_ operationID: UUID, result: CommandResult? = nil) -> Bool {
+        guard bundleOperationID == operationID else { return false }
+        guard !Task.isCancelled, result?.cancelled != true else {
+            bundleCheckStatus = .unknown
+            return false
+        }
+        return true
     }
 
     /// Overwrites any existing file at `url`; callers must obtain user consent first

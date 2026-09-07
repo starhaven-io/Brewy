@@ -9,7 +9,7 @@ Thanks for helping improve Brewy. This document covers the local setup, verifica
 - [Homebrew](https://brew.sh). Brewy shells out to the local `brew` installation.
 - [`just`](https://github.com/casey/just) for the local task runner (`brew install just`)
 
-Optional tooling used by the full local gate:
+Tools required by the full local gate:
 
 ```sh
 brew install swiftlint typos-cli zizmor lychee
@@ -37,7 +37,7 @@ just typos       # spell-check
 just test        # unit tests (BrewyTests; UI tests need code signing)
 just test-ui     # UI tests with an ad hoc-signed test runner
 just audit       # GitHub Actions audit (zizmor)
-just lychee      # README and CONTRIBUTING link check
+just lychee      # README, CONTRIBUTING, and SECURITY link check
 just check       # full static and unit-test gate
 ```
 
@@ -45,14 +45,13 @@ Once you've run `just install-hooks`, the pre-push hook runs `just check` automa
 
 CI builds with `SWIFT_TREAT_WARNINGS_AS_ERRORS=YES`, runs SwiftLint in `--strict` mode, audits workflows when they change, exercises unit tests under sanitizer configurations, and runs UI tests with an ad hoc-signed runner. Warnings and lint violations fail the build, so a clean `just check` locally is the best way to avoid CI surprises.
 
-Run `just lychee` after changing links in README or CONTRIBUTING.
+Run `just lychee` after changing links in README, CONTRIBUTING, or SECURITY.
 
 ## Documentation and assets
 
 - Keep README copy aligned with the current app UI, installation flow, and security model.
 - Do not keep stale screenshots or demo recordings in the README.
 - Edit `Brewy/AppIcon.icon` in Icon Composer, then export and update `assets/BrewyIcon.png` when the app icon changes.
-- Update `assets/BrewyScreenshot.png` when the main app UI changes materially.
 - Prefer concise docs that describe what the app does and how to verify changes.
 - Keep PR descriptions short; the repository does not use generated test-plan or tool-attribution sections.
 

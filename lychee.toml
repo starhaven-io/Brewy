@@ -1,5 +1,5 @@
 # Configuration for https://github.com/lycheeverse/lychee
-# Checks links in README.md and CONTRIBUTING.md.
+# Checks links in README.md, CONTRIBUTING.md, and SECURITY.md.
 # Run: `just lychee`.
 
 max_concurrency = 20

@@ -109,6 +109,7 @@ final class BrewService {
     @ObservationIgnored private var tapHealthTask: Task<Void, Never>?
     @ObservationIgnored var actionCommandTask: Task<CommandResult, Never>?
     @ObservationIgnored var brewfileSnapshot: BrewfileSnapshot?
+    @ObservationIgnored var bundleOperationID = UUID()
     @ObservationIgnored var packageUpdatesStarted = false
     @ObservationIgnored var scheduledAutoRefreshInterval: Int?
     @ObservationIgnored var initialRefreshTask: Task<Void, Never>?
@@ -469,7 +470,6 @@ extension BrewService {
     }
 
 }
-
 // MARK: - Package Category Queries
 
 extension BrewService {

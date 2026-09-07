@@ -161,7 +161,7 @@ private struct AddTapSheet: View {
 
     private var isValidTapName: Bool {
         let trimmed = tapName.trimmingCharacters(in: .whitespaces)
-        let parts = trimmed.split(separator: "/")
+        let parts = trimmed.split(separator: "/", omittingEmptySubsequences: false)
         return parts.count == 2
             && parts.allSatisfy { !$0.isEmpty }
             && trimmed.allSatisfy { $0.isLetter || $0.isNumber || $0 == "/" || $0 == "-" || $0 == "_" || $0 == "." }

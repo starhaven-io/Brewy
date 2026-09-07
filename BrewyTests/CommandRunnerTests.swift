@@ -62,8 +62,8 @@ struct CommandTimeoutSelectionTests {
         ["update"],
         ["cleanup", "--prune=all", "-s"],
         ["autoremove"],
-        ["tap", "user/repo"],
-        ["untap", "user/repo"]
+        ["tap", "--", "user/repo"],
+        ["untap", "--", "user/repo"]
     ])
     func mutatingVerbsGetExtendedTimeout(arguments: [String]) {
         #expect(CommandRunner.timeout(forBrewArguments: arguments) == CommandRunner.extendedTimeout)
