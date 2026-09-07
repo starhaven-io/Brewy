@@ -28,6 +28,7 @@ jobs:
       contents: read
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
+      run_codecov: ${{ steps.matrix.outputs.run_codecov }}
       run_codeql: ${{ steps.matrix.outputs.run_codeql }}
       run_zizmor: ${{ steps.matrix.outputs.run_zizmor }}
     steps:
@@ -58,13 +59,14 @@ jobs:
           if [[ "${EVENT_NAME}" == "push" ]]; then
             add_check '{"name":"Lint","check":"lint","runner":"macos-26"}'
             add_check '{"name":"Build Brew JSON Probe","check":"probe-build","runner":"macos-26"}'
-            add_check '{"name":"Test (Thread Sanitizer)","check":"test-tsan","runner":"macos-26","xcodebuild_flags":"-only-testing:BrewyTests -enableCodeCoverage YES -enableThreadSanitizer YES","result_bundle":"TestResults-TSAN","environment":"codecov"}'
+            add_check '{"name":"Test (Thread Sanitizer)","check":"test-tsan","runner":"macos-26","xcodebuild_flags":"-only-testing:BrewyTests -enableCodeCoverage YES -enableThreadSanitizer YES","result_bundle":"TestResults-TSAN"}'
             add_check '{"name":"Test (signed UI runner)","check":"test-ui","runner":"macos-26","xcodebuild_flags":"-only-testing:BrewyUITests","result_bundle":"TestResults-UI"}'
             add_check '{"name":"Release helper validation","check":"release-helpers","runner":"ubuntu-slim"}'
             {
               echo "matrix=${MATRIX}"
               echo "run_codeql=false"
               echo "run_zizmor=false"
+              echo "run_codecov=true"
             } >> "${GITHUB_OUTPUT}"
             exit 0
           fi
@@ -113,7 +115,7 @@ jobs:
             add_check '{"name":"Lint","check":"lint","runner":"macos-26"}'
           fi
           if [[ "${NEEDS_TESTS}" -eq 1 ]]; then
-            add_check '{"name":"Test (Thread Sanitizer)","check":"test-tsan","runner":"macos-26","xcodebuild_flags":"-only-testing:BrewyTests -enableCodeCoverage YES -enableThreadSanitizer YES","result_bundle":"TestResults-TSAN","environment":"codecov"}'
+            add_check '{"name":"Test (Thread Sanitizer)","check":"test-tsan","runner":"macos-26","xcodebuild_flags":"-only-testing:BrewyTests -enableCodeCoverage YES -enableThreadSanitizer YES","result_bundle":"TestResults-TSAN"}'
             add_check '{"name":"Test (signed UI runner)","check":"test-ui","runner":"macos-26","xcodebuild_flags":"-only-testing:BrewyUITests","result_bundle":"TestResults-UI"}'
             add_check '{"name":"Test (Address Sanitizer)","check":"test-asan","runner":"macos-26","xcodebuild_flags":"-enableAddressSanitizer YES -skip-testing:BrewyUITests","result_bundle":"TestResults-ASAN"}'
             # Everything else builds Debug; without this leg the release workflow is the
@@ -134,6 +136,7 @@ jobs:
             echo "matrix=${MATRIX}"
             echo "run_codeql=${RUN_CODEQL}"
             echo "run_zizmor=${RUN_ZIZMOR}"
+            echo "run_codecov=$(jq -r 'any(.[]; .check == "test-tsan")' <<<"${MATRIX}")"
           } >> "${GITHUB_OUTPUT}"
 
   commits:
@@ -149,9 +152,6 @@ jobs:
     needs: generate-matrix
     if: ${{ needs.generate-matrix.outputs.matrix != '[]' }}
     runs-on: ${{ matrix.runner }}
-    environment:
-      name: ${{ matrix.environment }}
-      deployment: false
     # Cap matrix legs at 45m; sanitizer tests normally finish in about 10m and
     # the other legs are quicker. Anything past this is a hang — fail fast
     # instead of burning up to 6h of the default runner budget.
@@ -232,6 +232,7 @@ jobs:
             EXCLUDED_ARCHS=x86_64
 
       - name: Test
+        id: coverage-tests
         if: startsWith(matrix.check, 'test-')
         env:
           MATRIX_CHECK: ${{ matrix.check }}
@@ -336,28 +337,33 @@ jobs:
             > coverage.lcov
           echo "lcov: $(wc -l < coverage.lcov) lines"
 
-      - name: Upload coverage to Codecov
-        if: success() && matrix.check == 'test-tsan'
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: coverage.lcov
-          fail_ci_if_error: false
-
       - name: Convert xcresult to JUnit
         if: ${{ !cancelled() && matrix.check == 'test-tsan' }}
         env:
           RESULT_BUNDLE: ${{ matrix.result_bundle }}
         run: python3 scripts/xcresult-to-junit.py "${RESULT_BUNDLE}.xcresult" > junit.xml
 
-      - name: Upload test results to Codecov
+      - name: Normalize report paths
         if: ${{ !cancelled() && matrix.check == 'test-tsan' }}
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        env:
+          TEST_RESULT: ${{ steps.coverage-tests.outcome }}
+        run: |
+          reports=(--junit junit.xml)
+          if [[ -f coverage.lcov || "${TEST_RESULT}" != failure ]]; then
+            reports+=(--coverage coverage.lcov)
+          fi
+          python3 -I scripts/upload-codecov.py --prepare "${reports[@]}"
+
+      - name: Save coverage reports
+        if: ${{ !cancelled() && matrix.check == 'test-tsan' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: junit.xml
-          fail_ci_if_error: false
-          report_type: test_results
+          name: coverage-reports
+          path: |
+            coverage.lcov
+            junit.xml
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Upload Test Results
         if: always() && startsWith(matrix.check, 'test-')
@@ -383,6 +389,42 @@ jobs:
       build-mode: "manual"
       build-profile: "brewy-xcode"
 
+  codecov:
+    name: Codecov
+    needs: [generate-matrix, check]
+    # Forks still run coverage tests; Codecov OIDC accepts same-repository runs.
+    if: ${{ !cancelled() && needs.generate-matrix.outputs.run_codecov == 'true' && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    runs-on: ubuntu-slim
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write # Authenticate report uploads to Codecov with GitHub OIDC.
+    steps:
+      - name: Check out the trusted uploader
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          persist-credentials: false
+          sparse-checkout: /scripts/upload-codecov.py
+          sparse-checkout-cone-mode: false
+          path: codecov-uploader
+
+      - name: Download coverage-reports
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: coverage-reports
+          path: reports
+
+      - name: Upload reports with verified Codecov CLI
+        env:
+          TEST_RESULT: ${{ needs.check.result }}
+        run: |
+          reports=(--junit reports/junit.xml)
+          if [[ -f reports/coverage.lcov || "${TEST_RESULT}" != failure ]]; then
+            reports+=(--coverage reports/coverage.lcov)
+          fi
+          python3 -I codecov-uploader/scripts/upload-codecov.py "${reports[@]}"
+
   zizmor:
     name: zizmor
     needs: generate-matrix
@@ -394,13 +436,16 @@ jobs:
 
   conclusion:
     name: conclusion
-    needs: [generate-matrix, commits, check, codeql, zizmor]
+    needs: [generate-matrix, commits, check, codeql, zizmor, codecov]
     runs-on: ubuntu-slim
     timeout-minutes: 15
     if: always()
     steps:
       - name: Result
         env:
+          CODECOV_ELIGIBLE: ${{ (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) }}
+          RUN_CODECOV: ${{ needs.generate-matrix.outputs.run_codecov }}
+          CODECOV_RESULT: ${{ needs.codecov.result }}
           COMMITS_RESULT: ${{ needs.commits.result }}
           CHECK_RESULT: ${{ needs.check.result }}
           CODEQL_RESULT: ${{ needs.codeql.result }}
@@ -431,4 +476,9 @@ jobs:
             test "${ZIZMOR_RESULT}" = "success"
           else
             test "${ZIZMOR_RESULT}" = "skipped"
+          fi
+          if [[ "${RUN_CODECOV}" == "true" && "${CODECOV_ELIGIBLE}" == "true" ]]; then
+            test "${CODECOV_RESULT}" = "success"
+          else
+            test "${CODECOV_RESULT}" = "skipped"
           fi

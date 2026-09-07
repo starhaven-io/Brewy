@@ -12,6 +12,7 @@ defaults:
 concurrency:
   group: release
   cancel-in-progress: false
+  queue: max
 
 permissions: {}
 
@@ -202,6 +203,8 @@ jobs:
           path: |
             ${{ runner.temp }}/Brewy-${{ steps.version.outputs.tag }}.zip
             ${{ runner.temp }}/sign_update
+          if-no-files-found: error
+          retention-days: 7
 
   release:
     name: Release

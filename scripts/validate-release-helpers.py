@@ -86,6 +86,11 @@ def validate_appcast(release_notes_html: str) -> None:
 
 
 def main() -> None:
+    workflow = (ROOT / ".github/workflows/release.yml").read_text()
+    concurrency = workflow.split("concurrency:\n", 1)[1].split("\n\n", 1)[0]
+    assert dict(line.strip().split(": ", 1) for line in concurrency.splitlines()) == {
+        "group": "release", "cancel-in-progress": "false", "queue": "max",
+    }
     release_notes_html = validate_release_notes()
     validate_appcast(release_notes_html)
     subprocess.run([

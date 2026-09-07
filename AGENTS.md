@@ -15,7 +15,7 @@ Please follow these guidelines when contributing.
 - Run `swiftlint --strict` for Swift style.
 - Run `typos` for spelling.
 - Run `xcodebuild test -project Brewy.xcodeproj -scheme Brewy -destination 'platform=macOS' -only-testing:BrewyTests -skip-testing:BrewyUITests` for unit tests. Use a derived data path outside the repository, such as `/private/tmp/brewy-deriveddata`, when running from automation.
-- Run `zizmor --persona auditor .github/workflows/` after workflow edits.
+- Run `zizmor --strict-collection --persona auditor .github/workflows/` after workflow edits.
 - Run `just lychee` after changing README, CONTRIBUTING, or SECURITY links.
 - Shortcut: `just check` runs the normal local gate.
 
