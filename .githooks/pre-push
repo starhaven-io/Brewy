@@ -1,19 +1,45 @@
 #!/bin/sh
-# Runs the same checks as CI before pushing.
-#
-# Deletion-only pushes carry no code (git reports an all-zero local
-# sha for each deleted ref on stdin), so skip the checks for them.
+# Runs the same checks as CI against the exact clean commit being pushed.
 
-deleting_only=1
-# shellcheck disable=SC2034  # the pre-push stdin protocol dictates all four fields
-while read -r local_ref local_sha remote_ref remote_sha; do
+checks_required=0
+while read -r local_ref local_sha remote_ref _remote_sha; do
     case "$local_sha" in
-        *[!0]*) deleting_only=0 ;;
+        *[!0]*) ;;
+        *) continue ;;
     esac
+
+    case "$remote_ref" in
+        refs/tags/*) continue ;;
+    esac
+
+    checks_required=1
+    if ! pushed_commit=$(git rev-parse --verify "${local_sha}^{commit}" 2>/dev/null); then
+        echo "pre-push hook: ${local_ref} does not resolve to a commit." >&2
+        exit 1
+    fi
+    if ! head_commit=$(git rev-parse --verify HEAD 2>/dev/null); then
+        echo "pre-push hook: could not resolve HEAD." >&2
+        exit 1
+    fi
+    if [ "$pushed_commit" != "$head_commit" ]; then
+        echo "pre-push hook: ${local_ref} does not point to the checked HEAD commit." >&2
+        echo "  Check out the commit being pushed so just check validates that exact object." >&2
+        exit 1
+    fi
 done
 
-if [ "$deleting_only" -eq 1 ]; then
+if [ "$checks_required" -eq 0 ]; then
     exit 0
+fi
+
+if ! worktree_status=$(git status --porcelain --untracked-files=all); then
+    echo "pre-push hook: could not inspect the worktree." >&2
+    exit 1
+fi
+if [ -n "$worktree_status" ]; then
+    echo "pre-push hook: the worktree has tracked or untracked changes." >&2
+    echo "  Commit, stash, or remove them before pushing so checks match the pushed commit." >&2
+    exit 1
 fi
 
 if ! command -v just >/dev/null 2>&1; then
