@@ -2,6 +2,7 @@ schema: 1
 visibility: "public"
 license: "agpl"
 params:
+  codecov: true
   dependabot:
     - package-ecosystem: "github-actions"
       group: "github-actions"
