@@ -57,13 +57,13 @@ You can also grab the latest release from the [GitHub releases page](https://git
 2. Open `Brewy.xcodeproj` in Xcode
 3. Build and run with Command-R
 
-For local verification, install the optional tools listed in [CONTRIBUTING.md](CONTRIBUTING.md) and run:
+For local verification, install the verification tools listed in [CONTRIBUTING.md](CONTRIBUTING.md) and run:
 
 ```sh
 just check
 ```
 
-Run `just lychee` after changing README or CONTRIBUTING links.
+Run `just lychee` after changing README, CONTRIBUTING, or SECURITY links.
 
 ## Security model
 

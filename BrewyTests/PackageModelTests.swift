@@ -68,7 +68,7 @@ struct BrewPackageTests {
         #expect(formula != cask)
     }
 
-    @Test("Equality is based on ID only")
+    @Test("Metadata changes preserve identity but change package value")
     func equalityById() {
         let first = BrewPackage(
             id: "formula-git", name: "git", version: "2.43",
@@ -86,8 +86,8 @@ struct BrewPackageTests {
             source: .formula, pinned: true, installedOnRequest: false,
             dependencies: ["curl"]
         )
-        #expect(first == second)
-        #expect(first.hashValue == second.hashValue)
+        #expect(first.id == second.id)
+        #expect(first != second)
     }
 }
 

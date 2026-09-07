@@ -177,7 +177,10 @@ enum TapHealthChecker {
     private static func parseRepoResponse(data: Data) -> TapHealthStatus {
         do {
             let repo = try JSONDecoder().decode(GitHubRepo.self, from: data)
-            let status: TapHealthStatus.Status = (repo.archived == true) ? .archived : .healthy
+            guard let archived = repo.archived else {
+                return TapHealthStatus(status: .unknown, movedTo: nil, lastChecked: Date())
+            }
+            let status: TapHealthStatus.Status = archived ? .archived : .healthy
             return TapHealthStatus(status: status, movedTo: nil, lastChecked: Date())
         } catch {
             return TapHealthStatus(status: .unknown, movedTo: nil, lastChecked: Date())

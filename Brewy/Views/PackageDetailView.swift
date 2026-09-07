@@ -10,7 +10,7 @@ struct PackageDetailView: View {
     @State private var enrichedPackage: BrewPackage?
 
     private var displayPackage: BrewPackage {
-        enrichedPackage ?? package
+        package.enriched(with: enrichedPackage)
     }
 
     var body: some View {
@@ -50,9 +50,10 @@ struct PackageDetailView: View {
         .background(.background)
         // Keyed on version too, so the info reloads after an in-place upgrade (id alone is stable).
         .task(id: [package.id, package.installedVersion ?? ""]) {
-            guard !package.isMas else { return }
             enrichedPackage = nil
             detailedInfo = ""
+            isLoadingInfo = false
+            guard !package.isMas else { return }
             isLoadingInfo = true
             if package.homepage.isEmpty {
                 async let details = brewService.fetchPackageDetail(for: package)

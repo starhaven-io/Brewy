@@ -60,13 +60,13 @@ struct DryRunTests {
         let mock = MockCommandRunner()
         let (service, _) = makeService(mock: mock)
         mock.setResult(for: ["--cache"], output: " /Users/test/Library/Caches/Homebrew \n")
-        mock.setResult(for: ["-sk", "/Users/test/Library/Caches/Homebrew"], output: "42\t/Users/test/Library/Caches/Homebrew")
+        mock.setResult(for: ["-sk", "--", "/Users/test/Library/Caches/Homebrew"], output: "42\t/Users/test/Library/Caches/Homebrew")
 
         let size = await service.cacheSize()
 
         #expect(mock.executedCommands.contains(["--cache"]))
         #expect(mock.executedExecutables.contains { entry in
-            entry.path == "/usr/bin/du" && entry.arguments == ["-sk", "/Users/test/Library/Caches/Homebrew"]
+            entry.path == "/usr/bin/du" && entry.arguments == ["-sk", "--", "/Users/test/Library/Caches/Homebrew"]
         })
         #expect(size == 42 * 1_024)
     }
@@ -88,7 +88,7 @@ struct DryRunTests {
         let mock = MockCommandRunner()
         let (service, _) = makeService(mock: mock)
         mock.setResult(for: ["--cache"], output: "/tmp/homebrew-cache")
-        mock.setResult(for: ["-sk", "/tmp/homebrew-cache"], output: "not-a-number\t/tmp/homebrew-cache")
+        mock.setResult(for: ["-sk", "--", "/tmp/homebrew-cache"], output: "not-a-number\t/tmp/homebrew-cache")
 
         let size = await service.cacheSize()
 

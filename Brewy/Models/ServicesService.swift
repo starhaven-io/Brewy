@@ -68,15 +68,15 @@ extension BrewService {
     }
 
     func startService(_ name: String) async -> CommandResult {
-        await runServiceCommand(["services", "start", name])
+        await runServiceCommand(["services", "start", "--", name])
     }
 
     func stopService(_ name: String) async -> CommandResult {
-        await runServiceCommand(["services", "stop", name])
+        await runServiceCommand(["services", "stop", "--", name])
     }
 
     func restartService(_ name: String) async -> CommandResult {
-        await runServiceCommand(["services", "restart", name])
+        await runServiceCommand(["services", "restart", "--", name])
     }
 
     func cleanupServices() async -> CommandResult {

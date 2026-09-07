@@ -71,6 +71,19 @@ struct CaskJSON: Decodable {
     private struct DependsOn: Decodable {
         let formula: [String]?
         let cask: [String]?
+
+        private enum CodingKeys: String, CodingKey { case formula, cask }
+
+        init(from decoder: Decoder) throws {
+            if let array = try? decoder.unkeyedContainer(), array.isAtEnd {
+                formula = nil
+                cask = nil
+                return
+            }
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            formula = try container.decodeIfPresent([String].self, forKey: .formula)
+            cask = try container.decodeIfPresent([String].self, forKey: .cask)
+        }
     }
 
     init(from decoder: Decoder) throws {
@@ -82,9 +95,9 @@ struct CaskJSON: Decodable {
         homepage = try container.decodeIfPresent(String.self, forKey: .homepage)
         url = try? container.decodeIfPresent(String.self, forKey: .url)
         artifacts = (try? container.decodeIfPresent([CaskArtifactJSON].self, forKey: .artifacts)) ?? []
-        // `depends_on` is usually an object but brew sometimes emits an empty array; tolerate
-        // either shape so a cask never fails to decode over its dependency field.
-        let deps = try? container.decodeIfPresent(DependsOn.self, forKey: .dependsOn)
+        // Homebrew also emits an empty array for no dependencies. Other malformed shapes
+        // must fail the refresh so the previous dependency inventory remains available.
+        let deps = try container.decodeIfPresent(DependsOn.self, forKey: .dependsOn)
         let formulaDependencies = deps?.formula ?? []
         let caskDependencies = deps?.cask ?? []
         dependencies = formulaDependencies + caskDependencies

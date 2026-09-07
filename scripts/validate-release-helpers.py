@@ -6,6 +6,7 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 from string import Template
+import subprocess
 import sys
 import xml.etree.ElementTree as ET
 
@@ -31,6 +32,9 @@ def validate_release_notes() -> str:
     raw_notes = """## What's Changed
 * feat(ui): render <trusted> & ]]> <evil> state by @contributor in https://github.com/starhaven-io/Brewy/pull/1
 * fix: preserve an apostrophe's meaning by @contributor in https://github.com/starhaven-io/Brewy/pull/2
+* feat(api)!: require a new format by @contributor in https://github.com/starhaven-io/Brewy/pull/5
+* build!: raise minimum macOS by @contributor in https://github.com/starhaven-io/Brewy/pull/6
+* ci!: change release consumers by @contributor in https://github.com/starhaven-io/Brewy/pull/7
 * ci: internal-only change by @contributor in https://github.com/starhaven-io/Brewy/pull/3
 * uncategorized improvement by @contributor in https://github.com/starhaven-io/Brewy/pull/4
 **Full Changelog**: https://github.com/starhaven-io/Brewy/compare/0.1.0...0.2.0
@@ -40,16 +44,19 @@ def validate_release_notes() -> str:
         "What's New": ["render <trusted> & ]]> <evil> state"],
         "Fixes": ["preserve an apostrophe's meaning"],
         "Other": ["uncategorized improvement"],
+        "Breaking Changes": ["require a new format", "raise minimum macOS", "change release consumers"],
     }
     assert changelog_url == "https://github.com/starhaven-io/Brewy/compare/0.1.0...0.2.0"
 
     markdown = formatter.format_markdown("0.2.0", sections, changelog_url)
     assert "internal-only change" not in markdown
     assert "## Brewy 0.2.0" in markdown
+    assert markdown.index("### Breaking Changes") < markdown.index("### What's New")
 
     rendered_html = formatter.format_html("0.2.0", sections, changelog_url)
     assert "&lt;trusted&gt; &amp; ]]&gt; &lt;evil&gt; state" in rendered_html
     assert "<trusted>" not in rendered_html
+    assert rendered_html.startswith("<h2>Breaking Changes</h2>")
     assert "]]>" not in rendered_html
     return rendered_html
 
@@ -81,6 +88,9 @@ def validate_appcast(release_notes_html: str) -> None:
 def main() -> None:
     release_notes_html = validate_release_notes()
     validate_appcast(release_notes_html)
+    subprocess.run([
+        sys.executable, "-B", "-m", "unittest", "discover", "-s", str(ROOT / "scripts/tests")
+    ], check=True)
     print("Release helper validation passed.")
 
 

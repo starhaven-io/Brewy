@@ -276,7 +276,8 @@ jobs:
           chmod 0755 sign_update
           SPARKLE_KEY_FILE="${RUNNER_TEMP}/sparkle_private_key"
           trap 'rm -f "${SPARKLE_KEY_FILE}"' EXIT
-          echo "${SPARKLE_KEY}" > "${SPARKLE_KEY_FILE}"
+          umask 077
+          printf '%s\n' "${SPARKLE_KEY}" > "${SPARKLE_KEY_FILE}"
           SIG_OUTPUT=$(./sign_update "${ARTIFACT_NAME}" --ed-key-file "${SPARKLE_KEY_FILE}" 2>&1)
           echo "SPARKLE_SIG=$(echo "${SIG_OUTPUT}" | grep -o 'sparkle:edSignature="[^"]*"' | cut -d'"' -f2)" >> "${GITHUB_ENV}"
           echo "SPARKLE_LENGTH=$(echo "${SIG_OUTPUT}" | grep -o 'length="[^"]*"' | cut -d'"' -f2)" >> "${GITHUB_ENV}"
@@ -459,6 +460,38 @@ jobs:
           export HOMEBREW_GIT_EMAIL="${BOT_ID}+${BOT_USER}@users.noreply.github.com"
           brew tap starhaven-io/tap
           brew trust starhaven-io/tap
+          # Homebrew supplies the subject; prepare its DCO trailer before commit-msg validation.
+          TAP_ROOT="$(cd "$(brew --repo starhaven-io/tap)" && pwd -P)"
+          HOOKS_DIR=$(git -C "${TAP_ROOT}" rev-parse --path-format=absolute --git-path hooks)
+          HOOKS_DIR=$(python3 -c 'import pathlib, sys; print(pathlib.Path(sys.argv[1]).resolve())' "${HOOKS_DIR}")
+          case "${HOOKS_DIR}" in
+            "${TAP_ROOT}/"*) ;;
+            *) echo "::error::Tap hooks directory is outside the fresh checkout."; exit 1 ;;
+          esac
+          mkdir -p "${HOOKS_DIR}"
+          DCO_DIR=$(mktemp -d "${RUNNER_TEMP}/cask-dco.XXXXXX")
+          DCO_HOOK="${DCO_DIR}/prepare-commit-msg"
+          PREPARE_HOOK="${HOOKS_DIR}/prepare-commit-msg"
+          cleanup_dco_hook() {
+            if [[ -L "${PREPARE_HOOK}" ]] && [[ "$(readlink "${PREPARE_HOOK}")" == "${DCO_HOOK}" ]]; then
+              rm -- "${PREPARE_HOOK}"
+            fi
+            rm -rf -- "${DCO_DIR}"
+          }
+          trap cleanup_dco_hook EXIT
+          cat > "${DCO_HOOK}" <<'HOOK'
+          #!/bin/sh
+          set -eu
+          author=$(git var GIT_AUTHOR_IDENT)
+          author="${author%> *}>"
+          git interpret-trailers --in-place --where end --if-exists addIfDifferent --if-missing add \
+            --trailer "Signed-off-by: ${author}" "$1"
+          HOOK
+          chmod +x "${DCO_HOOK}"
+          if ! python3 -c 'import os, sys; os.symlink(sys.argv[1], sys.argv[2])' "${DCO_HOOK}" "${PREPARE_HOOK}"; then
+            echo "::error::Cannot install the DCO hook; an existing prepare-commit-msg hook must be preserved."
+            exit 1
+          fi
           brew bump-cask-pr --no-fork --version "${VERSION}" starhaven-io/tap/brewy
 
           BRANCH_VERSION="${VERSION//,/-}"

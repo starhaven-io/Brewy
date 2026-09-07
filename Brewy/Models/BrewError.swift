@@ -18,7 +18,9 @@ enum BrewError: LocalizedError {
 
         let lines = trimmed.split(separator: "\n", omittingEmptySubsequences: false)
         if let errorLine = lines.first(where: { $0.lowercased().hasPrefix("error:") }) {
-            return String(errorLine)
+            return errorLine.count <= maxOutputChars
+                ? String(errorLine)
+                : String(errorLine.prefix(maxOutputChars)) + "…"
         }
         let tail = lines.suffix(6).joined(separator: "\n")
         if tail.count <= maxOutputChars { return tail }

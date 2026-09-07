@@ -20,6 +20,14 @@ struct DiscoverView: View {
         searchText.isEmpty ? recentPackages : searchResults
     }
 
+    // Selection follows source-qualified identity; package equality includes displayed metadata.
+    private var selectedPackageID: Binding<String?> {
+        Binding(
+            get: { selectedPackage?.id },
+            set: { id in selectedPackage = displayedPackages.first { $0.id == id } }
+        )
+    }
+
     var body: some View {
         let packages = displayedPackages
         VStack(spacing: 0) {
@@ -29,7 +37,7 @@ struct DiscoverView: View {
                 accessibilityIdentifier: "discover-search-field"
             )
             Divider()
-            List(selection: $selectedPackage) {
+            List(selection: selectedPackageID) {
                 if packages.isEmpty {
                     emptyContent
                 } else if searchText.isEmpty, let result = brewService.lastUpdateResult {
@@ -78,7 +86,7 @@ struct DiscoverView: View {
                 package: package,
                 onInstall: { pkg in await brewService.install(package: pkg) }
             )
-            .tag(package)
+            .tag(package.id)
         }
     }
 

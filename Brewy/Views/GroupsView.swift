@@ -7,8 +7,15 @@ struct GroupsView: View {
     @State private var showCreateSheet = false
     @State private var groupPendingDeletion: PackageGroup?
 
+    private var selectedGroupID: Binding<UUID?> {
+        Binding(
+            get: { selectedGroup?.id },
+            set: { id in selectedGroup = brewService.packageGroups.first { $0.id == id } }
+        )
+    }
+
     var body: some View {
-        List(selection: $selectedGroup) {
+        List(selection: selectedGroupID) {
             if brewService.packageGroups.isEmpty {
                 ContentUnavailableView(
                     "No Groups",
@@ -18,7 +25,7 @@ struct GroupsView: View {
             } else {
                 ForEach(brewService.packageGroups) { group in
                     GroupRow(group: group)
-                        .tag(group)
+                        .tag(group.id)
                         .contextMenu {
                             Button("Delete Group", systemImage: "trash", role: .destructive) {
                                 groupPendingDeletion = group

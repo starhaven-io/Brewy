@@ -78,13 +78,6 @@ struct BrewPackage: Identifiable, Hashable, Codable {
             ?? dependencies.map { PackageReference(name: $0, source: .formula) }
     }
 
-    static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.id == rhs.id
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
-    }
 }
 
 // MARK: - Dependency Tree
@@ -173,13 +166,6 @@ struct PackageGroup: Identifiable, Codable, Hashable {
         self.packageIDs = packageIDs
     }
 
-    static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.id == rhs.id
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
-    }
 }
 
 // MARK: - Action History Entry

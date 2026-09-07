@@ -65,3 +65,19 @@ extension BrewService {
         }.value
     }
 }
+
+// Fetched description/dependency metadata must not replace newer installed/pinned state.
+extension BrewPackage {
+    func enriched(with metadata: BrewPackage?) -> BrewPackage {
+        guard let metadata, metadata.id == id else { return self }
+        return BrewPackage(
+            id: id, name: name, version: isInstalled ? version : metadata.version,
+            description: metadata.description, homepage: metadata.homepage,
+            isInstalled: isInstalled, isOutdated: isOutdated,
+            installedVersion: installedVersion, latestVersion: latestVersion,
+            source: source, pinned: pinned, installedOnRequest: installedOnRequest,
+            dependencies: metadata.dependencies, dependencyReferences: metadata.dependencyReferences,
+            repositoryURL: metadata.repositoryURL
+        )
+    }
+}

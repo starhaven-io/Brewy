@@ -111,13 +111,14 @@ extension BrewService {
 
     func cacheSize() async -> Int64 {
         let pathResult = await runBrewCommand(["--cache"])
-        let cachePath = pathResult.output.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard pathResult.success, !Task.isCancelled else { return 0 }
+        let cachePath = pathResult.standardOutput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cachePath.isEmpty else { return 0 }
 
-        let result = await commandRunner.runExecutable("/usr/bin/du", arguments: ["-sk", cachePath])
+        let result = await commandRunner.runExecutable("/usr/bin/du", arguments: ["-sk", "--", cachePath])
         guard result.success,
               let sizeStr = result.output.split(separator: "\t").first,
-              let sizeKB = Int64(sizeStr) else {
+              let sizeKB = Int64(sizeStr), sizeKB >= 0, sizeKB <= Int64.max / 1_024 else {
             return 0
         }
         return sizeKB * 1_024

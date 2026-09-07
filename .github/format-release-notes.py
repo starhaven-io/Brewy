@@ -32,7 +32,7 @@ SKIP_TYPES = {"build", "ci", "chore"}
 #   * feat(scope): description by @user in https://...
 PR_RE = re.compile(
     r"^\*\s+"
-    r"(?:(?P<type>[a-z]+)(?:\([^)]*\))?:\s*)?"
+    r"(?:(?P<type>[a-z]+)(?:\([^)]*\))?(?P<breaking>!)?:\s*)?"
     r"(?P<desc>.+?)"
     r"(?:\s+by\s+@[\w-]+)?"
     r"(?:\s+in\s+https?://\S+)?"
@@ -69,10 +69,11 @@ def parse_notes(
         pr_type = pr_match.group("type") or ""
         desc = pr_match.group("desc").strip()
 
-        if pr_type in SKIP_TYPES:
+        breaking = pr_match.group("breaking") is not None
+        if pr_type in SKIP_TYPES and not breaking:
             continue
 
-        section = SECTIONS.get(pr_type, "Other")
+        section = "Breaking Changes" if breaking else SECTIONS.get(pr_type, "Other")
         sections.setdefault(section, []).append(desc)
 
     return sections, changelog_url
@@ -82,7 +83,7 @@ def format_markdown(tag: str, sections: dict[str, list[str]], changelog_url: str
     """Render categorized notes as markdown."""
     lines = [f"## Brewy {tag}", ""]
 
-    ordered_keys = list(dict.fromkeys(SECTIONS.values()))
+    ordered_keys = ["Breaking Changes", *dict.fromkeys(SECTIONS.values())]
     ordered_keys.append("Other")
 
     for heading in ordered_keys:
@@ -106,7 +107,7 @@ def format_html(tag: str, sections: dict[str, list[str]], changelog_url: str | N
     """Render categorized notes as HTML (for Sparkle appcast <description>)."""
     parts: list[str] = []
 
-    ordered_keys = list(dict.fromkeys(SECTIONS.values()))
+    ordered_keys = ["Breaking Changes", *dict.fromkeys(SECTIONS.values())]
     ordered_keys.append("Other")
 
     for heading in ordered_keys:

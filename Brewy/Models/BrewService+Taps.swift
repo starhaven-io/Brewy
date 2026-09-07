@@ -22,28 +22,35 @@ extension BrewService {
 
     @discardableResult
     func addTap(name: String) async -> CommandResult {
-        await performTapAction { await runTapCommand(["tap", name]) }
+        await performTapAction { await runTapCommand(["tap", "--", name]) }
     }
 
     @discardableResult
     func removeTap(name: String) async -> CommandResult {
-        await performTapAction { await runTapCommand(["untap", name]) }
+        await performTapAction { await runTapCommand(["untap", "--", name]) }
     }
 
     @discardableResult
     func migrateTap(from oldName: String, to newName: String) async -> CommandResult {
         await performTapAction {
             logger.info("Migrating tap \(oldName) → \(newName)")
-            let untapped = await runTapCommand(["untap", oldName])
+            let untapped = await runTapCommand(["untap", "--", oldName])
             guard untapped.success else { return untapped }
-            let tapped = await runTapCommand(["tap", newName])
+            let tapped = await runTapCommand(["tap", "--", newName])
             if tapped.success {
                 // Drop the old tap's cached health only once the new tap is in place; on rollback
                 // it stays installed and keeps its status.
                 tapHealthStatuses.removeValue(forKey: oldName)
             } else {
                 logger.warning("Rollback: re-adding \(oldName) after failure to add \(newName)")
-                _ = await runTapCommand(["tap", oldName])
+                let restored = await runTapCommand(["tap", "--", oldName])
+                if !restored.success {
+                    let message = "Unable to add \(newName): \(tapped.output)\n"
+                        + "Unable to restore \(oldName): \(restored.output)\n"
+                        + "Re-add \(oldName) after resolving these errors."
+                    lastError = .commandFailed(command: "tap migration", output: message)
+                    return CommandResult(output: message, success: false)
+                }
             }
             return tapped
         }

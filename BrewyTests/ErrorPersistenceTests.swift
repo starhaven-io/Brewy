@@ -11,7 +11,7 @@ struct ErrorPersistenceTests {
         let mock = MockCommandRunner()
         let (service, _) = makeService(mock: mock)
         setupRefreshMock(mock)
-        mock.setResult(for: ["untap", "user/repo"], output: "Refusing to untap", success: false)
+        mock.setResult(for: ["untap", "--", "user/repo"], output: "Refusing to untap", success: false)
 
         let result = await service.removeTap(name: "user/repo")
 
@@ -25,12 +25,12 @@ struct ErrorPersistenceTests {
         let mock = MockCommandRunner()
         let (service, _) = makeService(mock: mock)
         setupRefreshMock(mock)
-        mock.setResult(for: ["tap", "user/repo"], output: "", success: false)
+        mock.setResult(for: ["tap", "--", "user/repo"], output: "", success: false)
 
         let result = await service.addTap(name: "user/repo")
 
         #expect(!result.success)
-        #expect(service.lastError?.localizedDescription == "brew tap user/repo failed.")
+        #expect(service.lastError?.localizedDescription == "brew tap -- user/repo failed.")
     }
 
     @Test("performBrewAction preserves command failure after refresh")

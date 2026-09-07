@@ -292,7 +292,7 @@ private struct NewItemRow: View {
                 }
             }
             Spacer()
-            if brewService.installedNames.contains(item.name) {
+            if brewService.installedIDs.contains(item.id) {
                 Text("Installed")
                     .font(.caption)
                     .foregroundStyle(.secondary)
