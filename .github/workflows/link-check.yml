@@ -5,6 +5,7 @@ on:
     paths:
       - "README.md"
       - "CONTRIBUTING.md"
+      - "SECURITY.md"
       - "lychee.toml"
   schedule:
     - cron: "0 14 * * 1" # every Monday at 14:00 UTC
@@ -21,9 +22,9 @@ jobs:
     name: Check links
     permissions:
       contents: read
-    uses: starhaven-io/.github/.github/workflows/reusable-link-check.yml@5516bc8a2030979985d2f69e6017100992444cfb # v2026.09.06.6
+    uses: starhaven-io/.github/.github/workflows/reusable-link-check.yml@4be1d0822f8de09e273756b236ccd14e2a5ab8f5 # v2026.09.07.1
     with:
-      args: "--config lychee.toml README.md CONTRIBUTING.md"
+      args: "--config lychee.toml README.md CONTRIBUTING.md SECURITY.md"
       build-site: false
       site-directory: ""
       authenticated-github: true
