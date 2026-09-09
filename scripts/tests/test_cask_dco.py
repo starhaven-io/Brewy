@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import subprocess
@@ -25,6 +26,88 @@ def workflow_run_block(workflow, step_name, *, strip_comments=True):
     )
 
 
+
+
+class CaskMergeProtocolTests(unittest.TestCase):
+    def test_merge_is_bounded_synchronous_and_exact_head_bound(self):
+        workflow = RELEASE_WORKFLOW.read_text()
+        resolve = workflow_run_block(workflow, "Resolve Homebrew cask bump")
+        wait = workflow_run_block(workflow, "Wait for checks on the validated head")
+        revalidate = workflow_run_block(workflow, "Revalidate and merge the exact head")
+        merge_job = workflow.split("\n  merge-cask-bump:\n", 1)[1]
+
+        self.assertIn('if [[ "${MATCH_COUNT}" != 1 ]]', resolve)
+        self.assertIn('.user.login == $bot', resolve)
+        self.assertIn('.changed_files == 1', resolve)
+        self.assertIn('echo "base_sha=', resolve)
+        self.assertIn('echo "head_sha=', resolve)
+        self.assertNotIn("gh pr merge", resolve)
+        self.assertIn("CHECK_TIMEOUT_SECONDS=1500", wait)
+        self.assertIn("8) CHECK_SUMMARY=pending", wait)
+        self.assertIn("mergeStateStatus", wait)
+        self.assertIn("CHECK_STATUS == 0", wait)
+        self.assertIn('[[ "${MERGE_STATE}" == "CLEAN" || "${MERGE_STATE}" == "UNSTABLE" ]]', wait)
+        self.assertNotIn("--watch", wait)
+        self.assertNotIn("--fail-fast", wait)
+        self.assertLess(merge_job.index("Wait for checks on the validated head"), merge_job.index("Mint bot token for tap"))
+        self.assertIn(".base.sha == $base_sha", revalidate)
+        self.assertIn(".head.sha == $head", revalidate)
+        self.assertIn(".[0].filename == $cask", revalidate)
+        self.assertIn('--match-head-commit "${HEAD_SHA}"', revalidate)
+        self.assertNotIn("--auto", merge_job)
+
+    def test_partial_required_check_registration_stays_blocked(self):
+        workflow = RELEASE_WORKFLOW.read_text()
+        wait = workflow_run_block(workflow, "Wait for checks on the validated head")
+        wait = wait.replace("CHECK_INTERVAL_SECONDS=10", "CHECK_INTERVAL_SECONDS=0")
+        stub = r'''
+        gh() {
+          if [[ "$1" == api ]]; then printf '%s\n' validated-head; return; fi
+          if [[ "$1" == pr && "$2" == checks && "$*" == *--json* ]]; then
+            printf '1\n'; return
+          fi
+          if [[ "$1" == pr && "$2" == checks ]]; then
+            index=$(< "${GH_FIXTURE_COUNTER}")
+            if [[ "${index}" == 1 ]]; then return 8; fi
+            return
+          fi
+          if [[ "$1" == pr && "$2" == view ]]; then
+            index=$(< "${GH_FIXTURE_COUNTER}")
+            printf '%s\n' "$((index + 1))" > "${GH_FIXTURE_COUNTER}"
+            cat "${GH_FIXTURE_DIR}/${index}.json"
+            return
+          fi
+          return 1
+        }
+        '''
+        fixtures = [
+            {"headRefOid": "validated-head", "mergeStateStatus": "BLOCKED"},
+            {"headRefOid": "validated-head", "mergeStateStatus": "BLOCKED"},
+            {"headRefOid": "validated-head", "mergeStateStatus": "CLEAN"},
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            counter = path / "counter"
+            counter.write_text("0\n")
+            for index, fixture in enumerate(fixtures):
+                (path / f"{index}.json").write_text(json.dumps(fixture))
+            result = subprocess.run(
+                ["/bin/bash", "-euo", "pipefail", "-c", stub + wait],
+                env={
+                    **os.environ,
+                    "GH_FIXTURE_COUNTER": str(counter),
+                    "GH_FIXTURE_DIR": str(path),
+                    "PR_NUMBER": "159",
+                    "HEAD_SHA": "validated-head",
+                },
+                capture_output=True,
+                text=True,
+                timeout=20,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(counter.read_text().strip(), "3")
+        self.assertEqual(result.stdout.count("merge state: BLOCKED"), 2)
+        self.assertIn("merge state: CLEAN", result.stdout)
 
 
 class CaskDCOTests(unittest.TestCase):

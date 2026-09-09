@@ -430,6 +430,13 @@ jobs:
       name: release
       deployment: false
     permissions: {}
+    outputs:
+      base_branch: ${{ steps.cask-bump.outputs.base_branch }}
+      base_sha: ${{ steps.cask-bump.outputs.base_sha }}
+      bot_user: ${{ steps.cask-bump.outputs.bot_user }}
+      branch: ${{ steps.cask-bump.outputs.branch }}
+      head_sha: ${{ steps.cask-bump.outputs.head_sha }}
+      pr_number: ${{ steps.cask-bump.outputs.pr_number }}
     env:
       VERSION: ${{ needs.build.outputs.tag }}
     steps:
@@ -497,18 +504,157 @@ jobs:
           fi
           brew bump-cask-pr --no-fork --version "${VERSION}" starhaven-io/tap/brewy
 
+      - name: Resolve Homebrew cask bump
+        id: cask-bump
+        env:
+          GH_TOKEN: ${{ steps.tap-token.outputs.token }}
+          APP_SLUG: ${{ steps.tap-token.outputs.app-slug }}
+          CASK: brewy
+        run: |
+          BOT_USER="${APP_SLUG}[bot]"
           BRANCH_VERSION="${VERSION//,/-}"
           BRANCH_VERSION="${BRANCH_VERSION//:/-}"
-          BRANCH="bump-brewy-${BRANCH_VERSION}"
-          PR_NUMBER=$(gh pr list \
+          BRANCH="bump-${CASK}-${BRANCH_VERSION}"
+          PRS=$(gh pr list \
             --repo starhaven-io/homebrew-tap \
             --head "${BRANCH}" \
             --state open \
-            --json number,headRepositoryOwner \
-            --jq 'map(select(.headRepositoryOwner.login == "starhaven-io")) | .[0].number // ""' || true)
-          if [ -n "${PR_NUMBER}" ]; then
-            gh pr merge "${PR_NUMBER}" --repo starhaven-io/homebrew-tap --auto --squash \
-              || echo "::warning::could not enable auto-merge for starhaven-io/homebrew-tap#${PR_NUMBER}"
-          else
-            echo "::warning::could not find open Homebrew cask bump PR for ${BRANCH}"
+            --json number,headRepositoryOwner)
+          MATCH_COUNT=$(jq '[.[] | select(.headRepositoryOwner.login == "starhaven-io")] | length' \
+            <<< "${PRS}")
+          if [[ "${MATCH_COUNT}" != 1 ]]; then
+            echo "::error::expected one open Homebrew cask bump PR for ${BRANCH}, found ${MATCH_COUNT}"
+            exit 1
           fi
+          PR_NUMBER=$(jq -r '.[] | select(.headRepositoryOwner.login == "starhaven-io") | .number' \
+            <<< "${PRS}")
+          PR_JSON=$(gh api "/repos/starhaven-io/homebrew-tap/pulls/${PR_NUMBER}")
+          jq -e \
+            --arg bot "${BOT_USER}" \
+            --arg branch "${BRANCH}" \
+            '.state == "open"
+              and .user.login == $bot
+              and .head.ref == $branch
+              and .head.repo.full_name == "starhaven-io/homebrew-tap"
+              and .changed_files == 1' <<< "${PR_JSON}" >/dev/null
+          {
+            echo "base_branch=$(jq -r '.base.ref' <<< "${PR_JSON}")"
+            echo "base_sha=$(jq -r '.base.sha' <<< "${PR_JSON}")"
+            echo "bot_user=${BOT_USER}"
+            echo "branch=${BRANCH}"
+            echo "head_sha=$(jq -r '.head.sha' <<< "${PR_JSON}")"
+            echo "pr_number=${PR_NUMBER}"
+          } >> "${GITHUB_OUTPUT}"
+
+  merge-cask-bump:
+    name: Merge validated Homebrew cask bump
+    needs: bump-cask
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment:
+      name: release
+      deployment: false
+    permissions:
+      contents: read
+    steps:
+      - name: Wait for checks on the validated head
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ needs.bump-cask.outputs.pr_number }}
+          HEAD_SHA: ${{ needs.bump-cask.outputs.head_sha }}
+        run: |
+          test "$(gh api "/repos/starhaven-io/homebrew-tap/pulls/${PR_NUMBER}" --jq .head.sha)" = "${HEAD_SHA}"
+          CHECK_TIMEOUT_SECONDS=1500
+          CHECK_INTERVAL_SECONDS=10
+          DEADLINE=$((SECONDS + CHECK_TIMEOUT_SECONDS))
+          REQUIRED_CHECKS=0
+          for attempt in {1..30}; do
+            REQUIRED_CHECKS=$(gh pr checks "${PR_NUMBER}" \
+              --repo starhaven-io/homebrew-tap --required --json name --jq length 2>/dev/null || true)
+            if [[ "${REQUIRED_CHECKS}" =~ ^[1-9][0-9]*$ ]]; then
+              break
+            fi
+            if [[ "${attempt}" == 30 ]]; then
+              echo "::error::no required checks appeared before the cask check timeout"
+              exit 1
+            fi
+            sleep "${CHECK_INTERVAL_SECONDS}"
+          done
+          CHECKS_READY=false
+          MERGE_STATE=UNKNOWN
+          while (( SECONDS < DEADLINE )); do
+            CHECK_STATUS=0
+            gh pr checks "${PR_NUMBER}" --repo starhaven-io/homebrew-tap --required \
+              || CHECK_STATUS=$?
+            case "${CHECK_STATUS}" in
+              0) CHECK_SUMMARY=passing ;;
+              8) CHECK_SUMMARY=pending ;;
+              *)
+                echo "::error::a required cask check failed"
+                exit "${CHECK_STATUS}"
+                ;;
+            esac
+            PR_STATE=$(gh pr view "${PR_NUMBER}" --repo starhaven-io/homebrew-tap \
+              --json headRefOid,mergeStateStatus)
+            if ! jq -e --arg head "${HEAD_SHA}" \
+              '.headRefOid == $head' <<< "${PR_STATE}" >/dev/null; then
+              echo "::error::cask pull request head changed while waiting for required checks"
+              exit 1
+            fi
+            MERGE_STATE=$(jq -r '.mergeStateStatus' <<< "${PR_STATE}")
+            echo "Required cask checks: ${CHECK_SUMMARY}; merge state: ${MERGE_STATE}"
+            if (( CHECK_STATUS == 0 )) \
+              && [[ "${MERGE_STATE}" == "CLEAN" || "${MERGE_STATE}" == "UNSTABLE" ]]; then
+              CHECKS_READY=true
+              break
+            fi
+            sleep "${CHECK_INTERVAL_SECONDS}"
+          done
+          if [[ "${CHECKS_READY}" != true ]]; then
+            echo "::error::required cask checks did not satisfy branch policy before the timeout (merge state: ${MERGE_STATE})"
+            exit 1
+          fi
+
+      - name: Mint bot token for tap
+        id: tap-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: homebrew-tap
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Revalidate and merge the exact head
+        env:
+          GH_TOKEN: ${{ steps.tap-token.outputs.token }}
+          PR_NUMBER: ${{ needs.bump-cask.outputs.pr_number }}
+          BOT_USER: ${{ needs.bump-cask.outputs.bot_user }}
+          BRANCH: ${{ needs.bump-cask.outputs.branch }}
+          BASE_BRANCH: ${{ needs.bump-cask.outputs.base_branch }}
+          BASE_SHA: ${{ needs.bump-cask.outputs.base_sha }}
+          HEAD_SHA: ${{ needs.bump-cask.outputs.head_sha }}
+          CASK_PATH: Casks/brewy.rb
+        run: |
+          PR_JSON=$(gh api "/repos/starhaven-io/homebrew-tap/pulls/${PR_NUMBER}")
+          jq -e \
+            --arg bot "${BOT_USER}" \
+            --arg branch "${BRANCH}" \
+            --arg base "${BASE_BRANCH}" \
+            --arg base_sha "${BASE_SHA}" \
+            --arg head "${HEAD_SHA}" \
+            '.state == "open"
+              and .user.login == $bot
+              and .head.ref == $branch
+              and .head.repo.full_name == "starhaven-io/homebrew-tap"
+              and .head.sha == $head
+              and .base.ref == $base
+              and .base.sha == $base_sha
+              and .changed_files == 1' <<< "${PR_JSON}" >/dev/null
+          FILES_JSON=$(gh api "/repos/starhaven-io/homebrew-tap/pulls/${PR_NUMBER}/files")
+          jq -e --arg cask "${CASK_PATH}" \
+            'length == 1 and .[0].filename == $cask and .[0].status == "modified"' \
+            <<< "${FILES_JSON}" >/dev/null
+          gh pr merge "${PR_NUMBER}" --repo starhaven-io/homebrew-tap --squash \
+            --match-head-commit "${HEAD_SHA}"
