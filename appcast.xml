@@ -3,18 +3,17 @@
     <channel>
         <title>Brewy</title>
         <item>
-            <title>0.25.0</title>
-            <pubDate>Sat, 05 Sep 2026 01:05:40 +0000</pubDate>
-            <sparkle:version>33</sparkle:version>
-            <sparkle:shortVersionString>0.25.0</sparkle:shortVersionString>
+            <title>0.25.1</title>
+            <pubDate>Wed, 09 Sep 2026 06:16:26 +0000</pubDate>
+            <sparkle:version>34</sparkle:version>
+            <sparkle:shortVersionString>0.25.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
             <description><![CDATA[<h2>Fixes</h2>
 <ul>
-  <li>restore and guard the brew JSON probe build</li>
-  <li>bind Brewfile trust to exact bytes and harden release and CI checks</li>
-  <li>move the app icon to Icon Composer and drop the classic icon</li>
+  <li>preserve package state and harden release recovery</li>
+  <li>canonicalize the cask DCO test fixture root</li>
 </ul>]]></description>
-            <enclosure url="https://github.com/starhaven-io/Brewy/releases/download/0.25.0/Brewy-0.25.0.zip" length="3971759" type="application/octet-stream" sparkle:edSignature="mgqQHNCa/sspZVwMXDTEkhC22rFL7RXaPdNrA4pm/65WYo0aFGj9aJiyOXR5xiDWLeceiVvAMtJ6zhTfrivHBw=="/>
+            <enclosure url="https://github.com/starhaven-io/Brewy/releases/download/0.25.1/Brewy-0.25.1.zip" length="3977000" type="application/octet-stream" sparkle:edSignature="BedAoP41nhQqSM0mVxflwSclpW8DSKRPpOlkWzr68NfekIYvfubuip0r5mPFLKhpSCiZKQRQdkL4BTudyExqCA=="/>
         </item>
     </channel>
 </rss>
