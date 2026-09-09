@@ -31,7 +31,7 @@ class CaskDCOTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
         self.tap = self.root / "tap checkout"
         self.runner = self.root / "runner temp"
         self.bin = self.root / "bin"
