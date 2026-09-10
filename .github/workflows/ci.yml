@@ -434,9 +434,21 @@ jobs:
       security-events: write # required for zizmor SARIF upload
     uses: starhaven-io/.github/.github/workflows/reusable-zizmor.yml@e748ec16bd1207114a766d1d761a6743a6e3bf3a # v2026.09.09.4
 
+  pinprick:
+    name: pinprick
+    needs: generate-matrix
+    if: needs.generate-matrix.outputs.run_zizmor == 'true'
+    permissions:
+      contents: read
+      security-events: write # required for pinprick SARIF upload
+    uses: starhaven-io/.github/.github/workflows/reusable-pinprick-audit.yml@e748ec16bd1207114a766d1d761a6743a6e3bf3a # v2026.09.09.4
+    with:
+      advanced-security: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+      fail-on-findings: true
+
   conclusion:
     name: conclusion
-    needs: [generate-matrix, commits, check, codeql, zizmor, codecov]
+    needs: [generate-matrix, commits, check, codeql, zizmor, pinprick, codecov]
     runs-on: ubuntu-slim
     timeout-minutes: 15
     if: always()
@@ -450,35 +462,42 @@ jobs:
           CHECK_RESULT: ${{ needs.check.result }}
           CODEQL_RESULT: ${{ needs.codeql.result }}
           ZIZMOR_RESULT: ${{ needs.zizmor.result }}
+          PINPRICK_RESULT: ${{ needs.pinprick.result }}
           GENERATOR_RESULT: ${{ needs.generate-matrix.result }}
           MATRIX: ${{ needs.generate-matrix.outputs.matrix }}
           RUN_CODEQL: ${{ needs.generate-matrix.outputs.run_codeql }}
           RUN_ZIZMOR: ${{ needs.generate-matrix.outputs.run_zizmor }}
           EVENT_NAME: ${{ github.event_name }}
         run: |
+          require_result() {
+            local name="$1" result="$2" required="$3"
+            case "${required}" in
+              true) test "${result}" = success ;;
+              false) test "${result}" = skipped ;;
+              *) echo "::error::Invalid routing decision for ${name}."; return 1 ;;
+            esac || { echo "::error::${name} ended with ${result:-no result}."; return 1; }
+          }
+
           test "${GENERATOR_RESULT}" = "success"
-          if [[ "${EVENT_NAME}" == "pull_request" ]]; then
-            test "${COMMITS_RESULT}" = "success"
-          else
-            test "${COMMITS_RESULT}" = "skipped"
-          fi
+          case "${EVENT_NAME}" in
+            pull_request) require_result commits "${COMMITS_RESULT}" true ;;
+            push) require_result commits "${COMMITS_RESULT}" false ;;
+            *) echo "::error::Unexpected CI event."; exit 1 ;;
+          esac
           if [[ "${MATRIX}" == "[]" ]]; then
-            test "${CHECK_RESULT}" = "skipped"
+            require_result check "${CHECK_RESULT}" false
+          elif [[ -n "${MATRIX}" ]]; then
+            require_result check "${CHECK_RESULT}" true
           else
-            test "${CHECK_RESULT}" = "success"
+            echo "::error::The check matrix could not be determined."
+            exit 1
           fi
-          if [[ "${RUN_CODEQL}" == "true" ]]; then
-            test "${CODEQL_RESULT}" = "success"
-          else
-            test "${CODEQL_RESULT}" = "skipped"
-          fi
-          if [[ "${RUN_ZIZMOR}" == "true" ]]; then
-            test "${ZIZMOR_RESULT}" = "success"
-          else
-            test "${ZIZMOR_RESULT}" = "skipped"
-          fi
-          if [[ "${RUN_CODECOV}" == "true" && "${CODECOV_ELIGIBLE}" == "true" ]]; then
-            test "${CODECOV_RESULT}" = "success"
-          else
-            test "${CODECOV_RESULT}" = "skipped"
-          fi
+          require_result codeql "${CODEQL_RESULT}" "${RUN_CODEQL}"
+          require_result zizmor "${ZIZMOR_RESULT}" "${RUN_ZIZMOR}"
+          require_result pinprick "${PINPRICK_RESULT}" "${RUN_ZIZMOR}"
+          case "${RUN_CODECOV}:${CODECOV_ELIGIBLE}" in
+            true:true) CODECOV_REQUIRED=true ;;
+            true:false | false:true | false:false) CODECOV_REQUIRED=false ;;
+            *) echo "::error::Invalid Codecov routing decision."; exit 1 ;;
+          esac
+          require_result codecov "${CODECOV_RESULT}" "${CODECOV_REQUIRED}"
