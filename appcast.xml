@@ -3,17 +3,20 @@
     <channel>
         <title>Brewy</title>
         <item>
-            <title>0.25.1</title>
-            <pubDate>Wed, 09 Sep 2026 06:16:26 +0000</pubDate>
-            <sparkle:version>34</sparkle:version>
-            <sparkle:shortVersionString>0.25.1</sparkle:shortVersionString>
+            <title>0.26.0</title>
+            <pubDate>Tue, 15 Sep 2026 02:25:01 +0000</pubDate>
+            <sparkle:version>35</sparkle:version>
+            <sparkle:shortVersionString>0.26.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>Fixes</h2>
+            <description><![CDATA[<h2>What&#x27;s New</h2>
 <ul>
-  <li>preserve package state and harden release recovery</li>
-  <li>canonicalize the cask DCO test fixture root</li>
+  <li>list outdated packages in the menu bar extra</li>
+</ul>
+<h2>Fixes</h2>
+<ul>
+  <li>merge the cask bump against validated checks</li>
 </ul>]]></description>
-            <enclosure url="https://github.com/starhaven-io/Brewy/releases/download/0.25.1/Brewy-0.25.1.zip" length="3977000" type="application/octet-stream" sparkle:edSignature="BedAoP41nhQqSM0mVxflwSclpW8DSKRPpOlkWzr68NfekIYvfubuip0r5mPFLKhpSCiZKQRQdkL4BTudyExqCA=="/>
+            <enclosure url="https://github.com/starhaven-io/Brewy/releases/download/0.26.0/Brewy-0.26.0.zip" length="3980902" type="application/octet-stream" sparkle:edSignature="mP4LUiLcMkk0K2iTI5ZTCZDtA3Vd+9JQWpTI0WlfPsm4hB1lEonPhU/NkkV8wnGFm0FGxBazwOXLeTk6dHn4Cg=="/>
         </item>
     </channel>
 </rss>
