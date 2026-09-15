@@ -224,6 +224,10 @@ private struct MenuBarView: View {
 
         if outdatedCount > 0 {
             Text("\(outdatedCount) package\(outdatedCount == 1 ? "" : "s") outdated")
+            Divider()
+            ForEach(MenuBarPackageItem.sortedItems(from: brewService.outdatedPackages)) { item in
+                Text(item.title)
+            }
             if homebrewOutdatedCount > 0 {
                 Divider()
                 Button("Upgrade Homebrew Packages") {
