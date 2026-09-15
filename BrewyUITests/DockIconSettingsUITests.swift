@@ -5,6 +5,8 @@ final class DockIconSettingsUITests: XCTestCase {
     private static let timeoutScale: TimeInterval = isThreadSanitizerActive ? 4 : 1
     private static let launchTimeout: TimeInterval = 30 * timeoutScale
     private static let transitionTimeout: TimeInterval = 10 * timeoutScale
+    private static let firefoxMenuTitle = "firefox (Cask): 127.0 → 128.0"
+    private static let ripgrepMenuTitle = "ripgrep (Formula): 14.1.0 → 14.1.1"
 
     private var app: XCUIApplication!
     private var fixtureDirectory: URL!
@@ -42,6 +44,8 @@ final class DockIconSettingsUITests: XCTestCase {
             app.menuItems["2 packages outdated"].waitForExistence(timeout: Self.transitionTimeout),
             "The menu bar should load package state without opening the main window"
         )
+        assertOutdatedPackageRows(in: statusItem)
+        XCTAssertFalse(app.windows.firstMatch.exists, "Viewing package updates should not open the main window")
 
         let openBrewy = app.menuItems["Open Brewy"]
         XCTAssertTrue(
@@ -195,6 +199,7 @@ final class DockIconSettingsUITests: XCTestCase {
             statusItem.menuItems["Open Brewy"].waitForExistence(timeout: Self.transitionTimeout),
             "The menu bar should remain usable after refreshing"
         )
+        assertOutdatedPackageRows(in: statusItem)
     }
 
     func testQuitFromMenuBarTerminatesAppAfterClosingMainWindow() {
@@ -292,6 +297,19 @@ final class DockIconSettingsUITests: XCTestCase {
             statusItemWithoutUpdates.frame.width,
             "The update count should add visible text next to the menu bar icon"
         )
+        statusItemWithoutUpdates.click()
+        XCTAssertTrue(app.menuItems["All packages up to date"].waitForExistence(timeout: Self.transitionTimeout))
+        XCTAssertFalse(app.menuItems[Self.firefoxMenuTitle].exists)
+        XCTAssertFalse(app.menuItems[Self.ripgrepMenuTitle].exists)
+    }
+
+    private func assertOutdatedPackageRows(in statusItem: XCUIElement) {
+        let firefox = statusItem.menuItems[Self.firefoxMenuTitle]
+        let ripgrep = statusItem.menuItems[Self.ripgrepMenuTitle]
+        XCTAssertTrue(firefox.waitForExistence(timeout: Self.transitionTimeout))
+        XCTAssertTrue(ripgrep.waitForExistence(timeout: Self.transitionTimeout))
+        XCTAssertLessThan(firefox.frame.minY, ripgrep.frame.minY, "Package rows should appear alphabetically")
+        XCTAssertFalse(statusItem.menuItems["pcre2 (Formula): 10.45"].exists)
     }
 
     private func launch(showDockIcon: Bool, showMenuBarIcon: Bool = true) {
