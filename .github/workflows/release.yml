@@ -282,8 +282,31 @@ jobs:
           umask 077
           printf '%s\n' "${SPARKLE_KEY}" > "${SPARKLE_KEY_FILE}"
           SIG_OUTPUT=$(./sign_update "${ARTIFACT_NAME}" --ed-key-file "${SPARKLE_KEY_FILE}" 2>&1)
-          echo "SPARKLE_SIG=$(echo "${SIG_OUTPUT}" | grep -o 'sparkle:edSignature="[^"]*"' | cut -d'"' -f2)" >> "${GITHUB_ENV}"
-          echo "SPARKLE_LENGTH=$(echo "${SIG_OUTPUT}" | grep -o 'length="[^"]*"' | cut -d'"' -f2)" >> "${GITHUB_ENV}"
+          SPARKLE_SIG=$(grep -o 'sparkle:edSignature="[^"]*"' <<< "${SIG_OUTPUT}" | cut -d'"' -f2)
+          SPARKLE_LENGTH=$(grep -o 'length="[0-9]*"' <<< "${SIG_OUTPUT}" | cut -d'"' -f2)
+          ARTIFACT_LENGTH=$(stat -f%z "${ARTIFACT_NAME}")
+          if [[ "${SPARKLE_LENGTH}" != "${ARTIFACT_LENGTH}" ]]; then
+            echo "::error::Sparkle length ${SPARKLE_LENGTH} does not match the ${ARTIFACT_LENGTH}-byte artifact."
+            exit 1
+          fi
+          # A wrong private key still signs; only the app's embedded public key proves updates will install.
+          PUBLIC_ED_KEY=$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "${RUNNER_TEMP}/verify/Brewy.app/Contents/Info.plist")
+          swift - "${PUBLIC_ED_KEY}" "${SPARKLE_SIG}" "${ARTIFACT_NAME}" <<'SWIFT'
+          import CryptoKit
+          import Foundation
+
+          let arguments = Array(CommandLine.arguments.suffix(3))
+          guard let publicKeyData = Data(base64Encoded: arguments[0]),
+                let signature = Data(base64Encoded: arguments[1]),
+                let publicKey = try? Curve25519.Signing.PublicKey(rawRepresentation: publicKeyData),
+                let archive = FileManager.default.contents(atPath: arguments[2]),
+                publicKey.isValidSignature(signature, for: archive) else {
+              print("::error::The Sparkle signature does not verify against SUPublicEDKey in the shipped app.")
+              exit(1)
+          }
+          SWIFT
+          echo "SPARKLE_SIG=${SPARKLE_SIG}" >> "${GITHUB_ENV}"
+          echo "SPARKLE_LENGTH=${SPARKLE_LENGTH}" >> "${GITHUB_ENV}"
 
       - name: Mint release token
         id: release-token
