@@ -1,6 +1,6 @@
 import Foundation
+import Observation
 import OSLog
-import SwiftUI
 
 private let logger = Logger(subsystem: "io.linnane.brewy", category: "BrewService")
 
@@ -8,25 +8,15 @@ private let logger = Logger(subsystem: "io.linnane.brewy", category: "BrewServic
 @MainActor
 final class BrewService {
     @ObservationIgnored let commandRunner: CommandRunning
+    @ObservationIgnored let preferences: any PreferenceStore
     @ObservationIgnored private let masExecutablePathOverride: String?
     @ObservationIgnored private let masExecutablePathResolver: @Sendable () -> String
     @ObservationIgnored private let packageCacheURL: URL?
     @ObservationIgnored private let packageCacheWritesEnabled: Bool
 
-    @AppStorage("brewPath")
-    @ObservationIgnored var customBrewPath = "/opt/homebrew/bin/brew"
-
-    @AppStorage("brewfilePath")
-    @ObservationIgnored var customBrewfilePath = ""
-
-    @AppStorage("trustedBrewfilePath")
-    @ObservationIgnored var trustedBrewfilePath = ""
-
-    @AppStorage("trustedBrewfileDigest")
-    @ObservationIgnored var trustedBrewfileDigest = ""
-
     init(
         commandRunner: CommandRunning = DefaultCommandRunner(),
+        preferences: any PreferenceStore = BrewService.runtimeDefaultPreferences(),
         masExecutablePath: String? = nil,
         masExecutablePathResolver: @escaping @Sendable () -> String = CommandRunner.resolvedMasPath,
         installedApplicationURLs: [String: URL] = [:],
@@ -34,6 +24,7 @@ final class BrewService {
         packageCacheWritesEnabled: Bool = !BrewyRuntime.isRunningTests
     ) {
         self.commandRunner = commandRunner
+        self.preferences = preferences
         masExecutablePathOverride = masExecutablePath
         self.masExecutablePathResolver = masExecutablePathResolver
         self.installedApplicationURLs = installedApplicationURLs
