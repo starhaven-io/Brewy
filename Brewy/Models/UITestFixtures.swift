@@ -74,11 +74,8 @@ final class UITestCommandRunner: CommandRunning, @unchecked Sendable {
                 exitCode: 1
             )
         }
-        if arguments == ["cleanup", "--prune=all", "-s", "--dry-run"] {
-            if ProcessInfo.processInfo.environment["BREWY_UI_CLEANUP_PREVIEW_FAILURE"] == "1" {
-                return CommandResult(output: "Fixture cleanup preview failed", success: false)
-            }
-            return CommandResult(output: "Fixture cleanup preview", success: true)
+        if let preview = maintenancePreview(arguments) {
+            return preview
         }
         if arguments.starts(with: ["bundle", "list"]) {
             return Self.bundleListResult(arguments)
@@ -448,18 +445,7 @@ extension BrewService {
                 packageIDs: [firefox.id]
             )
         ]
-        actionHistory = [
-            ActionHistoryEntry(
-                id: UUID(uuidString: "33333333-3333-3333-3333-333333333333")!,
-                command: "upgrade",
-                arguments: ["upgrade", "ripgrep"],
-                packageName: "ripgrep",
-                packageSource: .formula,
-                status: .failure,
-                output: "Error: fixture upgrade failed",
-                timestamp: fixtureTimestamp
-            )
-        ]
+        actionHistory = Self.historyFixtures(timestamp: fixtureTimestamp)
         lastUpdateResult = BrewUpdateResult(
             newFormulae: [
                 BrewUpdateItem(name: "atuin", description: "Shell history sync", source: .formula)

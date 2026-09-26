@@ -67,6 +67,7 @@ private struct HistoryRow: View {
                     }
                 } else {
                     Text(entry.command).fontWeight(.medium)
+                        .accessibilityIdentifier("history-row-\(entry.command)")
                 }
                 Text(entry.timestamp, style: .relative)
                     .font(.caption)
@@ -85,6 +86,7 @@ struct HistoryDetailView: View {
     private var brewService
     let entry: ActionHistoryEntry
     @State private var showRetryConfirmation = false
+    @State private var retryPreviewEntry: ActionHistoryEntry?
 
     var body: some View {
         Form {
@@ -103,6 +105,15 @@ struct HistoryDetailView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This will re-run \(entry.displayCommand).")
+        }
+        .sheet(item: $retryPreviewEntry) { retryEntry in
+            DryRunConfirmationSheet(
+                title: "Retry \(retryEntry.command)?",
+                message: "Review the current changes before retrying \(retryEntry.displayCommand).",
+                confirmLabel: "Retry",
+                dryRunAction: { await brewService.previewRetry(retryEntry) },
+                confirmAction: { await brewService.retryAction(retryEntry) }
+            )
         }
     }
 
@@ -164,7 +175,9 @@ struct HistoryDetailView: View {
     private var retrySection: some View {
         Section {
             Button("Retry", systemImage: "arrow.clockwise") {
-                if entry.isMutatingCommand {
+                if entry.retryPreviewArguments != nil {
+                    retryPreviewEntry = entry
+                } else if entry.isMutatingCommand {
                     showRetryConfirmation = true
                 } else {
                     Task { await brewService.retryAction(entry) }
