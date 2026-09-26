@@ -11,6 +11,15 @@ extension ActionHistoryEntry {
         Self.isMutatingCommand(arguments)
     }
 
+    var retryPreviewArguments: [String]? {
+        guard arguments.first == "autoremove" || arguments.first == "cleanup" else { return nil }
+        let optionsEnd = arguments.firstIndex(of: "--") ?? arguments.endIndex
+        guard !arguments[..<optionsEnd].contains("--dry-run") else { return arguments }
+        var preview = arguments
+        preview.insert("--dry-run", at: optionsEnd)
+        return preview
+    }
+
     static func isMutatingCommand(_ arguments: [String]) -> Bool {
         if arguments.starts(with: ["bundle", "dump"]) { return true }
         guard let command = arguments.first else { return false }

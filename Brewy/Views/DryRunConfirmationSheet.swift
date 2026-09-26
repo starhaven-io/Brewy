@@ -40,7 +40,7 @@ struct DryRunConfirmationSheet: View {
         .task {
             let result = await dryRunAction()
             previewOutput = result.output
-            previewSucceeded = result.success
+            previewSucceeded = result.success && !result.cancelled && !Task.isCancelled
             isLoadingPreview = false
         }
     }
