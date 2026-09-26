@@ -62,9 +62,13 @@ extension BrewService {
             return CommandResult(output: "Another action is already in progress.", success: false)
         }
         isPerformingAction = true
+        activeMutationCount += 1
         actionOutput = ""
         lastError = nil
-        defer { isPerformingAction = false }
+        defer {
+            isPerformingAction = false
+            activeMutationCount -= 1
+        }
         let result = await action()
         tapsLoaded = false
         await ensureTapsLoaded()

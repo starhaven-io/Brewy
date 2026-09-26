@@ -8,7 +8,11 @@ extension ActionHistoryEntry {
     }
 
     var isMutatingCommand: Bool {
-        if isBundleDump { return true }
+        Self.isMutatingCommand(arguments)
+    }
+
+    static func isMutatingCommand(_ arguments: [String]) -> Bool {
+        if arguments.starts(with: ["bundle", "dump"]) { return true }
         guard let command = arguments.first else { return false }
         return Self.mutatingCommands.contains(command)
     }

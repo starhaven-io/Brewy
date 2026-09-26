@@ -208,9 +208,13 @@ extension BrewService {
         }
         logger.info("Installing mas via Homebrew")
         isPerformingAction = true
+        activeMutationCount += 1
         actionOutput = ""
         lastError = nil
-        defer { isPerformingAction = false }
+        defer {
+            isPerformingAction = false
+            activeMutationCount -= 1
+        }
 
         let result = await runBrewCommandStreaming(["install", "mas"])
         if result.success {
