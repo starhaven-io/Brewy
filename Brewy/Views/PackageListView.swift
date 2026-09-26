@@ -20,6 +20,10 @@ struct PackageListView: View {
         selectedCategory == .outdated
     }
 
+    private var upgradeableIDs: Set<String> {
+        Set(brewService.homebrewOutdatedPackages.map(\.id))
+    }
+
     private var isSearchingAll: Bool {
         searchScope == .all && !searchText.isEmpty
     }
@@ -85,11 +89,16 @@ struct PackageListView: View {
                 }
             }
             .onChange(of: selectedCategory) {
+                selectedForUpgrade.removeAll()
+                isSelectingForUpgrade = false
                 searchScope = .installed
                 searchText = ""
                 searchTask?.cancel()
                 brewService.searchResults = []
                 // selectedPackage is cleared centrally in ContentView.onChange(of: selectedCategory).
+            }
+            .onChange(of: upgradeableIDs) {
+                selectedForUpgrade.formIntersection(upgradeableIDs)
             }
             .overlay {
                 if brewService.isLoading, packages.isEmpty {
@@ -102,8 +111,7 @@ struct PackageListView: View {
                 PackageListToolbar(
                     isOutdated: isOutdatedCategory,
                     isSelecting: $isSelectingForUpgrade,
-                    selectedForUpgrade: $selectedForUpgrade,
-                    outdatedPackages: isOutdatedCategory ? packages.filter { !$0.isMas } : []
+                    selectedForUpgrade: $selectedForUpgrade
                 )
             }
     }
@@ -133,14 +141,15 @@ struct PackageListView: View {
     }
 
     private func packageList(packages: [BrewPackage]) -> some View {
-        List(selection: selectedPackageID) {
+        let upgradeableIDs = upgradeableIDs
+        return List(selection: selectedPackageID) {
             if packages.isEmpty {
                 emptyContent
             } else {
                 ForEach(packages) { package in
                     HStack(spacing: 10) {
                         if isOutdatedCategory, isSelectingForUpgrade {
-                            if !package.isMas {
+                            if upgradeableIDs.contains(package.id) {
                                 UpgradeSelectionToggle(
                                     packageID: package.id,
                                     selectedForUpgrade: $selectedForUpgrade
@@ -191,21 +200,21 @@ private struct PackageListToolbar: ToolbarContent {
     let isOutdated: Bool
     @Binding var isSelecting: Bool
     @Binding var selectedForUpgrade: Set<String>
-    let outdatedPackages: [BrewPackage]
+    private var outdatedPackages: [BrewPackage] { brewService.homebrewOutdatedPackages }
 
     var body: some ToolbarContent {
         if isOutdated, !outdatedPackages.isEmpty {
             if isSelecting {
                 ToolbarItem(placement: .navigation) {
                     Button("Upgrade (\(selectedForUpgrade.count))") {
-                        let toUpgrade = outdatedPackages.filter { selectedForUpgrade.contains($0.id) }
+                        let packageIDs = selectedForUpgrade
                         Task {
-                            await brewService.upgradeSelected(packages: toUpgrade)
+                            await brewService.upgradeSelected(packageIDs: packageIDs)
                             selectedForUpgrade.removeAll()
                             isSelecting = false
                         }
                     }
-                    .disabled(selectedForUpgrade.isEmpty)
+                    .disabled(selectedForUpgrade.isEmpty || brewService.isPerformingAction)
                 }
                 ToolbarItem(placement: .navigation) {
                     Button("Cancel") {
@@ -261,6 +270,7 @@ private struct UpgradeSelectionToggle: View {
         )) { EmptyView() }
         .toggleStyle(.checkbox)
         .labelsHidden()
+        .accessibilityIdentifier("upgrade-selection-\(packageID)")
     }
 }
 

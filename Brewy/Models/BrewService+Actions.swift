@@ -27,6 +27,12 @@ extension BrewService {
         }
     }
 
+    func upgradeSelected(packageIDs: Set<String>) async {
+        let packages = homebrewOutdatedPackages.filter { packageIDs.contains($0.id) }
+        guard !packages.isEmpty else { return }
+        await upgradeSelected(packages: packages)
+    }
+
     func pin(package: BrewPackage) async { await performAction("pin", package: package) }
     func unpin(package: BrewPackage) async { await performAction("unpin", package: package) }
     func reinstall(package: BrewPackage) async { await performAction("reinstall", package: package) }
