@@ -79,6 +79,14 @@ Run `just lychee` after changing links in README, CONTRIBUTING, or SECURITY.
 
 See [AGENTS.md](AGENTS.md) for the full codebase map, `BrewService` architecture notes, release workflow constraints, and do-not-touch rules.
 
+## Release recovery
+
+Each release must increase both `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` beyond the live appcast. The workflow also checks those values in the notarized app.
+
+If publication or appcast delivery fails after **Prepare release** succeeds, use **Re-run failed jobs** on that workflow run. The publication job downloads the existing release asset, verifies its digest and provenance against the dispatch commit, and resumes with the saved appcast. A retry accepts an already published release only when its tag and asset still match. It cannot replace a newer feed or change the contents of an existing build's feed.
+
+Delivery metadata is retained for 90 days. Missing metadata or a failed verification requires investigation; do not rebuild a published version, replace its asset, or rerun every job. Cask delivery also verifies the published asset and current appcast before changing the tap. Confirm that the cask PR has merged before treating a release as fully distributed.
+
 ## License
 
 By contributing, you agree that your contributions are licensed under the project's [AGPL-3.0-only](LICENSE) license.
