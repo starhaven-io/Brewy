@@ -36,8 +36,12 @@ extension BrewService {
             return
         }
         isUpdatingHomebrewAnalytics = true
+        activeMutationCount += 1
         homebrewAnalyticsError = nil
-        defer { isUpdatingHomebrewAnalytics = false }
+        defer {
+            isUpdatingHomebrewAnalytics = false
+            activeMutationCount -= 1
+        }
 
         let action = enabled ? "on" : "off"
         let result = await runBrewCommand(["analytics", action])

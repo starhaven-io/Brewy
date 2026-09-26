@@ -8,6 +8,7 @@ private let logger = Logger(subsystem: "io.linnane.brewy", category: "BrewServic
 @MainActor
 final class BrewService {
     @ObservationIgnored let commandRunner: CommandRunning
+    @ObservationIgnored var activeMutationCount = 0
     @ObservationIgnored let preferences: any PreferenceStore
     @ObservationIgnored private let masExecutablePathOverride: String?
     @ObservationIgnored private let masExecutablePathResolver: @Sendable () -> String
@@ -67,6 +68,9 @@ final class BrewService {
     private var loadingCount = 0
     var isLoading: Bool { loadingCount > 0 }
     var isPerformingAction = false
+    var hasQuitBlockingOperation: Bool {
+        activeMutationCount > 0
+    }
     var actionOutput: String = ""
     var canCancelCurrentAction = false
     var lastError: BrewError?
@@ -409,9 +413,13 @@ extension BrewService {
             return
         }
         isPerformingAction = true
+        activeMutationCount += 1
         actionOutput = ""
         lastError = nil
-        defer { isPerformingAction = false }
+        defer {
+            isPerformingAction = false
+            activeMutationCount -= 1
+        }
 
         let formulae = packages.filter { $0.source == .formula }.map(\.name)
         let casks = packages.filter { $0.source == .cask }.map(\.name)

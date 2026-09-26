@@ -6,7 +6,7 @@ import SwiftUI
 struct BrewyApp: App {
     @NSApplicationDelegateAdaptor(BrewyApplicationDelegate.self)
     private var applicationDelegate
-    @State private var brewService = Self.makeBrewService()
+    private var brewService: BrewService { applicationDelegate.brewService }
     // HACK: there is a known color scheme bug in SwiftUI where passing `nil` to `.preferredColorScheme`
     // doesn't change the color of some elements:
     // https://stackoverflow.com/questions/76123702/preferredcolorschemenil-visual-bug-when-switching-to-system-light-dark-more
@@ -39,21 +39,6 @@ struct BrewyApp: App {
         case .darkAqua: .dark
         default: nil
         }
-    }
-
-    private static func makeBrewService() -> BrewService {
-#if DEBUG
-        if BrewyRuntime.isUITesting {
-            return BrewService(
-                commandRunner: UITestCommandRunner(),
-                installedApplicationURLs: [
-                    "cask-firefox": URL(fileURLWithPath: "/Applications/Firefox.app"),
-                    "mas-497799835": URL(fileURLWithPath: "/Applications/Xcode.app")
-                ]
-            )
-        }
-#endif
-        return BrewService()
     }
 
     private var preferredColorScheme: ColorScheme? {

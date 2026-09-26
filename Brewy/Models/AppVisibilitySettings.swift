@@ -94,7 +94,46 @@ enum AppVisibilitySettings {
 
 @MainActor
 final class BrewyApplicationDelegate: NSObject, NSApplicationDelegate {
+    let brewService: BrewService
+    var showOperationInProgressAlert: () -> Void = {
+        let alert = NSAlert()
+        alert.messageText = "Operation in Progress"
+        alert.informativeText = "Wait for the current operation to finish before quitting Brewy."
+        alert.addButton(withTitle: "Keep Running")
+        NSApplication.shared.activate()
+        alert.runModal()
+    }
     private var userDefaultsObserver: (any NSObjectProtocol)?
+
+    override init() {
+#if DEBUG
+        if BrewyRuntime.isUITesting {
+            brewService = BrewService(
+                commandRunner: UITestCommandRunner(),
+                installedApplicationURLs: [
+                    "cask-firefox": URL(fileURLWithPath: "/Applications/Firefox.app"),
+                    "mas-497799835": URL(fileURLWithPath: "/Applications/Xcode.app")
+                ]
+            )
+        } else {
+            brewService = BrewService()
+        }
+#else
+        brewService = BrewService()
+#endif
+        super.init()
+    }
+
+    init(brewService: BrewService) {
+        self.brewService = brewService
+        super.init()
+    }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard brewService.hasQuitBlockingOperation else { return .terminateNow }
+        showOperationInProgressAlert()
+        return .terminateCancel
+    }
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         AppVisibilitySettings.applyDockIconVisibility(

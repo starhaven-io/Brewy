@@ -43,9 +43,14 @@ extension BrewService {
             return nil
         }
         isPerformingAction = true
+        let mutationCount = ActionHistoryEntry.isMutatingCommand(arguments) ? 1 : 0
+        activeMutationCount += mutationCount
         actionOutput = ""
         lastError = nil
-        defer { isPerformingAction = false }
+        defer {
+            isPerformingAction = false
+            activeMutationCount -= mutationCount
+        }
 
         let result = await runBrewCommandStreaming(arguments)
         if !result.success, !result.cancelled {
@@ -73,9 +78,14 @@ extension BrewService {
         }
         logger.info("Performing \(action) on \(package.name)")
         isPerformingAction = true
+        let mutationCount = ActionHistoryEntry.isMutatingCommand([action]) ? 1 : 0
+        activeMutationCount += mutationCount
         actionOutput = ""
         lastError = nil
-        defer { isPerformingAction = false }
+        defer {
+            isPerformingAction = false
+            activeMutationCount -= mutationCount
+        }
 
         var args = [action]
         if package.isCask { args.append("--cask") }

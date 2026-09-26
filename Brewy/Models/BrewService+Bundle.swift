@@ -313,9 +313,13 @@ extension BrewService {
         }
 
         isPerformingAction = true
+        activeMutationCount += 1
         actionOutput = ""
         lastError = nil
-        defer { isPerformingAction = false }
+        defer {
+            isPerformingAction = false
+            activeMutationCount -= 1
+        }
 
         let recordedArguments = ["bundle", "dump", "--force", "--file", url.path]
         let temporaryDirectory = FileManager.default.temporaryDirectory

@@ -80,8 +80,7 @@ extension BrewService {
     }
 
     func cleanupServices() async -> CommandResult {
-        let brewPath = CommandRunner.resolvedBrewPath(preferred: customBrewPath)
-        let result = await commandRunner.run(["services", "cleanup"], brewPath: brewPath)
+        let result = await runServiceCommand(["services", "cleanup"])
         if !result.success {
             logger.warning("Services cleanup failed: \(result.output.prefix(200))")
         }
@@ -89,6 +88,8 @@ extension BrewService {
     }
 
     private func runServiceCommand(_ arguments: [String]) async -> CommandResult {
+        activeMutationCount += 1
+        defer { activeMutationCount -= 1 }
         let brewPath = CommandRunner.resolvedBrewPath(preferred: customBrewPath)
         return await commandRunner.run(arguments, brewPath: brewPath)
     }

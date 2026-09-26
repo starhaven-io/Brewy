@@ -75,9 +75,14 @@ extension BrewService {
             return
         }
         isPerformingAction = true
+        let mutationCount = entry.isMutatingCommand ? 1 : 0
+        activeMutationCount += mutationCount
         actionOutput = ""
         lastError = nil
-        defer { isPerformingAction = false }
+        defer {
+            isPerformingAction = false
+            activeMutationCount -= mutationCount
+        }
 
         let result = await runBrewCommandStreaming(entry.arguments)
         if !result.success, !result.cancelled {
