@@ -38,7 +38,8 @@ route_ci_path() {
   if [[ "${path}" == .github/workflows/release.yml ||
         "${path}" == .github/format-release-notes.py ||
         "${path}" == .github/appcast-template.xml ||
-        "${path}" == scripts/validate-release-helpers.py || "${path}" == scripts/tests/*.py ]]; then
+        "${path}" == scripts/validate-release-helpers.py || "${path}" == scripts/release-delivery.py ||
+        "${path}" == scripts/tests/*.py ]]; then
     NEEDS_LINT=1
     NEEDS_RELEASE_HELPERS=1
     routed=1
@@ -112,6 +113,11 @@ validate_ci_path_routing() {
 
   reset_ci_routes
   route_ci_path 'scripts/tests/test_cask_dco.py'
+  [[ "${NEEDS_RELEASE_HELPERS}" -eq 1 ]]
+  [[ "${NEEDS_TESTS}" -eq 0 ]]
+
+  reset_ci_routes
+  route_ci_path 'scripts/release-delivery.py'
   [[ "${NEEDS_RELEASE_HELPERS}" -eq 1 ]]
   [[ "${NEEDS_TESTS}" -eq 0 ]]
 
