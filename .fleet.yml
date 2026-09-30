@@ -32,6 +32,14 @@ params:
     advanced-security: "${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}"
     fail-on-findings: true
     pull-request: true
+    accept-action-findings:
+      - action: "Homebrew/actions/setup-homebrew"
+        path: "setup-homebrew/main.sh"
+        category: "shell_fetch"
+        severity: "high"
+        description: "shell executing fetched content via command substitution — bypasses pinning"
+        command: 'NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
+        reason: "setup-homebrew installs Homebrew from Homebrew/install HEAD when a runner lacks it, which Homebrew keeps deliberately rather than pinning each installer change"
   readme:
     badges:
       workflow: "ci.yml"

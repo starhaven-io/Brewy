@@ -1,0 +1,12 @@
+# Fleet-managed audit policy. Change fleet/repos/<name>.yml, then release/sync.
+# Exact accepted findings remain visible; incomplete coverage still fails.
+accept-workflow-findings = []
+
+[[accept-action-findings]]
+action = "Homebrew/actions/setup-homebrew"
+path = "setup-homebrew/main.sh"
+category = "shell_fetch"
+severity = "high"
+description = "shell executing fetched content via command substitution — bypasses pinning"
+command = "NONINTERACTIVE=1 /bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+reason = "setup-homebrew installs Homebrew from Homebrew/install HEAD when a runner lacks it, which Homebrew keeps deliberately rather than pinning each installer change"
