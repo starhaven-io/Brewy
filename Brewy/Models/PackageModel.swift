@@ -26,6 +26,7 @@ struct BrewPackage: Identifiable, Hashable, Codable {
     let isOutdated: Bool
     let installedVersion: String?
     let latestVersion: String?
+    let appVersion: String?
     let source: PackageSource
     let pinned: Bool
     let installedOnRequest: Bool
@@ -36,6 +37,8 @@ struct BrewPackage: Identifiable, Hashable, Codable {
     var isFormula: Bool { source == .formula }
     var isCask: Bool { source == .cask }
     var isMas: Bool { source == .mas }
+
+    var versionIdentity: [String] { [version, appVersion ?? ""] }
 
     var displayVersion: String {
         if isOutdated, let latest = latestVersion {
@@ -59,7 +62,8 @@ struct BrewPackage: Identifiable, Hashable, Codable {
         installedOnRequest: Bool,
         dependencies: [String],
         dependencyReferences: [PackageReference]? = nil,
-        repositoryURL: String? = nil
+        repositoryURL: String? = nil,
+        appVersion: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -71,6 +75,7 @@ struct BrewPackage: Identifiable, Hashable, Codable {
         self.isOutdated = isOutdated
         self.installedVersion = installedVersion
         self.latestVersion = latestVersion
+        self.appVersion = appVersion
         self.source = source
         self.pinned = pinned
         self.installedOnRequest = installedOnRequest

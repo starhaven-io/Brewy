@@ -313,7 +313,7 @@ extension BrewService {
         isBackgroundRefresh = !isUserInitiated
         refreshReportedError = false
         defer { isBackgroundRefresh = false }
-        let previousVersions = Dictionary(allInstalled.map { ($0.id, $0.version) }, uniquingKeysWith: { _, last in last })
+        let previousVersions = Dictionary(allInstalled.map { ($0.id, $0.versionIdentity) }, uniquingKeysWith: { _, last in last })
         let hadCachedData = !installedFormulae.isEmpty || !installedCasks.isEmpty
         // Only show the spinner when there's no cached data yet; the counter keeps a concurrent
         // search() from clearing it early (and vice versa).
@@ -367,8 +367,8 @@ extension BrewService {
         await finishRefresh(previousVersions: previousVersions, taps: fetchedTaps)
     }
 
-    private func finishRefresh(previousVersions: [String: String], taps: [BrewTap]) async {
-        let currentVersions = Dictionary(allInstalled.map { ($0.id, $0.version) }, uniquingKeysWith: { _, last in last })
+    private func finishRefresh(previousVersions: [String: [String]], taps: [BrewTap]) async {
+        let currentVersions = Dictionary(allInstalled.map { ($0.id, $0.versionIdentity) }, uniquingKeysWith: { _, last in last })
         for id in infoCache.keys where currentVersions[id] != previousVersions[id] {
             infoCache.removeValue(forKey: id)
         }

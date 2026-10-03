@@ -11,11 +11,7 @@ struct PackageCacheTests {
         defer { fixture.remove() }
 
         let formula = makePackage(name: "wget", pinned: true, dependencies: ["openssl@3"])
-        let cask = makePackage(
-            name: "firefox",
-            source: .cask,
-            repositoryURL: "https://github.com/mozilla/gecko-dev"
-        )
+        let cask = try makeCaskVersionPackage(recordedVersion: "157.0", appVersion: "158.0")
         let mas = makePackage(name: "Xcode", source: .mas)
         let outdated = makePackage(
             name: "wget",
@@ -51,6 +47,8 @@ struct PackageCacheTests {
 
         #expect(reader.installedFormulae == [formula])
         #expect(reader.installedCasks == [cask])
+        #expect(reader.installedCasks.first?.installedVersion == "157.0")
+        #expect(reader.installedCasks.first?.appVersion == "158.0")
         #expect(reader.installedCasks.first?.repositoryURL == "https://github.com/mozilla/gecko-dev")
         #expect(reader.installedMasApps == [mas])
         #expect(reader.outdatedPackages == [outdated])
@@ -107,6 +105,26 @@ struct PackageCacheTests {
 
         #expect(reader.installedCasks.map(\.name) == ["firefox"])
         #expect(reader.installedCasks.first?.repositoryURL == nil)
+    }
+
+    @Test("Package cache tolerates snapshots written before app versions were stored")
+    func loadsLegacySnapshotWithoutAppVersion() async throws {
+        let fixture = try CacheFixture()
+        defer { fixture.remove() }
+        let writer = BrewService(commandRunner: MockCommandRunner(), packageCacheURL: fixture.url, packageCacheWritesEnabled: true)
+        writer.installedCasks = [try makeCaskVersionPackage(recordedVersion: "156.0.1", appVersion: "157.0")]
+        await writer.saveToCache()
+        try fixture.mutateJSON { object in
+            var casks = try #require(object["casks"] as? [[String: Any]])
+            casks[0].removeValue(forKey: "appVersion")
+            object["casks"] = casks
+        }
+
+        let reader = BrewService(commandRunner: MockCommandRunner(), packageCacheURL: fixture.url)
+        reader.loadFromCache()
+
+        #expect(reader.installedCasks.first?.installedVersion == "156.0.1")
+        #expect(reader.installedCasks.first?.appVersion == nil)
     }
 
     @Test("Package cache rejects and deletes an incompatible schema")
@@ -178,6 +196,15 @@ struct PackageCacheTests {
     }
 }
 
+private func makeCaskVersionPackage(recordedVersion: String, appVersion: String) throws -> BrewPackage {
+    let json = """
+    {"token":"firefox","version":"157.0","installed":"\(recordedVersion)",
+    "auto_updates":true,"bundle_short_version":"\(appVersion)","artifacts":[{"app":["Firefox.app"]}],
+    "homepage":"https://github.com/mozilla/gecko-dev"}
+    """
+    return try JSONDecoder().decode(CaskJSON.self, from: Data(json.utf8)).toPackage()
+}
+
 private struct CacheFixture {
     let directory: URL
     let url: URL
@@ -189,12 +216,12 @@ private struct CacheFixture {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     }
 
-    func mutateJSON(_ mutation: (inout [String: Any]) -> Void) throws {
+    func mutateJSON(_ mutation: (inout [String: Any]) throws -> Void) throws {
         let data = try Data(contentsOf: url)
         guard var object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw CacheFixtureError.invalidJSONObject
         }
-        mutation(&object)
+        try mutation(&object)
         try JSONSerialization.data(withJSONObject: object).write(to: url)
     }
 

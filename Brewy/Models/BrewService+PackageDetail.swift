@@ -33,7 +33,8 @@ extension BrewService {
                         installedOnRequest: package.installedOnRequest,
                         dependencies: cask.dependencies,
                         dependencyReferences: cask.dependencyReferences,
-                        repositoryURL: cask.repositoryURL ?? (cask.url == nil ? package.repositoryURL : nil)
+                        repositoryURL: cask.repositoryURL ?? (cask.url == nil ? package.repositoryURL : nil),
+                        appVersion: package.appVersion
                     )
                 }
                 if let formula = response.formulae?.first {
@@ -77,7 +78,8 @@ extension BrewPackage {
             installedVersion: installedVersion, latestVersion: latestVersion,
             source: source, pinned: pinned, installedOnRequest: installedOnRequest,
             dependencies: metadata.dependencies, dependencyReferences: metadata.dependencyReferences,
-            repositoryURL: metadata.repositoryURL
+            repositoryURL: metadata.repositoryURL,
+            appVersion: appVersion
         )
     }
 }

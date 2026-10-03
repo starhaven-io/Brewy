@@ -56,6 +56,8 @@ struct CaskJSON: Decodable {
     let token: String
     let version: String?
     let installed: String?
+    let autoUpdates: Bool?
+    let bundleShortVersion: String?
     let desc: String?
     let homepage: String?
     let url: String?
@@ -65,6 +67,8 @@ struct CaskJSON: Decodable {
 
     enum CodingKeys: String, CodingKey {
         case token, version, installed, desc, homepage, url, artifacts
+        case autoUpdates = "auto_updates"
+        case bundleShortVersion = "bundle_short_version"
         case dependsOn = "depends_on"
     }
 
@@ -91,6 +95,8 @@ struct CaskJSON: Decodable {
         token = try container.decode(String.self, forKey: .token)
         version = try container.decodeIfPresent(String.self, forKey: .version)
         installed = try container.decodeIfPresent(String.self, forKey: .installed)
+        autoUpdates = try? container.decodeIfPresent(Bool.self, forKey: .autoUpdates)
+        bundleShortVersion = try? container.decodeIfPresent(String.self, forKey: .bundleShortVersion)
         desc = try container.decodeIfPresent(String.self, forKey: .desc)
         homepage = try container.decodeIfPresent(String.self, forKey: .homepage)
         url = try? container.decodeIfPresent(String.self, forKey: .url)
@@ -113,6 +119,13 @@ struct CaskJSON: Decodable {
         GitHubRepositoryURL.resolve(from: homepage, url)
     }
 
+    private var appVersion: String? {
+        guard autoUpdates == true, artifacts.filter(\.isApplication).count == 1,
+              let appVersion = bundleShortVersion?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !appVersion.isEmpty, appVersion != "0", appVersion != "0.0" else { return nil }
+        return appVersion
+    }
+
     func toPackage() -> BrewPackage {
         let latest = version ?? "unknown"
         let installedVersion = installed ?? latest
@@ -131,7 +144,8 @@ struct CaskJSON: Decodable {
             installedOnRequest: true,
             dependencies: dependencies,
             dependencyReferences: dependencyReferences,
-            repositoryURL: repositoryURL
+            repositoryURL: repositoryURL,
+            appVersion: appVersion
         )
     }
 }

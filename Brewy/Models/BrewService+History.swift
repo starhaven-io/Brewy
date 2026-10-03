@@ -126,7 +126,8 @@ extension BrewService {
             installedOnRequest: pkg.installedOnRequest,
             dependencies: pkg.dependencies,
             dependencyReferences: pkg.dependencyReferences,
-            repositoryURL: pkg.repositoryURL
+            repositoryURL: pkg.repositoryURL,
+            appVersion: pkg.appVersion
         )
     }
 }
