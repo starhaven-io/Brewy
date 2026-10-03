@@ -3,20 +3,22 @@
     <channel>
         <title>Brewy</title>
         <item>
-            <title>0.26.0</title>
-            <pubDate>Tue, 15 Sep 2026 02:25:01 +0000</pubDate>
-            <sparkle:version>35</sparkle:version>
-            <sparkle:shortVersionString>0.26.0</sparkle:shortVersionString>
+            <title>0.26.1</title>
+            <pubDate>Sat, 03 Oct 2026 06:18:28 +0000</pubDate>
+            <sparkle:version>36</sparkle:version>
+            <sparkle:shortVersionString>0.26.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>What&#x27;s New</h2>
+            <description><![CDATA[<h2>Fixes</h2>
 <ul>
-  <li>list outdated packages in the menu bar extra</li>
+  <li>prevent quitting during mutating operations</li>
+  <li>preview destructive maintenance retries</li>
+  <li>preserve upgrades hidden by search</li>
 </ul>
-<h2>Fixes</h2>
+<h2>Testing</h2>
 <ul>
-  <li>merge the cask bump against validated checks</li>
+  <li>keep tests out of the installed app&#x27;s preferences</li>
 </ul>]]></description>
-            <enclosure url="https://github.com/starhaven-io/Brewy/releases/download/0.26.0/Brewy-0.26.0.zip" length="3980902" type="application/octet-stream" sparkle:edSignature="mP4LUiLcMkk0K2iTI5ZTCZDtA3Vd+9JQWpTI0WlfPsm4hB1lEonPhU/NkkV8wnGFm0FGxBazwOXLeTk6dHn4Cg=="/>
+            <enclosure url="https://github.com/starhaven-io/Brewy/releases/download/0.26.1/Brewy-0.26.1.zip" length="3963478" type="application/octet-stream" sparkle:edSignature="VhVlu64qNSmUXIr2S0THaPzS5KOrO5MCJx/exTvbM38g04+6xbiSrvALfONP6CWvhqYR7YjMqR+6v5x8B3HkAw=="/>
         </item>
     </channel>
 </rss>
