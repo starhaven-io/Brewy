@@ -52,7 +52,7 @@ struct InstalledPackageIcon: View {
     }
 
     private var request: InstalledApplicationIconRequest? {
-        applicationURL.map { InstalledApplicationIconRequest(url: $0, version: package.version) }
+        applicationURL.map { InstalledApplicationIconRequest(url: $0, version: package.versionIdentity.joined(separator: "\u{0}")) }
     }
 
     var body: some View {

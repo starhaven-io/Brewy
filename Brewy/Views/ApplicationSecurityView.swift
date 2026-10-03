@@ -7,9 +7,9 @@ struct ApplicationSecuritySection: View {
     @State private var loadState: LoadState = .idle
     @State private var refreshID = 0
 
-    private var requestID: String {
+    private var requestID: [String] {
         let applicationPath = brewService.installedApplicationURL(for: package)?.path ?? ""
-        return "\(package.id)\u{0}\(package.version)\u{0}\(applicationPath)\u{0}\(refreshID)"
+        return [package.id] + package.versionIdentity + [applicationPath, String(refreshID)]
     }
 
     var body: some View {

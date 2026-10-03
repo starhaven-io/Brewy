@@ -49,7 +49,7 @@ struct PackageDetailView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(.background)
         // Keyed on version too, so the info reloads after an in-place upgrade (id alone is stable).
-        .task(id: [package.id, package.installedVersion ?? ""]) {
+        .task(id: [package.id] + package.versionIdentity) {
             enrichedPackage = nil
             detailedInfo = ""
             isLoadingInfo = false
@@ -118,7 +118,7 @@ private struct PackageHeader: View {
                         .font(.body)
                         .foregroundStyle(.secondary)
                 }
-                Text("Version \(package.displayVersion)")
+                Text(package.isCask ? "Recorded version \(package.displayVersion)" : "Version \(package.displayVersion)")
                     .font(.callout)
                     .foregroundStyle(package.isOutdated ? Color.brewyAccent : Color.secondary)
                     .monospacedDigit()
@@ -278,6 +278,12 @@ private struct PackageInfoSection: View {
         package.source.brewyDisplayName
     }
 
+    private var differingAppVersion: String? {
+        guard package.isCask, let appVersion = package.appVersion,
+              appVersion != package.installedVersion else { return nil }
+        return appVersion
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Details")
@@ -288,13 +294,26 @@ private struct PackageInfoSection: View {
                 GridItem(.flexible(), alignment: .topLeading)
             ], spacing: 10) {
                 InfoField(label: "Type", value: packageTypeName)
-                InfoField(label: "Installed Version", value: package.installedVersion ?? "—")
+                InfoField(label: package.isCask ? "Recorded Version" : "Installed Version", value: package.installedVersion ?? "—")
+
+                if let appVersion = differingAppVersion {
+                    InfoField(label: "App Version", value: appVersion)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("App Version: \(appVersion)")
+                        .accessibilityIdentifier("package-detail-app-version")
+                }
 
                 if let latest = package.latestVersion {
                     InfoField(label: "Latest Version", value: latest)
                 }
 
                 InfoField(label: "Installed on Request", value: package.installedOnRequest ? "Yes" : "No")
+            }
+
+            if differingAppVersion != nil {
+                Text("Apps can update themselves or use different version formats than Homebrew's installation record.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             if !package.dependencies.isEmpty {

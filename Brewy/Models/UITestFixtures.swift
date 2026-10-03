@@ -351,7 +351,8 @@ extension BrewService {
             pinned: false,
             installedOnRequest: true,
             dependencies: [],
-            repositoryURL: "https://github.com/mozilla/gecko-dev"
+            repositoryURL: "https://github.com/mozilla/gecko-dev",
+            appVersion: "127.0.1"
         )
     }
 
