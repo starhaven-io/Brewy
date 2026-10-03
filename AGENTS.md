@@ -94,9 +94,9 @@ merges. Use the normal explicit authorization for any hosted repair.
   the PR body: `AI disclosure: <model> with <how the output was verified>.`
   This is PR body text, not a commit trailer. Omit the line when no AI/LLM was
   used.
-- Name the model as its vendor names it, for example `Claude Opus 5`. Do not
-  also name a tool or harness unless the harness is the only identifier. Do not
-  describe what the AI did.
+- Name the model with the name and version its vendor uses. Do not also name a
+  tool or harness unless the harness is the only identifier. Do not describe
+  what the AI did.
 - Do not format the disclosure as a heading, bullet, bold label, or horizontal
   rule, and do not add a promotional "generated with" footer.
 - Keep each prose paragraph in a PR description on one source line. Do not
