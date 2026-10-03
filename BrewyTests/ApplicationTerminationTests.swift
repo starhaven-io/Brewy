@@ -165,9 +165,15 @@ struct ApplicationTerminationTests {
 
 private actor PausedCommandRunner: CommandRunning {
     private var continuations: [[String]: CheckedContinuation<CommandResult, Never>] = [:]
+    private var waiters: [UUID: (count: Int, continuation: CheckedContinuation<Void, Never>)] = [:]
 
     func run(_ arguments: [String], brewPath: String, timeout: Duration) async -> CommandResult {
-        await withCheckedContinuation { continuations[arguments] = $0 }
+        await withCheckedContinuation {
+            continuations[arguments] = $0
+            for (id, waiter) in waiters where continuations.count >= waiter.count {
+                resumeWaiter(id)
+            }
+        }
     }
 
     func run(
@@ -188,10 +194,19 @@ private actor PausedCommandRunner: CommandRunning {
     }
 
     func waitForCommands(_ count: Int) async throws {
-        let deadline = ContinuousClock.now + .seconds(5)
-        while continuations.count < count, ContinuousClock.now < deadline {
-            await Task.yield()
+        if continuations.count < count {
+            let id = UUID()
+            let timeout = Task {
+                try? await Task.sleep(for: .seconds(60))
+                resumeWaiter(id)
+            }
+            await withCheckedContinuation { waiters[id] = (count, $0) }
+            timeout.cancel()
         }
         try #require(continuations.count == count)
+    }
+
+    private func resumeWaiter(_ id: UUID) {
+        waiters.removeValue(forKey: id)?.continuation.resume()
     }
 }
