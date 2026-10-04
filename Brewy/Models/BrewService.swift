@@ -226,7 +226,7 @@ extension BrewService {
             outdatedPackages = cached.outdated
             installedTaps = cached.taps
             tapsLoaded = !cached.taps.isEmpty
-            isMasAvailable = !masApps.isEmpty || FileManager.default.isExecutableFile(atPath: masExecutablePath)
+            isMasAvailable = !masApps.isEmpty || CommandRunner.isRegularExecutable(atPath: masExecutablePath)
             lastUpdated = cached.lastUpdated
             logger.info("Loaded \(cached.formulae.count) formulae and \(cached.casks.count) casks from cache")
         } catch {

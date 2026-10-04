@@ -145,9 +145,15 @@ enum CommandRunner {
     private static let killGracePeriod: Duration = .seconds(3)
     private static let pipeDrainGracePeriod: Duration = .seconds(5)
 
+    static func isRegularExecutable(atPath path: String) -> Bool {
+        let url = URL(fileURLWithPath: path).resolvingSymlinksInPath()
+        return (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
+            && FileManager.default.isExecutableFile(atPath: path)
+    }
+
     static func resolvedBrewPath(preferred: String) -> String {
-        if FileManager.default.isExecutableFile(atPath: preferred) { return preferred }
-        for path in standardBrewPaths where FileManager.default.isExecutableFile(atPath: path) {
+        if isRegularExecutable(atPath: preferred) { return preferred }
+        for path in standardBrewPaths where isRegularExecutable(atPath: path) {
             return path
         }
         return preferred
@@ -210,7 +216,7 @@ enum CommandRunner {
 
     static func resolvedMasPath() -> String {
         let paths = ["/opt/homebrew/bin/mas", "/usr/local/bin/mas"]
-        for path in paths where FileManager.default.isExecutableFile(atPath: path) {
+        for path in paths where isRegularExecutable(atPath: path) {
             return path
         }
         return paths[0]
