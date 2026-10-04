@@ -47,4 +47,19 @@ if ! command -v just >/dev/null 2>&1; then
     exit 127
 fi
 
+# Git exports GIT_DIR to hooks, as an absolute path from a linked worktree, so
+# tools that run git in another repository (SwiftPM checkouts, test fixtures)
+# would act on this one. Clear what git clears when it enters another
+# repository: its repository-local variables, keeping command-line config.
+if ! local_env_vars=$(git rev-parse --local-env-vars); then
+    echo "pre-push hook: could not list git's repository-local variables." >&2
+    exit 1
+fi
+for var in $local_env_vars; do
+    case "$var" in
+        GIT_CONFIG_PARAMETERS | GIT_CONFIG_COUNT) ;;
+        *) unset "$var" ;;
+    esac
+done
+
 just check
