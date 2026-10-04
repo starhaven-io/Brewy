@@ -161,6 +161,10 @@ final class UITestCommandRunner: CommandRunning, @unchecked Sendable {
     }
 
     private static let codeSigningMetadata = """
+    Executable=/Applications/Firefox.app/Contents/MacOS/firefox
+    Identifier=org.mozilla.firefox
+    Format=app bundle with Mach-O universal (x86_64 arm64)
+    CodeDirectory v=20500 size=4096 flags=0x10000(runtime)
     Authority=Developer ID Application: Mozilla Corporation (43AQ936H96)
     Authority=Developer ID Certification Authority
     Authority=Apple Root CA

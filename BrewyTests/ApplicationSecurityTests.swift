@@ -9,8 +9,9 @@ struct ApplicationSecurityParsingTests {
     func validDeveloperIDSignature() {
         let details = ApplicationSecurityParser.parse(
             applicationURL: URL(fileURLWithPath: "/Applications/Example.app"),
-            signingMetadata: CommandResult(
+            signingMetadata: securityToolResult(
                 output: """
+                CodeDirectory v=20500 size=100 flags=0x0(none)
                 Authority=Developer ID Application: Example Corp (ABCDE12345)
                 Authority=Developer ID Certification Authority
                 Authority=Apple Root CA
@@ -19,11 +20,11 @@ struct ApplicationSecurityParsingTests {
                 """,
                 success: true
             ),
-            signingVerification: CommandResult(
+            signingVerification: securityToolResult(
                 output: "/Applications/Example.app: valid on disk",
                 success: true
             ),
-            gatekeeperAssessment: CommandResult(
+            gatekeeperAssessment: securityToolResult(
                 output: """
                 /Applications/Example.app: accepted
                 source=Notarized Developer ID
@@ -46,15 +47,16 @@ struct ApplicationSecurityParsingTests {
     func gatekeeperNotarizationEvidence() {
         let details = ApplicationSecurityParser.parse(
             applicationURL: URL(fileURLWithPath: "/Applications/Example.app"),
-            signingMetadata: CommandResult(
+            signingMetadata: securityToolResult(
                 output: """
+                CodeDirectory v=20500 size=100 flags=0x0(none)
                 Authority=Developer ID Application: Example Corp (ABCDE12345)
                 TeamIdentifier=ABCDE12345
                 """,
                 success: true
             ),
-            signingVerification: CommandResult(output: "valid on disk", success: true),
-            gatekeeperAssessment: CommandResult(
+            signingVerification: securityToolResult(output: "valid on disk", success: true),
+            gatekeeperAssessment: securityToolResult(
                 output: "source=Notarized Developer ID",
                 success: true
             )
@@ -68,9 +70,9 @@ struct ApplicationSecurityParsingTests {
         let unsignedOutput = "/Applications/Unsigned.app: code object is not signed at all"
         let details = ApplicationSecurityParser.parse(
             applicationURL: URL(fileURLWithPath: "/Applications/Unsigned.app"),
-            signingMetadata: CommandResult(output: unsignedOutput, success: false),
-            signingVerification: CommandResult(output: unsignedOutput, success: false),
-            gatekeeperAssessment: CommandResult(
+            signingMetadata: securityToolResult(output: unsignedOutput, success: false),
+            signingVerification: securityToolResult(output: unsignedOutput, success: false),
+            gatekeeperAssessment: securityToolResult(
                 output: """
                 /Applications/Unsigned.app: rejected
                 source=no usable signature
@@ -91,18 +93,19 @@ struct ApplicationSecurityParsingTests {
     func gatekeeperUnavailable() {
         let details = ApplicationSecurityParser.parse(
             applicationURL: URL(fileURLWithPath: "/Applications/Example.app"),
-            signingMetadata: CommandResult(
+            signingMetadata: securityToolResult(
                 output: """
+                CodeDirectory v=20500 size=100 flags=0x0(none)
                 Authority=Developer ID Application: Example Corp (ABCDE12345)
                 TeamIdentifier=ABCDE12345
                 """,
                 success: true
             ),
-            signingVerification: CommandResult(
+            signingVerification: securityToolResult(
                 output: "a sealed resource is missing or invalid",
                 success: false
             ),
-            gatekeeperAssessment: CommandResult(
+            gatekeeperAssessment: securityToolResult(
                 output: "/Applications/Example.app: internal error in Code Signing subsystem",
                 success: false
             )
@@ -120,9 +123,9 @@ struct ApplicationSecurityParsingTests {
     func gatekeeperPolicyDenialExitStatus() {
         let details = ApplicationSecurityParser.parse(
             applicationURL: URL(fileURLWithPath: "/Applications/Denied.app"),
-            signingMetadata: CommandResult(output: "", success: true),
-            signingVerification: CommandResult(output: "valid on disk", success: true),
-            gatekeeperAssessment: CommandResult(
+            signingMetadata: securityToolResult(output: "", success: true),
+            signingVerification: securityToolResult(output: "valid on disk", success: true),
+            gatekeeperAssessment: securityToolResult(
                 output: "/Applications/Denied.app: assessment denied by policy",
                 success: false,
                 exitCode: 3
@@ -138,9 +141,9 @@ struct ApplicationSecurityParsingTests {
         let failure = "/Applications/Broken.app: a sealed resource is missing or invalid"
         let details = ApplicationSecurityParser.parse(
             applicationURL: URL(fileURLWithPath: "/Applications/Broken.app"),
-            signingMetadata: CommandResult(output: "", success: false),
-            signingVerification: CommandResult(output: failure, success: false, exitCode: 1),
-            gatekeeperAssessment: CommandResult(output: failure, success: false, exitCode: 1)
+            signingMetadata: securityToolResult(output: "", success: false),
+            signingVerification: securityToolResult(output: failure, success: false, exitCode: 1),
+            gatekeeperAssessment: securityToolResult(output: failure, success: false, exitCode: 1)
         )
 
         #expect(details.signingStatus == .invalid)
@@ -152,15 +155,16 @@ struct ApplicationSecurityParsingTests {
         let timeout = "Command timed out after 30 seconds.\n--prepared:/Applications/Slow.app/Contents/MacOS/Slow"
         let details = ApplicationSecurityParser.parse(
             applicationURL: URL(fileURLWithPath: "/Applications/Slow.app"),
-            signingMetadata: CommandResult(output: "", success: false),
-            signingVerification: CommandResult(
+            signingMetadata: securityToolResult(output: "", success: false),
+            signingVerification: securityToolResult(
                 output: timeout,
                 success: false,
+                timedOut: true,
                 standardOutput: "",
                 standardError: "--prepared:/Applications/Slow.app/Contents/MacOS/Slow",
                 exitCode: 15
             ),
-            gatekeeperAssessment: CommandResult(
+            gatekeeperAssessment: securityToolResult(
                 output: "internal error in Code Signing subsystem",
                 success: false,
                 exitCode: 1
@@ -176,14 +180,15 @@ struct ApplicationSecurityParsingTests {
         let failure = "Failed to run codesign --verify: Permission denied"
         let details = ApplicationSecurityParser.parse(
             applicationURL: URL(fileURLWithPath: "/Applications/Example.app"),
-            signingMetadata: CommandResult(output: "", success: false),
-            signingVerification: CommandResult(
+            signingMetadata: securityToolResult(output: "", success: false),
+            signingVerification: securityToolResult(
                 output: failure,
                 success: false,
                 standardOutput: "",
-                standardError: failure
+                standardError: failure,
+                exitCode: nil
             ),
-            gatekeeperAssessment: CommandResult(
+            gatekeeperAssessment: securityToolResult(
                 output: "internal error in Code Signing subsystem",
                 success: false,
                 exitCode: 1
@@ -196,7 +201,7 @@ struct ApplicationSecurityParsingTests {
 
     @Test("Keeps cancelled security tools unavailable")
     func cancelledTools() {
-        let cancellation = CommandResult(
+        let cancellation = securityToolResult(
             output: "Command was cancelled.",
             success: false,
             cancelled: true,
@@ -217,9 +222,9 @@ struct ApplicationSecurityParsingTests {
     func unnotarizedSource() {
         let details = ApplicationSecurityParser.parse(
             applicationURL: URL(fileURLWithPath: "/Applications/Example.app"),
-            signingMetadata: CommandResult(output: "", success: true),
-            signingVerification: CommandResult(output: "valid on disk", success: true),
-            gatekeeperAssessment: CommandResult(
+            signingMetadata: securityToolResult(output: "", success: true),
+            signingVerification: securityToolResult(output: "valid on disk", success: true),
+            gatekeeperAssessment: securityToolResult(
                 output: "source=Unnotarized Developer ID",
                 success: true
             )
@@ -232,9 +237,9 @@ struct ApplicationSecurityParsingTests {
     func duplicateGatekeeperMessage() {
         let details = ApplicationSecurityParser.parse(
             applicationURL: URL(fileURLWithPath: "/Applications/Denied.app"),
-            signingMetadata: CommandResult(output: "", success: false),
-            signingVerification: CommandResult(output: "not signed at all", success: false),
-            gatekeeperAssessment: CommandResult(
+            signingMetadata: securityToolResult(output: "", success: false),
+            signingVerification: securityToolResult(output: "not signed at all", success: false),
+            gatekeeperAssessment: securityToolResult(
                 output: "/Applications/Denied.app: rejected",
                 success: false,
                 standardOutput: "",
@@ -249,24 +254,24 @@ struct ApplicationSecurityParsingTests {
 
     @Test("Parses real tool output from standard error")
     func standardErrorOutput() {
-        let metadata = "Authority=Developer ID Application: Example Corp (ABCDE12345)\nTeamIdentifier=ABCDE12345"
+        let metadata = "CodeDirectory v=20500\nAuthority=Developer ID Application: Example Corp (ABCDE12345)\nTeamIdentifier=ABCDE12345"
         let verification = "/Applications/Example.app: valid on disk"
         let assessment = "/Applications/Example.app: accepted\nsource=Notarized Developer ID"
         let details = ApplicationSecurityParser.parse(
             applicationURL: URL(fileURLWithPath: "/Applications/Example.app"),
-            signingMetadata: CommandResult(
+            signingMetadata: securityToolResult(
                 output: metadata,
                 success: true,
                 standardOutput: "",
                 standardError: metadata
             ),
-            signingVerification: CommandResult(
+            signingVerification: securityToolResult(
                 output: verification,
                 success: true,
                 standardOutput: "",
                 standardError: verification
             ),
-            gatekeeperAssessment: CommandResult(
+            gatekeeperAssessment: securityToolResult(
                 output: assessment,
                 success: true,
                 standardOutput: "",
@@ -295,15 +300,15 @@ struct ApplicationSecurityParsingTests {
         """
         let details = ApplicationSecurityParser.parse(
             applicationURL: URL(fileURLWithPath: path),
-            signingMetadata: CommandResult(output: "", success: false),
-            signingVerification: CommandResult(
+            signingMetadata: securityToolResult(output: "", success: false),
+            signingVerification: securityToolResult(
                 output: standardOutput + "\n" + standardError,
                 success: false,
                 standardOutput: standardOutput,
                 standardError: standardError,
                 exitCode: 1
             ),
-            gatekeeperAssessment: CommandResult(
+            gatekeeperAssessment: securityToolResult(
                 output: "\(path): internal error in Code Signing subsystem",
                 success: false,
                 exitCode: 1
@@ -318,6 +323,21 @@ struct ApplicationSecurityParsingTests {
 @Suite("Application Security Inspection")
 struct ApplicationSecurityInspectionTests {
 
+    @Test("UI fixture supplies the signing details expected by the security view")
+    func uiFixtureSecurityDetails() async {
+        let inspector = ApplicationSecurityInspector(commandRunner: UITestCommandRunner())
+        let details = await inspector.inspect(
+            applicationURL: URL(fileURLWithPath: "/Applications/Firefox.app")
+        )
+
+        #expect(details.signingStatus == .valid)
+        #expect(details.signer == "Developer ID Application: Mozilla Corporation (43AQ936H96)")
+        #expect(details.teamIdentifier == "43AQ936H96")
+        #expect(details.gatekeeperStatus == .accepted)
+        #expect(details.gatekeeperSource == "Notarized Developer ID")
+        #expect(details.notarizationStatus == .stapledTicket)
+    }
+
     @Test("Runs bounded codesign and Gatekeeper checks with argument arrays")
     func runsExpectedCommands() async {
         let mock = MockCommandRunner()
@@ -327,7 +347,7 @@ struct ApplicationSecurityInspectionTests {
         let gatekeeperArguments = ["--assess", "--type", "execute", "--verbose=4", "--", path]
         mock.setResult(
             for: metadataArguments,
-            output: "Authority=Developer ID Application: Example Corp (ABCDE12345)\nTeamIdentifier=ABCDE12345"
+            output: "CodeDirectory v=20500\nAuthority=Developer ID Application: Example Corp (ABCDE12345)\nTeamIdentifier=ABCDE12345"
         )
         mock.setResult(for: verificationArguments, output: "valid on disk")
         mock.setResult(
@@ -372,4 +392,21 @@ struct BrewServiceApplicationSecurityTests {
         #expect(details == nil)
         #expect(mock.executedCommands.isEmpty)
     }
+}
+
+// codesign and spctl send their display/assessment diagnostics to stderr.
+func securityToolResult(
+    output: String,
+    success: Bool,
+    cancelled: Bool = false,
+    timedOut: Bool = false,
+    standardOutput: String? = nil,
+    standardError: String? = nil,
+    exitCode: Int32? = 1
+) -> CommandResult {
+    CommandResult(
+        output: output, success: success, cancelled: cancelled, timedOut: timedOut,
+        standardOutput: standardOutput ?? "", standardError: standardError ?? output,
+        exitCode: success ? 0 : exitCode
+    )
 }
