@@ -7,7 +7,7 @@ import Testing
 final class MockCommandRunner: CommandRunning, @unchecked Sendable {
     private let lock = NSLock()
     private var _results: [[String]: CommandResult] = [:]
-    private var _delays: [[String]: Duration] = [:]
+    private var _gates: [[String]: CommandGate] = [:]
     private var _executedCommands: [[String]] = []
     private var _executedExecutables: [(path: String, arguments: [String])] = []
     private var _recordedTimeouts: [[String]: Duration] = [:]
@@ -40,9 +40,9 @@ final class MockCommandRunner: CommandRunning, @unchecked Sendable {
         }
     }
 
-    func setDelay(for arguments: [String], duration: Duration) {
+    func setGate(_ gate: CommandGate, for arguments: [String]) {
         lock.withLock {
-            _delays[arguments] = duration
+            _gates[arguments] = gate
         }
     }
 
@@ -58,15 +58,13 @@ final class MockCommandRunner: CommandRunning, @unchecked Sendable {
     }
 
     func run(_ arguments: [String], brewPath: String, timeout: Duration) async -> CommandResult {
-        let (delay, result, handler) = lock.withLock {
+        let (gate, result, handler) = lock.withLock {
             _executedCommands.append(arguments)
             _executedExecutables.append((path: brewPath, arguments: arguments))
             _recordedTimeouts[arguments] = timeout
-            return (_delays[arguments], _results[arguments], _commandHandler)
+            return (_gates[arguments], _results[arguments], _commandHandler)
         }
-        if let delay {
-            try? await Task.sleep(for: delay)
-        }
+        await gate?.pass()
         return result ?? handler?(arguments) ?? CommandResult(output: "", success: false)
     }
 
@@ -76,30 +74,67 @@ final class MockCommandRunner: CommandRunning, @unchecked Sendable {
         standardInput: Data,
         timeout: Duration
     ) async -> CommandResult {
-        let (delay, result, handler) = lock.withLock {
+        let (gate, result, handler) = lock.withLock {
             _executedCommands.append(arguments)
             _executedExecutables.append((path: brewPath, arguments: arguments))
             _recordedTimeouts[arguments] = timeout
             _standardInputs.append((arguments: arguments, data: standardInput))
-            return (_delays[arguments], _results[arguments], _commandHandler)
+            return (_gates[arguments], _results[arguments], _commandHandler)
         }
-        if let delay {
-            try? await Task.sleep(for: delay)
-        }
+        await gate?.pass()
         return result ?? handler?(arguments) ?? CommandResult(output: "", success: false)
     }
 
     func runExecutable(_ executablePath: String, arguments: [String], timeout: Duration) async -> CommandResult {
-        let (delay, result, handler) = lock.withLock {
+        let (gate, result, handler) = lock.withLock {
             _executedCommands.append(arguments)
             _executedExecutables.append((path: executablePath, arguments: arguments))
             _recordedTimeouts[arguments] = timeout
-            return (_delays[arguments], _results[arguments], _commandHandler)
+            return (_gates[arguments], _results[arguments], _commandHandler)
         }
-        if let delay {
-            try? await Task.sleep(for: delay)
-        }
+        await gate?.pass()
         return result ?? handler?(arguments) ?? CommandResult(output: "", success: false)
+    }
+}
+
+/// Holds a mock command in flight until the test opens the gate, so tests do not race a timed delay.
+actor CommandGate {
+    private var hasCommand = false
+    private var isOpen = false
+    private var commandWaiters: [UUID: CheckedContinuation<Void, Never>] = [:]
+    private var openWaiters: [CheckedContinuation<Void, Never>] = []
+
+    func waitForCommand() async throws {
+        if !hasCommand {
+            let id = UUID()
+            let timeout = Task {
+                try? await Task.sleep(for: .seconds(60))
+                resumeCommandWaiter(id)
+            }
+            await withCheckedContinuation { commandWaiters[id] = $0 }
+            timeout.cancel()
+        }
+        // A test that fails here cannot open the gate, so a late command would never finish.
+        if !hasCommand { open() }
+        try #require(hasCommand)
+    }
+
+    func open() {
+        isOpen = true
+        for waiter in openWaiters { waiter.resume() }
+        openWaiters.removeAll()
+    }
+
+    fileprivate func pass() async {
+        hasCommand = true
+        for waiter in commandWaiters.values { waiter.resume() }
+        commandWaiters.removeAll()
+        guard !isOpen else { return }
+        await withCheckedContinuation { openWaiters.append($0) }
+    }
+
+    private func resumeCommandWaiter(_ id: UUID) {
+        commandWaiters.removeValue(forKey: id)?.resume()
     }
 }
 
