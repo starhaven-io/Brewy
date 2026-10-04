@@ -157,7 +157,9 @@ def verify(directory, *, publish=False):
     release, current_asset = release_state(metadata, allow_draft=publish, token=release_token)
     require(current_asset["id"] == hosted_asset["id"], "Release asset identity changed during verification")
     if publish and release["draft"]:
+        # GitHub detaches a draft from its tag when an edit omits tag_name.
         gh("api", f"repos/{repository}/releases/{metadata['release_id']}", "--method", "PATCH", "-F", "draft=false",
+           "-f", f"tag_name={metadata['tag']}", "-f", f"target_commitish={metadata['commit']}",
            token=release_token)
     release_state(metadata, allow_draft=False, token=release_token)
 
