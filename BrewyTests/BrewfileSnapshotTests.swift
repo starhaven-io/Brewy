@@ -1,4 +1,5 @@
 @testable import Brewy
+import Darwin
 import Foundation
 import Testing
 
@@ -102,6 +103,34 @@ struct BrewfileSnapshotTests {
 
         #expect(service.bundleCheckStatus == .untrusted)
         #expect(mock.executedCommands.isEmpty)
+    }
+
+    @Test("Identical bytes at a new path require independent trust")
+    func identicalBytesAtAnotherPath() async throws {
+        let first = try Self.makeBrewfile(contents: "brew \"wget\"\n")
+        let second = try Self.makeBrewfile(contents: "brew \"wget\"\n")
+        defer {
+            try? FileManager.default.removeItem(at: first.deletingLastPathComponent())
+            try? FileManager.default.removeItem(at: second.deletingLastPathComponent())
+        }
+        let mock = MockCommandRunner()
+        let (service, _) = makeService(mock: mock)
+        service.customBrewfilePath = first.path
+        #expect(service.trustBrewfile(at: first))
+        service.customBrewfilePath = second.path
+        await service.refreshBundle()
+        #expect(service.bundleCheckStatus == .untrusted)
+        #expect(mock.executedCommands.isEmpty)
+    }
+
+    @Test("A FIFO is rejected without waiting for a writer")
+    func fifoIsNotARegularFile() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let pipe = directory.appendingPathComponent("Brewfile")
+        #expect(mkfifo(pipe.path, 0o600) == 0)
+        #expect(throws: BrewfileSnapshotError.notRegular) { try BrewfileSnapshot.read(from: pipe) }
     }
 
     private static func setBundleListResults(_ mock: MockCommandRunner) {
