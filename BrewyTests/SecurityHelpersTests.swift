@@ -70,6 +70,16 @@ struct ReleaseNotesHTMLTests {
         #expect(stripped.range(of: "<img", options: .caseInsensitive) == nil)
     }
 
+    @Test("Unicode grapheme boundaries cannot conceal resource tags")
+    func unicodePrependCannotHideTags() {
+        for prefix in ["\u{0600}", "\u{0605}", "\u{06DD}"] {
+            let payload = prefix + #"<img src="https://evil.example/beacon.png"><script>bad</script>"#
+            let stripped = ReleaseNotesHTML.stripUnsafeMarkup(from: payload)
+            #expect(!Array(stripped.utf8).contains(60))
+            #expect(stripped.unicodeScalars.starts(with: prefix.unicodeScalars))
+        }
+    }
+
     @Test("Oversized markup is rejected before HTML conversion")
     func oversizedMarkupIsRejected() {
         let payload = String(repeating: "a", count: ReleaseNotesHTML.maximumHTMLByteCount + 1)
