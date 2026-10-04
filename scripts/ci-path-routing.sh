@@ -35,7 +35,8 @@ route_ci_path() {
     routed=1
   fi
 
-  if [[ "${path}" == .github/workflows/release.yml ||
+  if [[ "${path}" == .github/workflows/ci.yml || "${path}" == .githooks/* ||
+        "${path}" == .github/workflows/release.yml ||
         "${path}" == .github/format-release-notes.py ||
         "${path}" == .github/appcast-template.xml ||
         "${path}" == scripts/validate-release-helpers.py || "${path}" == scripts/release-delivery.py ||
@@ -120,6 +121,12 @@ validate_ci_path_routing() {
   route_ci_path 'scripts/release-delivery.py'
   [[ "${NEEDS_RELEASE_HELPERS}" -eq 1 ]]
   [[ "${NEEDS_TESTS}" -eq 0 ]]
+
+  for path in '.github/workflows/ci.yml' '.githooks/pre-push' '.githooks/commit-msg'; do
+    reset_ci_routes
+    route_ci_path "${path}"
+    [[ "${NEEDS_RELEASE_HELPERS}" -eq 1 ]]
+  done
 
   reset_ci_routes
   route_ci_path 'README.md'
