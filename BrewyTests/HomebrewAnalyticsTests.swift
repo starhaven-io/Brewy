@@ -182,21 +182,21 @@ struct HomebrewAnalyticsTests {
     }
 
     @Test("A completing refresh preserves a concurrent request warning")
-    func preservesConcurrentRequestWarningAfterRefresh() async {
+    func preservesConcurrentRequestWarningAfterRefresh() async throws {
         let mock = MockCommandRunner()
         let (service, _) = makeService(mock: mock)
         service.homebrewAnalyticsStatus = .enabled
         mock.setResult(for: ["analytics", "state"], output: "InfluxDB analytics are enabled.")
-        mock.setDelay(for: ["analytics", "state"], duration: .milliseconds(100))
+        let gate = CommandGate()
+        mock.setGate(gate, for: ["analytics", "state"])
 
         let refresh = Task { await service.refreshHomebrewAnalyticsStatus() }
-        for _ in 0..<100 where mock.executedCommands.isEmpty {
-            await Task.yield()
-        }
+        try await gate.waitForCommand()
         #expect(mock.executedCommands == [["analytics", "state"]])
 
         await service.setHomebrewAnalyticsEnabled(false)
         #expect(service.homebrewAnalyticsError == "Wait for the current analytics operation to finish.")
+        await gate.open()
         await refresh.value
 
         #expect(service.homebrewAnalyticsStatus == .enabled)

@@ -121,24 +121,25 @@ struct ErrorPersistenceTests {
     }
 
     @Test("queued refresh preserves an error set while waiting")
-    func queuedRefreshPreservesLateError() async {
+    func queuedRefreshPreservesLateError() async throws {
         let mock = MockCommandRunner()
         let (service, _) = makeService(mock: mock)
         setupRefreshMock(mock)
-        let delayedCommand = ["info", "--installed", "--json=v2"]
-        mock.setDelay(for: delayedCommand, duration: .milliseconds(100))
+        let installedCommand = ["info", "--installed", "--json=v2"]
+        let gate = CommandGate()
+        mock.setGate(gate, for: installedCommand)
 
         let refreshTask = Task { await service.refresh() }
-        while !mock.executedCommands.contains(delayedCommand) {
-            try? await Task.sleep(for: .milliseconds(1))
-        }
+        try await gate.waitForCommand()
 
         await service.refresh()
         service.lastError = .commandFailed(command: "late", output: "late failure")
 
+        await gate.open()
         await refreshTask.value
 
         #expect(service.lastError != nil)
         #expect(service.lastError?.localizedDescription.contains("late failure") == true)
+        #expect(mock.executedCommands.filter { $0 == installedCommand }.count == 2)
     }
 }

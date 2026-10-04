@@ -67,11 +67,13 @@ struct RefreshStateTests {
         #expect(service.trustBrewfile(at: original))
         let firstCommand = ["bundle", "list", "--formula", "--file=-"]
         mock.setResult(for: firstCommand, output: "wget")
-        mock.setDelay(for: firstCommand, duration: .milliseconds(100))
+        let gate = CommandGate()
+        mock.setGate(gate, for: firstCommand)
         let oldRefresh = Task { await service.refreshBundle() }
-        while !mock.executedCommands.contains(firstCommand) { await Task.yield() }
+        try await gate.waitForCommand()
         service.customBrewfilePath = replacement.path
         await service.refreshBundle()
+        await gate.open()
         await oldRefresh.value
         #expect(service.brewfileURL == replacement)
         #expect(service.bundleCheckStatus == .untrusted)
