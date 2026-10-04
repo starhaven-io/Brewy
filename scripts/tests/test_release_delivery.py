@@ -80,7 +80,8 @@ length="{len(self.asset)}" sparkle:edSignature="prepared-signature"/>
                 self.hosted_asset['id'] = 74
             return subprocess.CompletedProcess(args, 0, None, b'')
         if args[1:3] == ['api', 'repos/starhaven-io/Brewy/releases/42'] and '--method' in args:
-            self.assertEqual(args[3:], ['--method', 'PATCH', '-F', 'draft=false'])
+            self.assertEqual(args[3:], ['--method', 'PATCH', '-F', 'draft=false',
+                                        '-f', 'tag_name=0.27.0', '-f', 'target_commitish=' + 'a' * 40])
             self.assertEqual(kwargs['env']['GH_TOKEN'], 'fixture-publish-token')
             self.assertTrue(any(command[1:3] == ['attestation', 'verify'] for command in self.commands))
             self.published = True
@@ -264,6 +265,28 @@ plist_buddy() {
                                              'ARTIFACT_NAME': 'test.zip', 'BUILT_VERSION': tag,
                                              'BUILT_BUILD': build}, capture_output=True, text=True)
                 self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
+
+    def test_release_notes_update_keeps_the_draft_tag(self):
+        workflow = (ROOT / '.github/workflows/release.yml').read_text()
+        block = workflow_run_block(workflow, 'Update release notes')
+        stub = '''
+gh() {
+  if [[ "$2" == --method ]]; then
+    printf '%s\\n' "$@" > "${RUNNER_TEMP}/patch-arguments"
+  else
+    printf 'true\\t%s\\n' "${COMMIT_SHA}"
+  fi
+}
+'''
+        result = subprocess.run(['bash', '-euo', 'pipefail', '-c', stub + block],
+                                env={**os.environ, 'RUNNER_TEMP': str(self.directory),
+                                     'REPOSITORY': self.metadata['repository'],
+                                     'COMMIT_SHA': self.metadata['commit']},
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        arguments = (self.directory / 'patch-arguments').read_text().splitlines()
+        self.assertIn('tag_name=0.27.0', arguments)
+        self.assertIn('target_commitish=' + 'a' * 40, arguments)
 
 
 if __name__ == '__main__':

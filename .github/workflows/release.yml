@@ -409,7 +409,10 @@ jobs:
             echo "::error::Release ${TAG} is no longer the matching retryable draft."
             exit 1
           fi
+          # GitHub detaches a draft from its tag when an edit omits tag_name.
           gh api --method PATCH "repos/${REPOSITORY}/releases/${RELEASE_ID}" \
+            -f tag_name="${TAG}" \
+            -f target_commitish="${COMMIT_SHA}" \
             -F "body=@${RUNNER_TEMP}/formatted_notes.md" --silent
 
       - name: Update appcast
