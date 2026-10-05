@@ -43,21 +43,22 @@ enum ReleaseNotesHTML {
 
         var result = ""
         result.reserveCapacity(html.utf8.count)
-        var cursor = html.startIndex
+        let scalars = html.unicodeScalars
+        var cursor = scalars.startIndex
 
-        while cursor < html.endIndex {
-            guard html[cursor] == "<" else {
-                result.append(html[cursor])
-                cursor = html.index(after: cursor)
+        while cursor < scalars.endIndex {
+            guard scalars[cursor] == "<" else {
+                result.unicodeScalars.append(scalars[cursor])
+                cursor = scalars.index(after: cursor)
                 continue
             }
 
             let start = cursor
-            var scan = html.index(after: cursor)
+            var scan = scalars.index(after: cursor)
             var depth = 1
             var isNested = false
-            while scan < html.endIndex, depth > 0 {
-                switch html[scan] {
+            while scan < scalars.endIndex, depth > 0 {
+                switch scalars[scan] {
                 case "<":
                     depth += 1
                     isNested = true
@@ -66,14 +67,14 @@ enum ReleaseNotesHTML {
                 default:
                     break
                 }
-                scan = html.index(after: scan)
+                scan = scalars.index(after: scan)
             }
 
             guard depth == 0 else {
                 result += " "
                 break
             }
-            result += isNested ? " " : sanitizedTag(html[start..<scan])
+            result += isNested ? " " : sanitizedTag(Substring(String(scalars[start..<scan])))
             cursor = scan
         }
         return result.utf8.count <= maximumHTMLByteCount ? result : ""
