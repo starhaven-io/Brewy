@@ -12,6 +12,8 @@ struct CommandResult: Sendable {
     /// True when the process was terminated because the awaiting task was cancelled,
     /// so callers can skip failure alerts for user-requested cancellation.
     let cancelled: Bool
+    /// True when the runner terminated the command after its deadline.
+    let timedOut: Bool
     /// Raw standard output, kept separate so structured output remains parseable when
     /// a command intentionally exits nonzero or also emits a warning on standard error.
     let standardOutput: String
@@ -22,6 +24,7 @@ struct CommandResult: Sendable {
         output: String,
         success: Bool,
         cancelled: Bool = false,
+        timedOut: Bool = false,
         standardOutput: String? = nil,
         standardError: String = "",
         exitCode: Int32? = nil
@@ -29,6 +32,7 @@ struct CommandResult: Sendable {
         self.output = output
         self.success = success
         self.cancelled = cancelled
+        self.timedOut = timedOut
         self.standardOutput = standardOutput ?? output
         self.standardError = standardError
         self.exitCode = exitCode
@@ -374,6 +378,7 @@ extension CommandRunner {
                     terminationSucceeded: interruption.terminationSucceeded
                 ),
                 success: false,
+                timedOut: true,
                 standardOutput: stdout,
                 standardError: stderr,
                 exitCode: process.terminationStatus
@@ -468,6 +473,7 @@ extension CommandRunner {
             output: terminationOutput(message, succeeded: terminationSucceeded),
             success: false,
             cancelled: processResult.cancelled,
+            timedOut: processResult.timedOut,
             standardOutput: processResult.standardOutput,
             standardError: message,
             exitCode: processResult.exitCode

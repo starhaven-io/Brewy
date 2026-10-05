@@ -38,20 +38,20 @@ enum ApplicationSecurityParser {
         signingVerification: CommandResult,
         gatekeeperAssessment: CommandResult
     ) -> ApplicationSecurityDetails {
-        let metadataOutput = rawOutput(for: signingMetadata)
+        let metadataOutput = signingMetadata.success ? trustedMetadataSection(signingMetadata.standardError) : ""
         let verificationOutput = rawOutput(for: signingVerification)
         let gatekeeperOutput = rawOutput(for: gatekeeperAssessment)
         let signingStatus = signingStatus(
             verification: signingVerification,
-            output: verificationOutput
+            output: primaryVerdict(in: signingVerification.standardError, applicationPath: applicationURL.path)
         )
         let gatekeeperStatus = gatekeeperStatus(
             assessment: gatekeeperAssessment,
-            output: gatekeeperOutput
+            output: primaryVerdict(in: gatekeeperAssessment.standardError, applicationPath: applicationURL.path)
         )
-        let gatekeeperSource = value(for: "source", in: gatekeeperOutput)
+        let gatekeeperSource = value(for: "source", in: gatekeeperAssessment.standardError.replacingOccurrences(of: applicationURL.path, with: ""))
         let hasValidSignature = signingStatus == .valid
-        let signer = hasValidSignature ? signingIdentity(in: metadataOutput, gatekeeperOutput: gatekeeperOutput) : nil
+        let signer = hasValidSignature ? signingIdentity(in: metadataOutput) : nil
         let teamIdentifier = hasValidSignature ? normalizedTeamIdentifier(in: metadataOutput) : nil
 
         return ApplicationSecurityDetails(
@@ -80,6 +80,26 @@ enum ApplicationSecurityParser {
         )
     }
 
+    private static func primaryVerdict(in output: String, applicationPath: String) -> String {
+        let prefix = "\(applicationPath): "
+        let start: String.Index
+        if output.hasPrefix(prefix) {
+            start = output.index(output.startIndex, offsetBy: prefix.count)
+        } else if let range = output.range(of: "\n" + prefix) {
+            start = range.upperBound
+        } else {
+            return ""
+        }
+        return String(output[start...].prefix(while: { !$0.isNewline }))
+    }
+
+    private static func trustedMetadataSection(_ output: String) -> String {
+        // Identifier and executable path precede this tool-generated boundary and can contain newlines.
+        let lines = output.components(separatedBy: .newlines)
+        guard let boundary = lines.lastIndex(where: { $0.hasPrefix("CodeDirectory v=") }) else { return "" }
+        return lines.dropFirst(boundary + 1).joined(separator: "\n")
+    }
+
     private static func signingStatus(
         verification: CommandResult,
         output: String
@@ -87,17 +107,13 @@ enum ApplicationSecurityParser {
         if verification.success {
             return .valid
         }
-        let lowercaseOutput = output.lowercased()
-        if verification.cancelled
-            || lowercaseOutput.contains("timed out")
-            || lowercaseOutput.contains("failed to run")
-            || lowercaseOutput.contains("no such file")
-            || lowercaseOutput.contains("does not exist")
-            || lowercaseOutput.contains("failed to launch process") {
+        if verification.cancelled || verification.timedOut || verification.exitCode == nil {
             return .unavailable
         }
-        if lowercaseOutput.contains("not signed at all") {
-            return .unsigned
+        switch output.lowercased() {
+        case "no such file or directory": return .unavailable
+        case "code object is not signed at all": return .unsigned
+        default: break
         }
         return .invalid
     }
@@ -109,23 +125,23 @@ enum ApplicationSecurityParser {
         if assessment.success {
             return .accepted
         }
-        if assessment.cancelled || output.localizedCaseInsensitiveContains("timed out") {
+        if assessment.cancelled || assessment.timedOut || assessment.exitCode == nil {
             return .unavailable
         }
-        if assessment.exitCode == 3 || output.localizedCaseInsensitiveContains("rejected") {
+        if assessment.exitCode == 3 || output.lowercased() == "rejected" {
             return .rejected
         }
         return .unavailable
     }
 
-    private static func signingIdentity(in metadataOutput: String, gatekeeperOutput: String) -> String? {
+    private static func signingIdentity(in metadataOutput: String) -> String? {
         if let authority = value(for: "Authority", in: metadataOutput) {
             return authority
         }
         if value(for: "Signature", in: metadataOutput)?.lowercased() == "adhoc" {
             return "Ad Hoc"
         }
-        return value(for: "origin", in: gatekeeperOutput)
+        return nil
     }
 
     private static func normalizedTeamIdentifier(in output: String) -> String? {
@@ -211,6 +227,8 @@ enum ApplicationSecurityParser {
                     && !lowercaseLine.hasPrefix("--prepared:")
                     && !lowercaseLine.hasPrefix("--validated:")
                     && !lowercaseLine.hasPrefix("file modified:")
+                    && !lowercaseLine.hasPrefix("file added:")
+                    && !lowercaseLine.hasPrefix("file missing:")
                     && !lowercaseLine.hasPrefix("in subcomponent:")
             }
         let verdictPrefix = "\(applicationPath):"
