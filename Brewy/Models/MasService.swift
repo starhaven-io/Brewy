@@ -162,7 +162,7 @@ extension BrewService {
 
     func fetchInstalledMasApps() async -> MasInstalledAppsResult? {
         let executablePath = masExecutablePath
-        guard FileManager.default.isExecutableFile(atPath: executablePath) else {
+        guard CommandRunner.isRegularExecutable(atPath: executablePath) else {
             isMasAvailable = false
             return MasInstalledAppsResult(packages: [], applicationURLs: [:])
         }
@@ -191,7 +191,7 @@ extension BrewService {
 
     func fetchOutdatedMasApps() async -> [BrewPackage]? {
         let executablePath = masExecutablePath
-        guard FileManager.default.isExecutableFile(atPath: executablePath) else { return [] }
+        guard CommandRunner.isRegularExecutable(atPath: executablePath) else { return [] }
 
         let result = await commandRunner.runExecutable(executablePath, arguments: ["outdated"])
         guard result.success else {

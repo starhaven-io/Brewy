@@ -39,7 +39,7 @@ struct SettingsView: View {
     private var showDockIcon = true
 
     private var isBrewPathValid: Bool {
-        FileManager.default.isExecutableFile(atPath: brewPath)
+        CommandRunner.isRegularExecutable(atPath: brewPath)
     }
 
     private var isBrewfilePathValid: Bool {
