@@ -20,7 +20,7 @@ jobs:
     permissions:
       contents: read
       security-events: write # required to upload SARIF results
-    uses: starhaven-io/.github/.github/workflows/reusable-pinprick-audit.yml@60f6df5dd0ff8caa0605c069a0d1910e429667a2 # v2026.10.04.1
+    uses: starhaven-io/.github/.github/workflows/reusable-pinprick-audit.yml@6273eeaf78b82175fe58325af0fa1383aa046a50 # v2026.10.05.1
     with:
       advanced-security: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
       fail-on-findings: true
