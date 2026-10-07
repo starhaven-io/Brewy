@@ -2,6 +2,7 @@ schema: 1
 visibility: "public"
 license: "agpl"
 params:
+  coderabbit: true
   codecov: true
   conclusion:
     workflow: ".github/workflows/ci.yml"
