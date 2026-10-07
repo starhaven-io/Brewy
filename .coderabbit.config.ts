@@ -3,6 +3,10 @@ import { defineConfig } from "@coderabbitai/config";
 // Expand formal review decisions separately from fleet configuration adoption.
 const formalReviewRepos = ["homebrew-tap"];
 
+// CodeRabbit never reviews these, so they cannot justify a decision on their own.
+const lockfile =
+  /(?:^|\/)(?:package-lock\.json|yarn\.lock|pnpm-lock\.yaml|bun\.lockb|Package\.resolved|[^/]+\.(?:lock|sum))$/;
+
 export default defineConfig((ctx) => {
   const pr = ctx.pr;
   const files = pr?.changedFiles;
@@ -37,8 +41,9 @@ export default defineConfig((ctx) => {
     /^chore\/pin-pinprick-[0-9][A-Za-z0-9.-]*$/.test(branch) &&
     paths.every((path) => path === "action.yml" || path === "README.md");
   const dependencyUpdate =
-    (pr?.author === "dependabot[bot]" && branch.startsWith("dependabot/")) ||
-    (pr?.author === "renovate[bot]" && branch.startsWith("renovate/"));
+    ((pr?.author === "dependabot[bot]" && branch.startsWith("dependabot/")) ||
+      (pr?.author === "renovate[bot]" && branch.startsWith("renovate/"))) &&
+    paths.some((path) => !lockfile.test(path));
   const generatedUpdate =
     pr?.author === "starhaven-bot[bot]" &&
     (fleetSync || fleetRelease || caskBump || catalogUpdate || wrapperBump);
@@ -53,6 +58,12 @@ export default defineConfig((ctx) => {
     pr?.baseBranch === ctx.repo.defaultBranch &&
     pr?.isDraft === false &&
     eligible;
+
+  // The exact default pattern lifts CodeRabbit's JSON exclusion instead of narrowing review.
+  const pathFilters = [
+    "**/*.json",
+    ...(repo === "macOSdb" ? ["!data/macos/**", "!data/xcode/**"] : []),
+  ];
 
   return {
     inheritance: false,
@@ -74,6 +85,7 @@ export default defineConfig((ctx) => {
       poem: false,
       in_progress_fortune: false,
       enable_prompt_for_ai_agents: true,
+      path_filters: pathFilters,
       auto_review: {
         enabled: true,
         auto_incremental_review: true,
