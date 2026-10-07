@@ -1,40 +1,58 @@
-import { defineConfig } from "@coderabbitai/config"
+import { defineConfig } from "@coderabbitai/config";
 
 // Expand formal review decisions separately from fleet configuration adoption.
-const formalReviewRepos = ["homebrew-tap"]
+const formalReviewRepos = ["homebrew-tap"];
 
 export default defineConfig((ctx) => {
-  const pr = ctx.pr
-  const files = pr?.changedFiles
-  const paths = files?.status === "resolved" ? files.paths : []
-  const hasFiles = paths.length > 0
-  const branch = pr?.headBranch ?? ""
-  const repo = ctx.repo.name
-  const fleetVersion = /^fleet-(?:sync|release)-v\d{4}\.\d{2}\.\d{2}\.[1-9]\d*$/
-  const cask = branch.match(/^bump-(brewy|macosdb|midden|pinprick)-[0-9][A-Za-z0-9.-]*$/)?.[1]
+  const pr = ctx.pr;
+  const files = pr?.changedFiles;
+  const paths = files?.status === "resolved" ? files.paths : [];
+  const hasFiles = paths.length > 0;
+  const branch = pr?.headBranch ?? "";
+  const repo = ctx.repo.name;
+  const fleetVersion = /^fleet-(?:sync|release)-v\d{4}\.\d{2}\.\d{2}\.[1-9]\d*$/;
+  const cask = branch.match(/^bump-(brewy|macosdb|midden|pinprick)-[0-9][A-Za-z0-9.-]*$/)?.[1];
 
   // Branch names select a workflow; required GitHub checks verify its output.
-  const fleetSync = branch.startsWith("fleet-sync-") && fleetVersion.test(branch)
-  const fleetRelease = repo === ".github" && branch.startsWith("fleet-release-") &&
-    fleetVersion.test(branch) && paths.length === 1 && paths[0] === "fleet/VERSION"
-  const caskBump = repo === "homebrew-tap" && cask !== undefined &&
-    paths.length === 1 && paths[0] === `Casks/${cask}.rb`
-  const catalogUpdate = repo === "macOSdb" &&
+  const fleetSync = branch.startsWith("fleet-sync-") && fleetVersion.test(branch);
+  const fleetRelease =
+    repo === ".github" &&
+    branch.startsWith("fleet-release-") &&
+    fleetVersion.test(branch) &&
+    paths.length === 1 &&
+    paths[0] === "fleet/VERSION";
+  const caskBump =
+    repo === "homebrew-tap" &&
+    cask !== undefined &&
+    paths.length === 1 &&
+    paths[0] === `Casks/${cask}.rb`;
+  const catalogUpdate =
+    repo === "macOSdb" &&
     /^(?:feat\/data-|fix\/data-rescan-)(?:macOS|Xcode)-[A-Za-z0-9.-]+$/.test(branch) &&
-    paths.every((path) => /^data\/(?:macos|xcode)\/(?:releases\.json|releases\/[0-9]+\/[^/]+\.json)$/.test(path))
-  const wrapperBump = repo === "pinprick-action" &&
+    paths.every((path) =>
+      /^data\/(?:macos|xcode)\/(?:releases\.json|releases\/[0-9]+\/[^/]+\.json)$/.test(path),
+    );
+  const wrapperBump =
+    repo === "pinprick-action" &&
     /^chore\/pin-pinprick-[0-9][A-Za-z0-9.-]*$/.test(branch) &&
-    paths.every((path) => path === "action.yml" || path === "README.md")
+    paths.every((path) => path === "action.yml" || path === "README.md");
   const dependencyUpdate =
     (pr?.author === "dependabot[bot]" && branch.startsWith("dependabot/")) ||
-    (pr?.author === "renovate[bot]" && branch.startsWith("renovate/"))
-  const generatedUpdate = pr?.author === "starhaven-bot[bot]" &&
-    (fleetSync || fleetRelease || caskBump || catalogUpdate || wrapperBump)
-  const eligible = pr?.author === "p-linnane" || (hasFiles && (dependencyUpdate || generatedUpdate))
-  const canApprove = ctx.platform === "GitHub" && ctx.repo.owner === "starhaven-io" &&
+    (pr?.author === "renovate[bot]" && branch.startsWith("renovate/"));
+  const generatedUpdate =
+    pr?.author === "starhaven-bot[bot]" &&
+    (fleetSync || fleetRelease || caskBump || catalogUpdate || wrapperBump);
+  const eligible =
+    pr?.author === "p-linnane" || (hasFiles && (dependencyUpdate || generatedUpdate));
+  const canApprove =
+    ctx.platform === "GitHub" &&
+    ctx.repo.owner === "starhaven-io" &&
     formalReviewRepos.includes(repo) &&
-    ctx.repo.isPrivate === false && ctx.repo.defaultBranch !== "" &&
-    pr?.baseBranch === ctx.repo.defaultBranch && pr?.isDraft === false && eligible
+    ctx.repo.isPrivate === false &&
+    ctx.repo.defaultBranch !== "" &&
+    pr?.baseBranch === ctx.repo.defaultBranch &&
+    pr?.isDraft === false &&
+    eligible;
 
   return {
     inheritance: false,
@@ -78,5 +96,5 @@ export default defineConfig((ctx) => {
         languagetool: { enabled: false },
       },
     },
-  }
-})
+  };
+});
