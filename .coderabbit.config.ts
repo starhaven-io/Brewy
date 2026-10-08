@@ -59,11 +59,8 @@ export default defineConfig((ctx) => {
     pr?.isDraft === false &&
     eligible;
 
-  // The exact default pattern lifts CodeRabbit's JSON exclusion instead of narrowing review.
-  const pathFilters = [
-    "**/*.json",
-    ...(repo === "macOSdb" ? ["!data/macos/**", "!data/xcode/**"] : []),
-  ];
+  // Any include, even an exact default pattern, limits hosted review to matching files.
+  const pathFilters = repo === "macOSdb" ? ["!data/macos/**", "!data/xcode/**"] : [];
 
   return {
     inheritance: false,
