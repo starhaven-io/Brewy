@@ -14,6 +14,6 @@ jobs:
     name: Guard
     permissions:
       contents: read
-    uses: starhaven-io/.github/.github/workflows/reusable-fleet-guard.yml@f94330a416d4e38888a28553aa8efa2725fedbb6 # v2026.10.08.3
+    uses: starhaven-io/.github/.github/workflows/reusable-fleet-guard.yml@3febdd066c19c823fb376c21563a6634294df72d # v2026.10.08.4
     with:
       repo-name: ${{ github.event.repository.name }}
