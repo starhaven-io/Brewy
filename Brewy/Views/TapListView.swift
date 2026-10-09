@@ -210,13 +210,11 @@ struct TapDetailView: View {
     @State private var showRemoveConfirmation = false
 
     private var installedFormulae: [BrewPackage] {
-        let names = Set(tap.formulaNames)
-        return brewService.installedFormulae.filter { names.contains($0.name) }
+        tap.installedFormulae(in: brewService.installedFormulae)
     }
 
     private var installedCasks: [BrewPackage] {
-        let tokens = Set(tap.caskTokens)
-        return brewService.installedCasks.filter { tokens.contains($0.name) }
+        tap.installedCasks(in: brewService.installedCasks)
     }
 
     private var healthStatus: TapHealthStatus? {

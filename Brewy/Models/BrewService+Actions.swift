@@ -96,7 +96,8 @@ extension BrewService {
         var args = [action]
         if package.isCask { args.append("--cask") }
         args.append("--")
-        args.append(package.name)
+        let usesInstalledName = ["uninstall", "link", "unlink"].contains(action)
+        args.append(usesInstalledName ? package.name : package.brewName)
 
         let result = await runBrewCommandStreaming(args)
         if !result.success, !result.cancelled {
@@ -151,12 +152,12 @@ extension BrewService {
 
     func info(for package: BrewPackage) async -> String {
         guard !package.isMas else { return "" }
-        if let cached = infoCache[package.id] { return cached }
-        let command = package.isCask ? ["info", "--cask", "--", package.name] : ["info", "--", package.name]
+        if let cached = infoCache[package.infoCacheKey] { return cached }
+        let command = package.isCask ? ["info", "--cask", "--", package.brewName] : ["info", "--", package.brewName]
         let result = await runBrewCommand(command)
         // Don't cache failures: a transient error would otherwise stick until the version changes.
         if result.success {
-            infoCache[package.id] = result.output
+            infoCache[package.infoCacheKey] = result.output
         }
         return result.output
     }

@@ -5,6 +5,38 @@ import Testing
 @Suite("Package cache")
 @MainActor
 struct PackageCacheTests {
+    @Test("Qualified command name survives cache and old snapshots use the short name")
+    func qualifiedNameCompatibility() async throws {
+        let fixture = try CacheFixture()
+        defer { fixture.remove() }
+        let json = """
+        {"formulae":[{"name":"foo","full_name":"other/tap/foo","versions":{"stable":"1.0"}}],"casks":[]}
+        """
+        let response = try JSONDecoder().decode(BrewInfoResponse.self, from: Data(json.utf8))
+        let package = try #require(response.formulae?.first?.toPackage())
+        let writer = BrewService(
+            commandRunner: MockCommandRunner(), packageCacheURL: fixture.url,
+            packageCacheWritesEnabled: true
+        )
+        writer.installedFormulae = [package]
+        await writer.saveToCache()
+
+        let current = BrewService(commandRunner: MockCommandRunner(), packageCacheURL: fixture.url)
+        current.loadFromCache()
+        #expect(current.installedFormulae.first?.brewName == "other/tap/foo")
+        #expect(current.installedFormulae.first?.id == "formula-foo")
+
+        try fixture.mutateJSON { object in
+            var formulae = try #require(object["formulae"] as? [[String: Any]])
+            formulae[0].removeValue(forKey: "qualifiedName")
+            object["formulae"] = formulae
+        }
+        let legacy = BrewService(commandRunner: MockCommandRunner(), packageCacheURL: fixture.url)
+        legacy.loadFromCache()
+        #expect(legacy.installedFormulae.first?.brewName == "foo")
+        #expect(legacy.installedFormulae.first?.id == "formula-foo")
+    }
+
     @Test("Package cache round-trips all package sources and derived state")
     func roundTrip() async throws {
         let fixture = try CacheFixture()

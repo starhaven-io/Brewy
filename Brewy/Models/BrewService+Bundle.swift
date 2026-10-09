@@ -422,11 +422,11 @@ extension BrewService {
     private func bundleStatus(for name: String, type: BrewBundleEntryType) -> BrewBundleEntryStatus {
         switch type {
         case .formula:
-            return installedFormulae.contains { $0.name == name }
+            return installedFormulae.contains { name.contains("/") ? $0.brewName == name : $0.name == name }
                 ? BrewBundleEntryStatus.installed
                 : BrewBundleEntryStatus.missing
         case .cask:
-            return installedCasks.contains { $0.name == name }
+            return installedCasks.contains { name.contains("/") ? $0.brewName == name : $0.name == name }
                 ? BrewBundleEntryStatus.installed
                 : BrewBundleEntryStatus.missing
         case .tap:

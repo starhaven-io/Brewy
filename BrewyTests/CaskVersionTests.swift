@@ -104,7 +104,7 @@ struct CaskVersionRefreshTests {
         mock.setResult(for: ["info", "--installed", "--json=v2"], output: installedJSON(appVersion: "157.0"))
         await service.refresh()
         let original = try #require(service.installedCasks.first)
-        service.infoCache[original.id] = "Old app metadata"
+        service.infoCache[original.infoCacheKey] = "Old app metadata"
 
         mock.setResult(for: ["info", "--installed", "--json=v2"], output: installedJSON(appVersion: "158.0"))
         await service.refresh()
@@ -115,7 +115,7 @@ struct CaskVersionRefreshTests {
         #expect(updated != original)
         #expect(updated.versionIdentity != original.versionIdentity)
         #expect(service.allInstalled.first?.appVersion == "158.0")
-        #expect(service.infoCache[original.id] == nil)
+        #expect(service.infoCache[original.infoCacheKey] == nil)
         #expect(service.outdatedPackages.isEmpty)
     }
 

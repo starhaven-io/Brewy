@@ -313,7 +313,7 @@ extension BrewService {
         isBackgroundRefresh = !isUserInitiated
         refreshReportedError = false
         defer { isBackgroundRefresh = false }
-        let previousVersions = Dictionary(allInstalled.map { ($0.id, $0.versionIdentity) }, uniquingKeysWith: { _, last in last })
+        let previousVersions = Dictionary(allInstalled.map { ($0.infoCacheKey, $0.versionIdentity) }, uniquingKeysWith: { _, last in last })
         let hadCachedData = !installedFormulae.isEmpty || !installedCasks.isEmpty
         // Only show the spinner when there's no cached data yet; the counter keeps a concurrent
         // search() from clearing it early (and vice versa).
@@ -368,9 +368,9 @@ extension BrewService {
     }
 
     private func finishRefresh(previousVersions: [String: [String]], taps: [BrewTap]) async {
-        let currentVersions = Dictionary(allInstalled.map { ($0.id, $0.versionIdentity) }, uniquingKeysWith: { _, last in last })
-        for id in infoCache.keys where currentVersions[id] != previousVersions[id] {
-            infoCache.removeValue(forKey: id)
+        let currentVersions = Dictionary(allInstalled.map { ($0.infoCacheKey, $0.versionIdentity) }, uniquingKeysWith: { _, last in last })
+        for key in infoCache.keys where currentVersions[key] != previousVersions[key] {
+            infoCache.removeValue(forKey: key)
         }
 
         installedTaps = taps
@@ -421,8 +421,8 @@ extension BrewService {
             activeMutationCount -= 1
         }
 
-        let formulae = packages.filter { $0.source == .formula }.map(\.name)
-        let casks = packages.filter { $0.source == .cask }.map(\.name)
+        let formulae = packages.filter { $0.source == .formula }.map(\.brewName)
+        let casks = packages.filter { $0.source == .cask }.map(\.brewName)
         let masCount = packages.filter(\.isMas).count
         var errorOutputs: [String] = []
         var wasCancelled = false

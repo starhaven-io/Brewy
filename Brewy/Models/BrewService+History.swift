@@ -127,7 +127,8 @@ extension BrewService {
             dependencies: pkg.dependencies,
             dependencyReferences: pkg.dependencyReferences,
             repositoryURL: pkg.repositoryURL,
-            appVersion: pkg.appVersion
+            appVersion: pkg.appVersion,
+            qualifiedName: pkg.qualifiedName ?? outdatedPkg.qualifiedName
         )
     }
 }
