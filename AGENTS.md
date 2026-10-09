@@ -87,11 +87,6 @@ merges. Use the normal explicit authorization for any hosted repair.
   `Assisted-by`, `Co-developed-by`, `Generated-by`, or similar trailers. Human
   `Co-authored-by` trailers are allowed.
 - Never commit directly to `main`; create a feature branch and open a PR.
-- Where a maintainer-PR merge rule uses the `automerge` label, apply it only
-  after the user authorizes merging the proposed change and its resulting
-  release or deployment. Permission to open a PR alone does not authorize the
-  label. Remove it before pushing revisions outside that authorization. This
-  does not replace existing standing authorization for trusted bot workflows.
 - PR descriptions should contain a concise summary of changes. Do not add a
   standalone test-plan section or checklists.
 - When AI/LLM was used to generate or assist with a pull request, the initial
