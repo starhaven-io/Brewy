@@ -13,7 +13,7 @@ struct DiscoverView: View {
         guard searchText.isEmpty,
               let result = brewService.lastUpdateResult,
               !result.isEmpty else { return [] }
-        return result.discoverPackages(installedPackageIDs: brewService.installedIDs)
+        return result.discoverPackages { brewService.installedPackageID(for: $0) != nil }
     }
 
     private var displayedPackages: [BrewPackage] {

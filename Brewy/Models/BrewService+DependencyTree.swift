@@ -8,8 +8,35 @@ private struct DependencyWalk {
 }
 
 extension BrewService {
+    /// A tap-qualified reference matches only the installed package with that qualified name. A short
+    /// name can belong to several taps and matches whichever package of that name is installed.
+    func installedPackageID(for reference: PackageReference) -> String? {
+        if reference.name.contains("/") { return installedIDsByQualifiedName[reference.id] }
+        return installedIDs.contains(reference.id) ? reference.id : nil
+    }
+
+    nonisolated static func installedIDsByQualifiedName(_ packages: [BrewPackage]) -> [String: String] {
+        Dictionary(
+            packages.compactMap { package in
+                package.qualifiedName.map { (PackageReference(name: $0, source: package.source).id, package.id) }
+            },
+            uniquingKeysWith: { first, _ in first }
+        )
+    }
+
+    func reverseDependencyIndex(for packages: [BrewPackage]) -> [String: [BrewPackage]] {
+        var reverse: [String: [BrewPackage]] = [:]
+        reverse.reserveCapacity(packages.count)
+        for package in packages {
+            for dependency in package.dependencyReferences {
+                reverse[installedPackageID(for: dependency) ?? dependency.id, default: []].append(package)
+            }
+        }
+        return reverse
+    }
+
     func dependents(of reference: PackageReference) -> [BrewPackage] {
-        reverseDependencies[reference.id] ?? []
+        reverseDependencies[installedPackageID(for: reference) ?? reference.id] ?? []
     }
 
     func dependents(of name: String, source: PackageSource = .formula) -> [BrewPackage] {
@@ -115,12 +142,13 @@ extension BrewService {
         for dependency in dependencies {
             guard walk.budget > 0 else { break }
             walk.budget -= 1
-            let path = "\(prefix)>\(dependency.id)"
-            let isCycle = walk.ancestors.contains(dependency.id)
-            let installedPackage = lookup[dependency.id]
+            let dependencyID = installedPackageID(for: dependency) ?? dependency.id
+            let path = "\(prefix)>\(dependencyID)"
+            let isCycle = walk.ancestors.contains(dependencyID)
+            let installedPackage = lookup[dependencyID]
             let children: [DependencyTreeNode]?
             if !isCycle, let installedPackage {
-                walk.ancestors.insert(dependency.id)
+                walk.ancestors.insert(dependencyID)
                 let kids = buildForwardTree(
                     dependencies: installedPackage.dependencyReferences,
                     prefix: path,
@@ -128,7 +156,7 @@ extension BrewService {
                     walk: &walk,
                     remaining: remaining - 1
                 )
-                walk.ancestors.remove(dependency.id)
+                walk.ancestors.remove(dependencyID)
                 children = kids.isEmpty ? nil : kids
             } else {
                 children = nil
