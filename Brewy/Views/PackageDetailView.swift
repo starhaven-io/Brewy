@@ -354,16 +354,16 @@ private struct DependencyTags: View {
     let packages: [PackageReference]
 
     var body: some View {
-        let knownIDs = brewService.installedIDs
         VStack(alignment: .leading, spacing: 4) {
             Text(label)
                 .font(.caption)
                 .foregroundStyle(.secondary)
             FlowLayout(spacing: 6) {
                 ForEach(packages) { package in
-                    let isInstalled = knownIDs.contains(package.id)
+                    let installedID = brewService.installedPackageID(for: package)
+                    let isInstalled = installedID != nil
                     Button {
-                        selectPackage(package.id)
+                        if let installedID { selectPackage(installedID) }
                     } label: {
                         Text(package.name)
                             .font(.system(.caption, design: .monospaced))

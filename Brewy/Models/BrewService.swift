@@ -115,6 +115,7 @@ final class BrewService {
     private(set) var allInstalled: [BrewPackage] = []
     private(set) var installedNames: Set<String> = []
     private(set) var installedIDs: Set<String> = []
+    private(set) var installedIDsByQualifiedName: [String: String] = [:]
     private(set) var reverseDependencies: [String: [BrewPackage]] = [:]
     private(set) var leavesPackages: [BrewPackage] = []
     private(set) var pinnedPackages: [BrewPackage] = []
@@ -160,14 +161,9 @@ final class BrewService {
         allInstalled = all
         installedNames = Set(all.map(\.name))
         installedIDs = Set(all.map(\.id))
+        installedIDsByQualifiedName = Self.installedIDsByQualifiedName(all)
 
-        var reverse: [String: [BrewPackage]] = [:]
-        reverse.reserveCapacity(all.count)
-        for pkg in all {
-            for dependency in pkg.dependencyReferences {
-                reverse[dependency.id, default: []].append(pkg)
-            }
-        }
+        let reverse = reverseDependencyIndex(for: all)
         reverseDependencies = reverse
         leavesPackages = installedFormulae.filter { reverse[$0.id]?.isEmpty ?? true }
         pinnedPackages = all.filter(\.pinned)

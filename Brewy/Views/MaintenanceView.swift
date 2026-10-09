@@ -292,7 +292,7 @@ private struct NewItemRow: View {
                 }
             }
             Spacer()
-            if brewService.installedIDs.contains(item.id) {
+            if brewService.installedPackageID(for: item.reference) != nil {
                 Text("Installed")
                     .font(.caption)
                     .foregroundStyle(.secondary)

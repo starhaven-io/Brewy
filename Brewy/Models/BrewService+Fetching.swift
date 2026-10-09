@@ -146,7 +146,6 @@ extension BrewService {
 
         // Match on source-qualified IDs, not bare names: a cask hit named like an
         // installed formula (e.g. wireshark) must not show the installed badge.
-        let knownIDs = installedIDs
         var packages: [BrewPackage] = []
 
         for output in [(formulaeOutput, PackageSource.formula), (casksOutput, PackageSource.cask)] {
@@ -166,7 +165,7 @@ extension BrewService {
                         version: "",
                         description: "",
                         homepage: "",
-                        isInstalled: knownIDs.contains("\(prefix)-\(name)"),
+                        isInstalled: installedPackageID(for: PackageReference(name: name, source: source)) != nil,
                         isOutdated: false,
                         installedVersion: nil,
                         latestVersion: nil,

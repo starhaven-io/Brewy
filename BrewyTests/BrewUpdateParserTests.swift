@@ -189,14 +189,15 @@ struct BrewUpdateParserTests {
             timestamp: Date(timeIntervalSince1970: 1_700_000_000)
         )
 
-        let packages = result.discoverPackages(installedPackageIDs: ["formula-foo", "formula-shared", "cask-bar"])
+        let installedIDs: Set = ["formula-foo", "formula-shared", "cask-bar"]
+        let packages = result.discoverPackages { installedIDs.contains($0.id) }
 
         #expect(packages.map(\.id) == ["formula-foo", "formula-shared", "cask-bar", "cask-shared"])
         #expect(packages.map(\.source) == [.formula, .formula, .cask, .cask])
         #expect(packages.map(\.isInstalled) == [true, true, true, false])
 
         let empty = BrewUpdateResult(newFormulae: [], newCasks: [], timestamp: Date())
-        #expect(empty.discoverPackages(installedPackageIDs: []).isEmpty)
+        #expect(empty.discoverPackages { _ in true }.isEmpty)
     }
 
     @Test("Codable round-trip preserves all fields")

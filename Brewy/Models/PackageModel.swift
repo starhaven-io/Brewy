@@ -347,7 +347,8 @@ struct BrewUpdateItem: Identifiable, Hashable, Codable, Sendable {
     let description: String?
     let source: PackageSource
 
-    var id: String { "\(source.rawValue)-\(name)" }
+    var id: String { reference.id }
+    var reference: PackageReference { PackageReference(name: name, source: source) }
     /// Builds a minimal BrewPackage for newly discovered update items.
     func asPlaceholderPackage(isInstalled: Bool = false) -> BrewPackage {
         BrewPackage(
@@ -375,8 +376,8 @@ struct BrewUpdateResult: Codable, Sendable {
 
     var isEmpty: Bool { newFormulae.isEmpty && newCasks.isEmpty }
     var totalCount: Int { newFormulae.count + newCasks.count }
-    func discoverPackages(installedPackageIDs: Set<String>) -> [BrewPackage] {
-        (newFormulae + newCasks).map { item in item.asPlaceholderPackage(isInstalled: installedPackageIDs.contains(item.id)) }
+    func discoverPackages(isInstalled: (PackageReference) -> Bool) -> [BrewPackage] {
+        (newFormulae + newCasks).map { item in item.asPlaceholderPackage(isInstalled: isInstalled(item.reference)) }
     }
 }
 
