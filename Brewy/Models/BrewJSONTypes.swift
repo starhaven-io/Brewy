@@ -9,12 +9,18 @@ struct BrewInfoResponse: Decodable {
 
 struct FormulaJSON: Decodable {
     let name: String
+    let fullName: String?
     let desc: String?
     let homepage: String?
     let versions: FormulaVersions?
     let pinned: Bool?
     let installed: [FormulaInstalled]?
     let dependencies: [String]?
+
+    enum CodingKeys: String, CodingKey {
+        case name, desc, homepage, versions, pinned, installed, dependencies
+        case fullName = "full_name"
+    }
 
     struct FormulaVersions: Decodable {
         let stable: String?
@@ -47,13 +53,15 @@ struct FormulaJSON: Decodable {
             source: .formula,
             pinned: pinned ?? false,
             installedOnRequest: newestInstalled?.installedOnRequest ?? false,
-            dependencies: dependencies ?? []
+            dependencies: dependencies ?? [],
+            qualifiedName: fullName
         )
     }
 }
 
 struct CaskJSON: Decodable {
     let token: String
+    let fullToken: String?
     let version: String?
     let installed: String?
     let autoUpdates: Bool?
@@ -67,6 +75,7 @@ struct CaskJSON: Decodable {
 
     enum CodingKeys: String, CodingKey {
         case token, version, installed, desc, homepage, url, artifacts
+        case fullToken = "full_token"
         case autoUpdates = "auto_updates"
         case bundleShortVersion = "bundle_short_version"
         case dependsOn = "depends_on"
@@ -93,6 +102,7 @@ struct CaskJSON: Decodable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         token = try container.decode(String.self, forKey: .token)
+        fullToken = try container.decodeIfPresent(String.self, forKey: .fullToken)
         version = try container.decodeIfPresent(String.self, forKey: .version)
         installed = try container.decodeIfPresent(String.self, forKey: .installed)
         autoUpdates = try? container.decodeIfPresent(Bool.self, forKey: .autoUpdates)
@@ -145,7 +155,8 @@ struct CaskJSON: Decodable {
             dependencies: dependencies,
             dependencyReferences: dependencyReferences,
             repositoryURL: repositoryURL,
-            appVersion: appVersion
+            appVersion: appVersion,
+            qualifiedName: fullToken
         )
     }
 }
@@ -199,10 +210,12 @@ struct OutdatedFormulaJSON: Decodable {
 
     func toPackage() -> BrewPackage? {
         guard let currentVersion else { return nil }
+        let shortName = name.lastIndex(of: "/").map { String(name[name.index(after: $0)...]) } ?? name
+        guard !shortName.isEmpty else { return nil }
         let installedVersion = installedVersions?.last
         return BrewPackage(
-            id: "formula-\(name)",
-            name: name,
+            id: "formula-\(shortName)",
+            name: shortName,
             version: installedVersion ?? "unknown",
             description: "",
             homepage: "",
@@ -213,7 +226,8 @@ struct OutdatedFormulaJSON: Decodable {
             source: .formula,
             pinned: pinned ?? false,
             installedOnRequest: true,
-            dependencies: []
+            dependencies: [],
+            qualifiedName: name.contains("/") ? name : nil
         )
     }
 }

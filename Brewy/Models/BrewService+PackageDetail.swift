@@ -9,8 +9,8 @@ extension BrewService {
 
     func fetchPackageDetail(for package: BrewPackage) async -> BrewPackage? {
         let command = package.isCask
-            ? ["info", "--cask", "--json=v2", "--", package.name]
-            : ["info", "--json=v2", "--", package.name]
+            ? ["info", "--cask", "--json=v2", "--", package.brewName]
+            : ["info", "--json=v2", "--", package.brewName]
         let result = await runBrewCommand(command)
         guard result.success, let data = result.output.data(using: .utf8) else { return nil }
 
@@ -34,7 +34,8 @@ extension BrewService {
                         dependencies: cask.dependencies,
                         dependencyReferences: cask.dependencyReferences,
                         repositoryURL: cask.repositoryURL ?? (cask.url == nil ? package.repositoryURL : nil),
-                        appVersion: package.appVersion
+                        appVersion: package.appVersion,
+                        qualifiedName: cask.fullToken ?? package.qualifiedName
                     )
                 }
                 if let formula = response.formulae?.first {
@@ -55,7 +56,8 @@ extension BrewService {
                         dependencyReferences: formula.dependencies.map {
                             $0.map { PackageReference(name: $0, source: .formula) }
                         } ?? package.dependencyReferences,
-                        repositoryURL: package.repositoryURL
+                        repositoryURL: package.repositoryURL,
+                        qualifiedName: formula.fullName ?? package.qualifiedName
                     )
                 }
                 return nil
@@ -70,7 +72,10 @@ extension BrewService {
 // Fetched description/dependency metadata must not replace newer installed/pinned state.
 extension BrewPackage {
     func enriched(with metadata: BrewPackage?) -> BrewPackage {
-        guard let metadata, metadata.id == id else { return self }
+        guard let metadata, metadata.id == id, metadata.source == source else { return self }
+        if let qualifiedName, let fetchedName = metadata.qualifiedName, qualifiedName != fetchedName {
+            return self
+        }
         return BrewPackage(
             id: id, name: name, version: isInstalled ? version : metadata.version,
             description: metadata.description, homepage: metadata.homepage,
@@ -79,7 +84,8 @@ extension BrewPackage {
             source: source, pinned: pinned, installedOnRequest: installedOnRequest,
             dependencies: metadata.dependencies, dependencyReferences: metadata.dependencyReferences,
             repositoryURL: metadata.repositoryURL,
-            appVersion: appVersion
+            appVersion: appVersion,
+            qualifiedName: qualifiedName ?? metadata.qualifiedName
         )
     }
 }

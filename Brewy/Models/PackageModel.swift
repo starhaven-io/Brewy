@@ -18,6 +18,7 @@ struct PackageReference: Identifiable, Hashable, Codable, Sendable {
 struct BrewPackage: Identifiable, Hashable, Codable {
     let id: String
     let name: String
+    let qualifiedName: String?
     let version: String
     let description: String
     let homepage: String
@@ -33,6 +34,8 @@ struct BrewPackage: Identifiable, Hashable, Codable {
     let dependencyReferences: [PackageReference]
 
     var dependencies: [String] { dependencyReferences.map(\.name) }
+    var brewName: String { qualifiedName ?? name }
+    var infoCacheKey: String { "\(source.rawValue)-\(brewName)" }
 
     var isFormula: Bool { source == .formula }
     var isCask: Bool { source == .cask }
@@ -63,10 +66,12 @@ struct BrewPackage: Identifiable, Hashable, Codable {
         dependencies: [String],
         dependencyReferences: [PackageReference]? = nil,
         repositoryURL: String? = nil,
-        appVersion: String? = nil
+        appVersion: String? = nil,
+        qualifiedName: String? = nil
     ) {
         self.id = id
         self.name = name
+        self.qualifiedName = qualifiedName
         self.version = version
         self.description = description
         self.homepage = homepage
@@ -110,6 +115,16 @@ struct BrewTap: Identifiable, Hashable, Codable {
     let caskTokens: [String]
 
     var id: String { name }
+
+    func installedFormulae(in packages: [BrewPackage]) -> [BrewPackage] {
+        let names = Set(formulaNames)
+        return packages.filter { names.contains($0.brewName) }
+    }
+
+    func installedCasks(in packages: [BrewPackage]) -> [BrewPackage] {
+        let tokens = Set(caskTokens)
+        return packages.filter { tokens.contains($0.brewName) }
+    }
 }
 
 // MARK: - Tap Health Status
