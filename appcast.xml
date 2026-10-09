@@ -3,23 +3,17 @@
     <channel>
         <title>Brewy</title>
         <item>
-            <title>0.26.3</title>
-            <pubDate>Mon, 05 Oct 2026 15:40:22 +0000</pubDate>
-            <sparkle:version>38</sparkle:version>
-            <sparkle:shortVersionString>0.26.3</sparkle:shortVersionString>
+            <title>0.26.4</title>
+            <pubDate>Fri, 09 Oct 2026 15:14:59 +0000</pubDate>
+            <sparkle:version>39</sparkle:version>
+            <sparkle:shortVersionString>0.26.4</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
             <description><![CDATA[<h2>Fixes</h2>
 <ul>
-  <li>keep the tag when editing a draft release</li>
-  <li>read signing details only from tool-generated output</li>
-  <li>scan HTML delimiters by Unicode scalar</li>
-  <li>accept only regular executable files for brew and mas</li>
-</ul>
-<h2>Testing</h2>
-<ul>
-  <li>cover path-bound trust and FIFO rejection</li>
+  <li>use Homebrew&#x27;s qualified names for package commands</li>
+  <li>match tap-qualified package references</li>
 </ul>]]></description>
-            <enclosure url="https://github.com/starhaven-io/Brewy/releases/download/0.26.3/Brewy-0.26.3.zip" length="3971038" type="application/octet-stream" sparkle:edSignature="8QRmqzfmNY/pK3a39w/v2Ye3jOZHNP6fShqAgWfrIeZPvpvpfbhlxA5NQKm65Bjl9PzpBwvOsGQ95sqWTb/qDQ=="/>
+            <enclosure url="https://github.com/starhaven-io/Brewy/releases/download/0.26.4/Brewy-0.26.4.zip" length="3975492" type="application/octet-stream" sparkle:edSignature="l25XTwV6aH6m25P1qxexVEhml0i4DkfJ5PX7hkUGiASA4Gm/keec5hxN2zP3GTM+Bn3wj9IzyEZJirrtrT4RCA=="/>
         </item>
     </channel>
 </rss>
