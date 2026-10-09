@@ -145,7 +145,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: read # required to read PR titles
-    uses: starhaven-io/.github/.github/workflows/reusable-conventional-commits.yml@021b0305d791f2d768eab8b06b8d3d563096c3ef # v2026.10.07.2
+    uses: starhaven-io/.github/.github/workflows/reusable-conventional-commits.yml@17ee5cc7f6fe6aa30883a54f7d890dd8908e250a # v2026.10.08.1
 
   check:
     name: ${{ matrix.name }}
@@ -381,7 +381,7 @@ jobs:
     permissions:
       contents: read
       security-events: write # required to upload SARIF results
-    uses: starhaven-io/.github/.github/workflows/reusable-codeql.yml@021b0305d791f2d768eab8b06b8d3d563096c3ef # v2026.10.07.2
+    uses: starhaven-io/.github/.github/workflows/reusable-codeql.yml@17ee5cc7f6fe6aa30883a54f7d890dd8908e250a # v2026.10.08.1
     with:
       languages: '["swift"]'
       runner: "macos-26"
@@ -432,7 +432,7 @@ jobs:
     permissions:
       contents: read
       security-events: write # required for zizmor SARIF upload
-    uses: starhaven-io/.github/.github/workflows/reusable-zizmor.yml@021b0305d791f2d768eab8b06b8d3d563096c3ef # v2026.10.07.2
+    uses: starhaven-io/.github/.github/workflows/reusable-zizmor.yml@17ee5cc7f6fe6aa30883a54f7d890dd8908e250a # v2026.10.08.1
 
   pinprick:
     name: pinprick
@@ -441,7 +441,7 @@ jobs:
     permissions:
       contents: read
       security-events: write # required for pinprick SARIF upload
-    uses: starhaven-io/.github/.github/workflows/reusable-pinprick-audit.yml@021b0305d791f2d768eab8b06b8d3d563096c3ef # v2026.10.07.2
+    uses: starhaven-io/.github/.github/workflows/reusable-pinprick-audit.yml@17ee5cc7f6fe6aa30883a54f7d890dd8908e250a # v2026.10.08.1
     with:
       advanced-security: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
       fail-on-findings: true
