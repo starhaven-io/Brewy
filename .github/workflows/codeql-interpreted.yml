@@ -1,0 +1,30 @@
+name: CodeQL (scripts)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "scripts/**"
+      - ".github/format-release-notes.rb"
+      - "Gemfile"
+      - "Gemfile.lock"
+      - ".ruby-version"
+      - ".github/workflows/codeql-interpreted.yml"
+
+concurrency:
+  group: "codeql-interpreted-${{ github.ref }}"
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  analyze:
+    name: Analyze
+    permissions:
+      contents: read
+      security-events: write # required to upload SARIF results
+    uses: starhaven-io/.github/.github/workflows/reusable-codeql.yml@be272b580ad3812dcafa195db003b178545c2de9 # v2026.10.10.1
+    with:
+      languages: '["ruby"]'
+      runner: "ubuntu-slim"

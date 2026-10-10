@@ -59,6 +59,12 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
 
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
+        with:
+          bundler: none
+          bundler-cache: false
+
       - name: Extract version from Xcode project
         id: version
         run: |
@@ -83,7 +89,7 @@ jobs:
         run: |
           git fetch origin appcast
           git show FETCH_HEAD:appcast.xml > "${RUNNER_TEMP}/current-appcast.xml"
-          python3 scripts/release-delivery.py check-version \
+          ruby scripts/release-delivery.rb check-version \
             "${TAG}" "${BUILD_NUMBER}" "${RUNNER_TEMP}/current-appcast.xml"
 
       - name: Ensure release can start or resume
@@ -387,12 +393,18 @@ jobs:
       - name: Verify release helper revision
         run: test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
 
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
+        with:
+          bundler: none
+          bundler-cache: false
+
       - name: Format release notes
         run: |
-          python3 .github/format-release-notes.py \
+          ruby .github/format-release-notes.rb \
             "${RUNNER_TEMP}/raw_notes.md" "${TAG}" \
             > "${RUNNER_TEMP}/formatted_notes.md"
-          python3 .github/format-release-notes.py \
+          ruby .github/format-release-notes.rb \
             "${RUNNER_TEMP}/raw_notes.md" "${TAG}" --html \
             > "${RUNNER_TEMP}/release_notes.html"
 
@@ -434,7 +446,7 @@ jobs:
         run: |
           mkdir -p "${RUNNER_TEMP}/delivery"
           cp appcast.xml "${RUNNER_TEMP}/delivery/appcast.xml"
-          python3 scripts/release-delivery.py prepare "${RUNNER_TEMP}/delivery"
+          ruby scripts/release-delivery.rb prepare "${RUNNER_TEMP}/delivery"
 
       - name: Upload delivery metadata
         id: delivery-artifact
@@ -465,6 +477,12 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
 
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
+        with:
+          bundler: none
+          bundler-cache: false
+
       - name: Download delivery metadata
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -476,7 +494,7 @@ jobs:
         run: |
           git fetch origin appcast
           git show FETCH_HEAD:appcast.xml > "${RUNNER_TEMP}/current-appcast.xml"
-          python3 scripts/release-delivery.py check-feed \
+          ruby scripts/release-delivery.rb check-feed \
             "${RUNNER_TEMP}/delivery/appcast.xml" "${RUNNER_TEMP}/current-appcast.xml"
 
       - name: Mint release token
@@ -493,7 +511,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_PUBLISH_TOKEN: ${{ steps.release-token.outputs.token }}
-        run: python3 scripts/release-delivery.py publish "${RUNNER_TEMP}/delivery"
+        run: ruby scripts/release-delivery.rb publish "${RUNNER_TEMP}/delivery"
 
       - name: Push appcast
         env:
@@ -508,7 +526,7 @@ jobs:
           AUTH_HEADER="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
           git -c "http.extraheader=AUTHORIZATION: Basic ${AUTH_HEADER}" fetch origin appcast
           git show FETCH_HEAD:appcast.xml > "${RUNNER_TEMP}/current-appcast.xml"
-          python3 scripts/release-delivery.py check-feed \
+          ruby scripts/release-delivery.rb check-feed \
             "${RUNNER_TEMP}/delivery/appcast.xml" "${RUNNER_TEMP}/current-appcast.xml"
           git checkout -B appcast FETCH_HEAD
           cp "${RUNNER_TEMP}/delivery/appcast.xml" appcast.xml
@@ -545,6 +563,12 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
 
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
+        with:
+          bundler: none
+          bundler-cache: false
+
       - name: Download delivery metadata
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -556,7 +580,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          python3 scripts/release-delivery.py verify "${RUNNER_TEMP}/delivery"
+          ruby scripts/release-delivery.rb verify "${RUNNER_TEMP}/delivery"
           git fetch origin appcast
           git show FETCH_HEAD:appcast.xml > "${RUNNER_TEMP}/current-appcast.xml"
           cmp "${RUNNER_TEMP}/delivery/appcast.xml" "${RUNNER_TEMP}/current-appcast.xml"
@@ -595,7 +619,7 @@ jobs:
           # Homebrew supplies the subject; prepare its DCO trailer before commit-msg validation.
           TAP_ROOT="$(cd "$(brew --repo starhaven-io/tap)" && pwd -P)"
           HOOKS_DIR=$(git -C "${TAP_ROOT}" rev-parse --path-format=absolute --git-path hooks)
-          HOOKS_DIR=$(python3 -c 'import pathlib, sys; print(pathlib.Path(sys.argv[1]).resolve())' "${HOOKS_DIR}")
+          HOOKS_DIR=$(ruby -rpathname -e 'puts Pathname(ARGV.fetch(0)).realdirpath' "${HOOKS_DIR}")
           case "${HOOKS_DIR}" in
             "${TAP_ROOT}/"*) ;;
             *) echo "::error::Tap hooks directory is outside the fresh checkout."; exit 1 ;;
@@ -620,7 +644,7 @@ jobs:
             --trailer "Signed-off-by: ${author}" "$1"
           HOOK
           chmod +x "${DCO_HOOK}"
-          if ! python3 -c 'import os, sys; os.symlink(sys.argv[1], sys.argv[2])' "${DCO_HOOK}" "${PREPARE_HOOK}"; then
+          if ! ruby -e 'File.symlink(ARGV.fetch(0), ARGV.fetch(1))' "${DCO_HOOK}" "${PREPARE_HOOK}"; then
             echo "::error::Cannot install the DCO hook; an existing prepare-commit-msg hook must be preserved."
             exit 1
           fi
