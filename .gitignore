@@ -19,6 +19,8 @@ DerivedData*/
 xcuserdata/
 
 # Tooling
+.bundle/
+vendor/bundle/
 !_typos.toml
 
 # Appcast (lives on the appcast branch, not main)

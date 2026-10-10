@@ -86,11 +86,11 @@ test-ui:
 
 # Validate release-note formatting and appcast rendering
 release-helpers:
-    python3 scripts/validate-release-helpers.py
+    bundle exec ruby scripts/validate-release-helpers.rb
 
 # Exercise path routing with control characters and unknown names
 ci-routing:
-    bash scripts/ci-path-routing.sh --self-test
+    ruby scripts/ci-path-routing.rb --self-test
 
 # Lint
 
@@ -149,8 +149,8 @@ check:
     else
         skip lychee lychee lychee
     fi
-    run bash scripts/ci-path-routing.sh --self-test
-    run python3 scripts/validate-release-helpers.py
+    run ruby scripts/ci-path-routing.rb --self-test
+    run bundle exec ruby scripts/validate-release-helpers.rb
     run bash scripts/brew-json-probe/build.sh /private/tmp/brewy-brew-json-probe
     run xcodebuild test \
         -project Brewy.xcodeproj \
