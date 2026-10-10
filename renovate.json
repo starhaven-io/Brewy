@@ -1,5 +1,5 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["local>starhaven-io/.github:renovate-config#v2026.10.10.2"],
+  "extends": ["local>starhaven-io/.github:renovate-config#v2026.10.10.3"],
   "ignorePresets": ["mergeConfidence:all-badges"]
 }
