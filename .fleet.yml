@@ -2,12 +2,16 @@ schema: 1
 visibility: "public"
 license: "agpl"
 params:
+  renovate: true
   codecov: true
   conclusion:
     workflow: ".github/workflows/ci.yml"
     audit-jobs: ["pinprick"]
     pinprick-jobs: ["pinprick"]
   dependabot:
+    - package-ecosystem: "bundler"
+      group: "bundler-dependencies"
+      directory: "/"
     - package-ecosystem: "github-actions"
       group: "github-actions"
       directory: "/"
