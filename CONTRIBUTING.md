@@ -6,6 +6,7 @@ Thanks for helping improve Brewy. This document covers the local setup, verifica
 
 - macOS 15.0 or later (Apple Silicon)
 - Xcode 26 or later
+- Ruby from `.ruby-version` and Bundler for CI and release helper checks
 - [Homebrew](https://brew.sh). Brewy shells out to the local `brew` installation.
 - [`just`](https://github.com/casey/just) for the local task runner (`brew install just`)
 
@@ -20,6 +21,7 @@ brew install swiftlint typos-cli zizmor lychee
 ```sh
 git clone https://github.com/starhaven-io/Brewy.git
 cd Brewy
+bundle install      # install the locked Ruby helper dependencies
 just install-hooks   # enable git hooks: pre-push check + DCO sign-off (once per clone)
 open Brewy.xcodeproj
 ```
@@ -36,6 +38,8 @@ just lint        # SwiftLint (--strict)
 just typos       # spell-check
 just test        # unit tests (BrewyTests; UI tests need code signing)
 just test-ui     # UI tests with an ad hoc-signed test runner
+just release-helpers # release, cask delivery, JUnit, and CI regression tests
+just ci-routing  # path routing checks
 just audit       # GitHub Actions audit (zizmor)
 just lychee      # README, CONTRIBUTING, and SECURITY link check
 just check       # full static and unit-test gate
