@@ -1,0 +1,29 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    drb (2.2.3)
+    minitest (6.0.6)
+      drb (~> 2.0)
+      prism (~> 1.5)
+    prism (1.8.1)
+    rexml (3.4.4)
+
+PLATFORMS
+  arm64-darwin-27
+  ruby
+
+DEPENDENCIES
+  minitest (~> 6.0)
+  rexml (~> 3.4)
+
+CHECKSUMS
+  drb (2.2.3) sha256=0b00d6fdb50995fe4a45dea13663493c841112e4068656854646f418fda13373
+  minitest (6.0.6) sha256=153ea36d1d987a62942382b61075745042a2b3123b1cd48f4c3675af9cc7d6f1
+  prism (1.8.1) sha256=b260c1844ee0c7ead9c938f7fd63b95888c87cc054dfb64043204eccff8116ac
+  rexml (3.4.4) sha256=19e0a2c3425dfbf2d4fc1189747bdb2f849b6c5e74180401b15734bc97b5d142
+
+RUBY VERSION
+  ruby 4.0.7
+
+BUNDLED WITH
+  4.0.20

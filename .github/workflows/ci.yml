@@ -22,7 +22,7 @@ permissions: {}
 jobs:
   generate-matrix:
     name: Generate matrix
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-24.04 # ruby/setup-ruby does not support ubuntu-slim.
     timeout-minutes: 15
     permissions:
       contents: read
@@ -36,6 +36,33 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Select trusted router Ruby
+        id: trusted-ruby
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [[ ! "${BASE_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Pull request base SHA must be a full commit hash."
+            exit 1
+          fi
+          if git cat-file -e "${BASE_SHA}:scripts/ci-path-routing.rb"; then
+            RUBY_VERSION=$(git show "${BASE_SHA}:.ruby-version")
+            if [[ ! "${RUBY_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::Trusted router Ruby version is invalid."
+              exit 1
+            fi
+            echo "version=${RUBY_VERSION}" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Set up Ruby
+        if: steps.trusted-ruby.outputs.version != ''
+        uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
+        with:
+          ruby-version: ${{ steps.trusted-ruby.outputs.version }}
+          bundler: none
+          bundler-cache: false
 
       - name: Generate CI matrix
         id: matrix
@@ -61,7 +88,7 @@ jobs:
             add_check '{"name":"Build Brew JSON Probe","check":"probe-build","runner":"macos-26"}'
             add_check '{"name":"Test (Thread Sanitizer)","check":"test-tsan","runner":"macos-26","xcodebuild_flags":"-only-testing:BrewyTests -enableCodeCoverage YES -enableThreadSanitizer YES","result_bundle":"TestResults-TSAN"}'
             add_check '{"name":"Test (signed UI runner)","check":"test-ui","runner":"macos-26","xcodebuild_flags":"-only-testing:BrewyUITests","result_bundle":"TestResults-UI"}'
-            add_check '{"name":"Release helper validation","check":"release-helpers","runner":"ubuntu-slim"}'
+            add_check '{"name":"Release helper validation","check":"release-helpers","runner":"ubuntu-24.04"}'
             {
               echo "matrix=${MATRIX}"
               echo "run_codeql=false"
@@ -79,12 +106,22 @@ jobs:
           # Routing policy is a merge control, so never source its implementation
           # from the untrusted PR checkout. During the helper's first introduction,
           # fail closed to every route until a trusted base revision exists.
-          ROUTER_FILE="${RUNNER_TEMP}/brewy-ci-path-routing.sh"
-          if git show "${BASE_SHA}:scripts/ci-path-routing.sh" > "${ROUTER_FILE}"; then
-            # shellcheck source=scripts/ci-path-routing.sh
-            source "${ROUTER_FILE}"
-            reset_ci_routes
-            HAS_TRUSTED_ROUTER=true
+          if [[ ! "${BASE_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Pull request base SHA must be a full commit hash."
+            exit 1
+          fi
+          ROUTER_FILE="${RUNNER_TEMP}/brewy-ci-path-routing.rb"
+          CHANGED_PATHS_FILE="${RUNNER_TEMP}/brewy-ci-changed-paths"
+          git diff --no-renames --name-only -z "${BASE_SHA}...HEAD" > "${CHANGED_PATHS_FILE}"
+          if git show "${BASE_SHA}:scripts/ci-path-routing.rb" > "${ROUTER_FILE}"; then
+            ROUTES=$(ruby "${ROUTER_FILE}" "${CHANGED_PATHS_FILE}")
+            jq -e 'type == "object" and ([.lint, .tests, .probe, .release_helpers, .codeql, .zizmor] | all(type == "boolean"))' <<< "${ROUTES}" >/dev/null
+            NEEDS_LINT=$(jq -er 'if .lint then 1 else 0 end' <<< "${ROUTES}")
+            NEEDS_TESTS=$(jq -er 'if .tests then 1 else 0 end' <<< "${ROUTES}")
+            NEEDS_PROBE=$(jq -er 'if .probe then 1 else 0 end' <<< "${ROUTES}")
+            NEEDS_RELEASE_HELPERS=$(jq -er 'if .release_helpers then 1 else 0 end' <<< "${ROUTES}")
+            RUN_CODEQL=$(jq -r '.codeql' <<< "${ROUTES}")
+            RUN_ZIZMOR=$(jq -r '.zizmor' <<< "${ROUTES}")
           else
             NEEDS_LINT=1
             NEEDS_TESTS=1
@@ -92,24 +129,7 @@ jobs:
             NEEDS_RELEASE_HELPERS=1
             RUN_CODEQL=true
             RUN_ZIZMOR=true
-            HAS_TRUSTED_ROUTER=false
           fi
-
-          # Consume raw NUL-delimited names. Human-oriented git output C-quotes
-          # control characters, which can otherwise bypass anchored path routes.
-          # Materialize first so `set -e` observes a failed diff producer; Bash does
-          # not propagate process-substitution failures through a successful loop.
-          CHANGED_PATHS_FILE="${RUNNER_TEMP}/brewy-ci-changed-paths"
-          git diff --name-only -z "${BASE_SHA}...HEAD" > "${CHANGED_PATHS_FILE}"
-          while IFS= read -r -d '' path; do
-            if [[ "${HAS_TRUSTED_ROUTER}" == "true" ]]; then
-              if [[ "${path}" == "scripts/ci-path-routing.sh" ]]; then
-                select_all_ci_routes
-              else
-                route_ci_path "${path}"
-              fi
-            fi
-          done < "${CHANGED_PATHS_FILE}"
 
           if [[ "${NEEDS_LINT}" -eq 1 ]]; then
             add_check '{"name":"Lint","check":"lint","runner":"macos-26"}'
@@ -129,7 +149,7 @@ jobs:
           fi
 
           if [[ "${NEEDS_RELEASE_HELPERS}" -eq 1 ]]; then
-            add_check '{"name":"Release helper validation","check":"release-helpers","runner":"ubuntu-slim"}'
+            add_check '{"name":"Release helper validation","check":"release-helpers","runner":"ubuntu-24.04"}'
           fi
 
           {
@@ -168,13 +188,19 @@ jobs:
           fetch-depth: ${{ matrix.fetch_depth || 1 }}
           persist-credentials: false
 
+      - name: Set up Ruby
+        if: matrix.check == 'release-helpers' || matrix.check == 'lint' || startsWith(matrix.check, 'test-')
+        uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
+        with:
+          bundler-cache: true
+
       - name: Build Brew JSON probe
         if: matrix.check == 'probe-build'
         run: bash scripts/brew-json-probe/build.sh /tmp/brew-json-probe
 
       - name: Validate release helpers
         if: matrix.check == 'release-helpers'
-        run: python3 scripts/validate-release-helpers.py
+        run: bundle exec ruby scripts/validate-release-helpers.rb
 
       - name: Restore Homebrew downloads
         id: homebrew-cache
@@ -214,7 +240,7 @@ jobs:
 
       - name: Validate CI path routing
         if: matrix.check == 'lint'
-        run: bash scripts/ci-path-routing.sh --self-test
+        run: ruby scripts/ci-path-routing.rb --self-test
 
       - name: Build (Release)
         if: matrix.check == 'build-release'
@@ -285,7 +311,7 @@ jobs:
           codesign --verify --deep --strict --verbose=2 "${RUNNER_APP}"
           xcrun xcresulttool get test-results summary \
             --path "${RESULT_BUNDLE}.xcresult" --compact |
-            python3 -c 'import json, sys; assert json.load(sys.stdin)["totalTestCount"] > 0'
+            ruby -rjson -e 'abort "No UI tests ran" unless JSON.parse(STDIN.read.force_encoding(Encoding::UTF_8)).fetch("totalTestCount").positive?'
 
       - name: Coverage Summary
         if: success() && matrix.check == 'test-tsan'
@@ -341,7 +367,7 @@ jobs:
         if: ${{ !cancelled() && matrix.check == 'test-tsan' }}
         env:
           RESULT_BUNDLE: ${{ matrix.result_bundle }}
-        run: python3 scripts/xcresult-to-junit.py "${RESULT_BUNDLE}.xcresult" > junit.xml
+        run: bundle exec ruby scripts/xcresult-to-junit.rb "${RESULT_BUNDLE}.xcresult" > junit.xml
 
       - name: Normalize report paths
         if: ${{ !cancelled() && matrix.check == 'test-tsan' }}
