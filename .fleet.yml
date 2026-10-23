@@ -2,6 +2,11 @@ schema: 1
 visibility: "public"
 license: "agpl"
 params:
+  ruby-runtime:
+    version-file: ".ruby-version"
+    lock-files: ["Gemfile.lock"]
+    require-lock-version: true
+    update-companions: true
   renovate: true
   codecov: true
   conclusion:
