@@ -58,7 +58,7 @@ jobs:
 
       - name: Set up Ruby
         if: steps.trusted-ruby.outputs.version != ''
-        uses: ruby/setup-ruby@26e5b7d197ebf60545ee9667bcbace0be11ccaec # v1.334.0
+        uses: ruby/setup-ruby@7f797815d8adceb1c412e7abefdd1ab4abc47a5f # v1.335.0
         with:
           ruby-version: ${{ steps.trusted-ruby.outputs.version }}
           bundler: none
@@ -190,7 +190,7 @@ jobs:
 
       - name: Set up Ruby
         if: matrix.check == 'release-helpers' || matrix.check == 'lint' || startsWith(matrix.check, 'test-')
-        uses: ruby/setup-ruby@26e5b7d197ebf60545ee9667bcbace0be11ccaec # v1.334.0
+        uses: ruby/setup-ruby@7f797815d8adceb1c412e7abefdd1ab4abc47a5f # v1.335.0
         with:
           bundler-cache: true
 
