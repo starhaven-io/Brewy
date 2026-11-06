@@ -142,7 +142,6 @@ enum CommandRunner {
         return extendedTimeout
     }
 
-    static let preventHomebrewAutoUpdateKey = "preventHomebrewAutoUpdate"
     private static let standardBrewPaths = ["/opt/homebrew/bin/brew", "/usr/local/bin/brew"]
 
     /// Grace period between SIGTERM and SIGKILL when a process exceeds its timeout.
@@ -161,10 +160,6 @@ enum CommandRunner {
             return path
         }
         return preferred
-    }
-
-    static func preventsHomebrewAutoUpdate(userDefaults: UserDefaults = .standard) -> Bool {
-        userDefaults.bool(forKey: preventHomebrewAutoUpdateKey)
     }
 
     static func run(
@@ -253,13 +248,6 @@ extension CommandRunner {
             env["HOMEBREW_NO_AUTO_UPDATE"] = "1"
         }
         return env
-    }
-
-    static func shouldPreventHomebrewAutoUpdate(
-        for arguments: [String],
-        userDefaults: UserDefaults = .standard
-    ) -> Bool {
-        preventsHomebrewAutoUpdate(userDefaults: userDefaults) || arguments.first == "bundle"
     }
 
     // MARK: - Private
