@@ -383,16 +383,44 @@ struct CommandRunnerTests {
         #expect(env["HOMEBREW_NO_AUTO_UPDATE"] == nil)
     }
 
-    @Test("Homebrew Bundle always prevents auto-update output")
-    func bundleAlwaysPreventsAutomaticUpdate() throws {
+    @Test("Parsed Homebrew commands always prevent auto-update output", arguments: [
+        ["outdated", "--json=v2"],
+        ["info", "--installed", "--json=v2"],
+        ["info", "--cask", "--json=v2", "--", "firefox"],
+        ["tap-info", "--json=v1", "--installed"],
+        ["search", "--formula", "--", "wget"],
+        ["bundle", "list", "--formula", "--file=-"],
+        ["bundle", "check", "--verbose", "--file=-"],
+        ["services", "info", "--all", "--json"],
+        ["services", "list", "--json"],
+        ["vulns", "--json"],
+        ["analytics", "state"],
+        ["config"],
+        ["--cache"],
+        []
+    ])
+    func parsedCommandsAlwaysPreventAutomaticUpdate(arguments: [String]) throws {
         let suiteName = "io.linnane.brewy.tests.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suiteName))
         defer { defaults.removePersistentDomain(forName: suiteName) }
 
-        #expect(CommandRunner.shouldPreventHomebrewAutoUpdate(for: ["bundle", "list"], userDefaults: defaults))
-        #expect(!CommandRunner.shouldPreventHomebrewAutoUpdate(for: ["info"], userDefaults: defaults))
+        #expect(CommandRunner.shouldPreventHomebrewAutoUpdate(for: arguments, userDefaults: defaults))
+    }
+
+    @Test("Streamed Homebrew commands follow the auto-update preference", arguments: [
+        ["install", "--", "wget"],
+        ["upgrade"],
+        ["upgrade", "--cask", "--", "firefox"],
+        ["tap", "--", "owner/tap"]
+    ])
+    func streamedCommandsFollowAutomaticUpdatePreference(arguments: [String]) throws {
+        let suiteName = "io.linnane.brewy.tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        #expect(!CommandRunner.shouldPreventHomebrewAutoUpdate(for: arguments, userDefaults: defaults))
         defaults.set(true, forKey: CommandRunner.preventHomebrewAutoUpdateKey)
-        #expect(CommandRunner.shouldPreventHomebrewAutoUpdate(for: ["info"], userDefaults: defaults))
+        #expect(CommandRunner.shouldPreventHomebrewAutoUpdate(for: arguments, userDefaults: defaults))
     }
 }
 
