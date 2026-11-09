@@ -165,7 +165,8 @@ enum TapHealthChecker {
             let movedTo = await resolveRedirectLocation(data: data, response: response)
             return TapHealthStatus(status: .moved, movedTo: movedTo, lastChecked: Date())
         case 404:
-            return TapHealthStatus(status: .notFound, movedTo: nil, lastChecked: Date())
+            // Unauthenticated requests receive 404 for private repositories as well as deleted ones.
+            return TapHealthStatus(status: .unavailable, movedTo: nil, lastChecked: Date())
         case 403:
             logger.warning("GitHub API rate limited for \(owner)/\(repo)")
             return TapHealthStatus(status: .unknown, movedTo: nil, lastChecked: Date())
