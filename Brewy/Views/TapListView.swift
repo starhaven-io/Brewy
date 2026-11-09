@@ -121,7 +121,7 @@ private struct TapHealthBadge: View {
         switch status {
         case .archived: "archived"
         case .moved: "moved"
-        case .notFound: "not found"
+        case .unavailable: "unavailable"
         case .healthy, .unknown: ""
         }
     }
@@ -130,7 +130,7 @@ private struct TapHealthBadge: View {
         switch status {
         case .archived: .yellow
         case .moved: .orange
-        case .notFound: .red
+        case .unavailable: .secondary
         case .healthy, .unknown: .secondary
         }
     }
@@ -139,7 +139,7 @@ private struct TapHealthBadge: View {
         switch status {
         case .archived: "archivebox.fill"
         case .moved: "arrow.right.arrow.left"
-        case .notFound: "exclamationmark.triangle.fill"
+        case .unavailable: "questionmark.circle.fill"
         case .healthy, .unknown: "checkmark"
         }
     }
@@ -325,8 +325,8 @@ private struct TapHealthWarningSection: View {
                 return "This tap's repository has moved to \(movedTo)."
             }
             return "This tap's repository has moved."
-        case .notFound:
-            return "This tap's repository could not be found on GitHub. It may have been deleted."
+        case .unavailable:
+            return "GitHub does not show a repository for this tap. It may be private, or it may have been deleted."
         case .healthy, .unknown:
             return ""
         }
@@ -336,7 +336,7 @@ private struct TapHealthWarningSection: View {
         switch healthStatus.status {
         case .archived: .yellow
         case .moved: .orange
-        case .notFound: .red
+        case .unavailable: .secondary
         case .healthy, .unknown: .secondary
         }
     }
@@ -345,7 +345,7 @@ private struct TapHealthWarningSection: View {
         switch healthStatus.status {
         case .archived: "archivebox.fill"
         case .moved: "arrow.right.arrow.left"
-        case .notFound: "exclamationmark.triangle.fill"
+        case .unavailable: "questionmark.circle.fill"
         case .healthy, .unknown: "checkmark"
         }
     }
@@ -384,16 +384,18 @@ private struct TapHealthWarningSection: View {
                 }
             }
 
-            Button("Remove Tap", role: .destructive) {
-                showRemoveConfirmation = true
-            }
-            .confirmationDialog("Remove \(tap.name)?", isPresented: $showRemoveConfirmation, titleVisibility: .visible) {
+            if healthStatus.status != .unavailable {
                 Button("Remove Tap", role: .destructive) {
-                    Task { await brewService.removeTap(name: tap.name) }
+                    showRemoveConfirmation = true
                 }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("This removes the tap repository from your Homebrew installation.")
+                .confirmationDialog("Remove \(tap.name)?", isPresented: $showRemoveConfirmation, titleVisibility: .visible) {
+                    Button("Remove Tap", role: .destructive) {
+                        Task { await brewService.removeTap(name: tap.name) }
+                    }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("This removes the tap repository from your Homebrew installation.")
+                }
             }
         }
     }

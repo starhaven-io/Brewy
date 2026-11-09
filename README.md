@@ -21,7 +21,7 @@ It is designed for people who already use Homebrew and want a fast, inspectable 
 - Install, uninstall, upgrade, reinstall, fetch, pin, unpin, link, and unlink packages through native macOS controls.
 - Upgrade all outdated Homebrew packages at once, or select exactly which packages to upgrade.
 - Manage Homebrew services, including start, stop, restart, and stale-service cleanup.
-- Manage taps, with health checks for archived, moved, or missing GitHub repositories.
+- Manage taps, with health checks for archived, moved, or unavailable GitHub repositories.
 - Group packages into custom collections for projects, roles, or cleanup work.
 - Review action history and retry failed commands when it is safe to do so.
 - Run `brew doctor`, update Homebrew, remove orphaned packages, and clear caches with dry-run previews for destructive maintenance.

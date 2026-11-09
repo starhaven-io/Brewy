@@ -48,7 +48,7 @@ struct TapHealthStatusTests {
         #expect(TapHealthStatus.Status.healthy.rawValue == "healthy")
         #expect(TapHealthStatus.Status.archived.rawValue == "archived")
         #expect(TapHealthStatus.Status.moved.rawValue == "moved")
-        #expect(TapHealthStatus.Status.notFound.rawValue == "notFound")
+        #expect(TapHealthStatus.Status.unavailable.rawValue == "unavailable")
         #expect(TapHealthStatus.Status.unknown.rawValue == "unknown")
     }
 }
@@ -87,8 +87,8 @@ struct TapHealthCheckerTests {
         #expect(status.movedTo == movedTo)
     }
 
-    @Test("mapResponse maps missing repository response")
-    func mapMissingResponse() async throws {
+    @Test("mapResponse maps a hidden repository response to unavailable")
+    func mapHiddenResponse() async throws {
         let status = await TapHealthChecker.mapResponse(
             statusCode: 404,
             data: Data(),
@@ -97,7 +97,7 @@ struct TapHealthCheckerTests {
             repo: "repo"
         )
 
-        #expect(status.status == .notFound)
+        #expect(status.status == .unavailable)
         #expect(status.movedTo == nil)
     }
 

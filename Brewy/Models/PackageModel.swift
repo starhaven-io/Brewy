@@ -134,7 +134,7 @@ struct TapHealthStatus: Codable, Equatable {
         case healthy
         case archived
         case moved
-        case notFound
+        case unavailable
         case unknown
     }
 
