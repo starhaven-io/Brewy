@@ -44,11 +44,20 @@ enum ReleaseNotesHTML {
         var result = ""
         result.reserveCapacity(html.utf8.count)
         let scalars = html.unicodeScalars
+        let unmatchedOpeners = unmatchedOpenerIndices(in: scalars)
+        var nextUnmatchedOpener = unmatchedOpeners.startIndex
         var cursor = scalars.startIndex
 
         while cursor < scalars.endIndex {
             guard scalars[cursor] == "<" else {
                 result.unicodeScalars.append(scalars[cursor])
+                cursor = scalars.index(after: cursor)
+                continue
+            }
+
+            if nextUnmatchedOpener < unmatchedOpeners.endIndex, unmatchedOpeners[nextUnmatchedOpener] == cursor {
+                result += "&lt;"
+                nextUnmatchedOpener += 1
                 cursor = scalars.index(after: cursor)
                 continue
             }
@@ -71,13 +80,30 @@ enum ReleaseNotesHTML {
             }
 
             guard depth == 0 else {
-                result += " "
-                break
+                result += "&lt;"
+                cursor = scalars.index(after: start)
+                continue
             }
             result += isNested ? " " : sanitizedTag(Substring(String(scalars[start..<scan])))
             cursor = scan
         }
         return result.utf8.count <= maximumHTMLByteCount ? result : ""
+    }
+
+    /// A `<` with no closing `>` is literal text. Locating those up front keeps the strip linear;
+    /// scanning forward from each one would re-read the rest of the input.
+    private static func unmatchedOpenerIndices(in scalars: String.UnicodeScalarView) -> [String.Index] {
+        var openers: [String.Index] = []
+        var index = scalars.startIndex
+        while index < scalars.endIndex {
+            switch scalars[index] {
+            case "<": openers.append(index)
+            case ">": _ = openers.popLast()
+            default: break
+            }
+            index = scalars.index(after: index)
+        }
+        return openers
     }
 
     private static func sanitizedTag(_ rawTag: Substring) -> String {

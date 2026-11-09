@@ -85,6 +85,32 @@ struct ReleaseNotesHTMLTests {
         let payload = String(repeating: "a", count: ReleaseNotesHTML.maximumHTMLByteCount + 1)
         #expect(ReleaseNotesHTML.attributedString(from: payload) == nil)
     }
+
+    @Test("An unmatched angle bracket is escaped without truncating later content")
+    func unmatchedAngleBracketIsEscaped() throws {
+        let html = "<p>a &lt; b and 1 < 2 then <b>bold</b> tail</p>"
+
+        #expect(ReleaseNotesHTML.stripUnsafeMarkup(from: html) == "<p>a &lt; b and 1 &lt; 2 then <b>bold</b> tail</p>")
+        let attributed = try #require(ReleaseNotesHTML.attributedString(from: html))
+        #expect(String(attributed.characters).contains("a < b and 1 < 2 then bold tail"))
+    }
+
+    @Test("An unterminated resource tag is escaped rather than dropped or kept")
+    func unterminatedResourceTagIsEscaped() {
+        let payload = #"<p>Before</p><img src="https://evil.example/beacon.png"#
+        let stripped = ReleaseNotesHTML.stripUnsafeMarkup(from: payload)
+
+        #expect(stripped == #"<p>Before</p>&lt;img src="https://evil.example/beacon.png"#)
+    }
+
+    @Test("A maximal run of unmatched angle brackets strips in bounded time")
+    func unmatchedAngleBracketRunIsBounded() {
+        let payload = String(repeating: "<", count: ReleaseNotesHTML.maximumHTMLByteCount)
+        let expected = String(repeating: "&lt;", count: 4)
+
+        #expect(ReleaseNotesHTML.stripUnsafeMarkup(from: String(payload.prefix(4))) == expected)
+        #expect(ReleaseNotesHTML.stripUnsafeMarkup(from: payload).isEmpty)
+    }
 }
 
 @Suite("BrewService Safety Guardrails")
