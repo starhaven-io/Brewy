@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import OSLog
 
@@ -344,7 +345,7 @@ extension BrewService {
                 sourcePath: url.standardizedFileURL.path,
                 data: generatedSnapshot.data
             )
-            try generatedSnapshot.data.write(to: url, options: .atomic)
+            try generatedSnapshot.data.write(to: bundleDumpDestination(for: url), options: .atomic)
             customBrewfilePath = url.path
             adoptTrustedSnapshot(snapshot)
             let result = CommandResult(output: "Created Brewfile at \(url.path).", success: true)
@@ -371,6 +372,25 @@ extension BrewService {
             )
             return result
         }
+    }
+
+    private func bundleDumpDestination(for url: URL) throws -> URL {
+        var status = stat()
+        guard lstat(url.path, &status) == 0 else {
+            if errno == ENOENT { return url }
+            throw BrewfileSnapshotError.unreadable
+        }
+        guard status.st_mode & S_IFMT == S_IFLNK else { return url }
+        guard let resolvedPath = realpath(url.path, nil) else {
+            throw BrewfileSnapshotError.unreadable
+        }
+        defer { free(resolvedPath) }
+        let destination = URL(fileURLWithPath: String(cString: resolvedPath))
+        _ = try BrewfileSnapshot.read(from: destination)
+        guard FileManager.default.isWritableFile(atPath: destination.path) else {
+            throw CocoaError(.fileWriteNoPermission)
+        }
+        return destination
     }
 
     private func handleBundleDumpFailure(
