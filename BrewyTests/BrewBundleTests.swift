@@ -394,9 +394,10 @@ struct BrewServiceBundleTests {
         #expect(service.actionHistory[0].status == .failure)
     }
 
-    @Test("dumpBundle success adopts the path and refreshes")
-    func dumpBundleSuccessAdoptsPathAndRefreshes() async throws {
+    @Test("dumpBundle success adopts the path and refreshes", arguments: [true, false])
+    func dumpBundleSuccessAdoptsPathAndRefreshes(existing: Bool) async throws {
         let brewfile = try Self.makeBrewfile()
+        if !existing { try FileManager.default.removeItem(at: brewfile) }
         let mock = MockCommandRunner()
         let (service, _) = makeService(mock: mock)
         let generatedData = Data("brew \"wget\"\n".utf8)
