@@ -3,22 +3,16 @@
     <channel>
         <title>Brewy</title>
         <item>
-            <title>0.26.5</title>
-            <pubDate>Mon, 09 Nov 2026 16:32:54 +0000</pubDate>
-            <sparkle:version>40</sparkle:version>
-            <sparkle:shortVersionString>0.26.5</sparkle:shortVersionString>
+            <title>0.26.6</title>
+            <pubDate>Sat, 14 Nov 2026 05:56:56 +0000</pubDate>
+            <sparkle:version>41</sparkle:version>
+            <sparkle:shortVersionString>0.26.6</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
             <description><![CDATA[<h2>Fixes</h2>
 <ul>
-  <li>no auto-update for parsed brew output</li>
-  <li>treat a GitHub 404 as unavailable, not deleted</li>
-  <li>escape an unmatched angle bracket</li>
-</ul>
-<h2>Under the Hood</h2>
-<ul>
-  <li>port repository tooling to Ruby</li>
+  <li>write a dumped Brewfile through a symlink</li>
 </ul>]]></description>
-            <enclosure url="https://github.com/starhaven-io/Brewy/releases/download/0.26.5/Brewy-0.26.5.zip" length="3980063" type="application/octet-stream" sparkle:edSignature="Plhly1uPjDjBZkdqK5QX+LUwJu9uYIWmsJAugBDnrutiqJQTxyvQVfwy1ZL1vEMPzqBBCnyblA6ErKqg/1/qCA=="/>
+            <enclosure url="https://github.com/starhaven-io/Brewy/releases/download/0.26.6/Brewy-0.26.6.zip" length="3980415" type="application/octet-stream" sparkle:edSignature="Y/j/ktLI77RZtXqGAZyg94SMzzBh9kfKufpuHQnTK+ZiJMN2IOc0JJuQgVnWDLwg7XLz12TwBXORhiX5Q+LRAQ=="/>
         </item>
     </channel>
 </rss>
