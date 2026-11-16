@@ -6,5 +6,5 @@ ruby ">= 4.0.0"
 
 gem "rexml", "~> 3.4"
 group :test do
-  gem "minitest", "~> 6.0"
+  gem "minitest", "~> 6.1"
 end
