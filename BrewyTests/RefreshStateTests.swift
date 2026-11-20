@@ -24,7 +24,7 @@ struct RefreshStateTests {
         #expect(installed.joined() == "changed")
         #expect(derived.joined() == "changed")
         #expect(dependencies.joined() == "changed")
-        #expect(service.installedIDs == ["formula-wget"])
+        #expect(Set(service.installedPackagesByID.keys) == ["formula-wget"])
         #expect(service.allInstalled.first?.version == "2.0")
         #expect(service.pinnedPackages.first?.id == "formula-wget")
     }

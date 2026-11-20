@@ -114,7 +114,7 @@ final class BrewService {
 
     private(set) var allInstalled: [BrewPackage] = []
     private(set) var installedNames: Set<String> = []
-    private(set) var installedIDs: Set<String> = []
+    private(set) var installedPackagesByID: [String: BrewPackage] = [:]
     private(set) var installedIDsByQualifiedName: [String: String] = [:]
     private(set) var reverseDependencies: [String: [BrewPackage]] = [:]
     private(set) var leavesPackages: [BrewPackage] = []
@@ -160,7 +160,7 @@ final class BrewService {
         let all = installedFormulae + installedCasks + installedMasApps
         allInstalled = all
         installedNames = Set(all.map(\.name))
-        installedIDs = Set(all.map(\.id))
+        installedPackagesByID = Dictionary(all.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         installedIDsByQualifiedName = Self.installedIDsByQualifiedName(all)
 
         let reverse = reverseDependencyIndex(for: all)
@@ -483,7 +483,7 @@ extension BrewService {
         case .groups: []
         case .bundle: []
         case .history: []
-        case .discover: searchResults
+        case .discover: searchResults.map(packageForDisplay)
         case .security: []
         case .maintenance: []
         }

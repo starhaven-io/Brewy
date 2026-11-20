@@ -30,10 +30,7 @@ struct PackageListView: View {
 
     private var displayedPackages: [BrewPackage] {
         if isSearchingAll {
-            if !brewService.searchResults.isEmpty {
-                return brewService.searchResults
-            }
-            return []
+            return brewService.searchResults
         }
 
         guard let category = selectedCategory else { return [] }
@@ -146,7 +143,8 @@ struct PackageListView: View {
             if packages.isEmpty {
                 emptyContent
             } else {
-                ForEach(packages) { package in
+                ForEach(packages) { item in
+                    let package = isSearchingAll ? brewService.packageForDisplay(item) : item
                     HStack(spacing: 10) {
                         if isOutdatedCategory, isSelectingForUpgrade {
                             if upgradeableIDs.contains(package.id) {
@@ -158,12 +156,13 @@ struct PackageListView: View {
                         }
                         PackageRow(
                             package: package,
+                            name: item.name,
                             showInstalledBadge: isSearchingAll,
                             showUpgradeButton: isOutdatedCategory && !isSelectingForUpgrade,
                             onUpgrade: { pkg in await brewService.upgrade(package: pkg) }
                         )
                     }
-                    .tag(package.id)
+                    .tag(item.id)
                 }
             }
         }
@@ -278,6 +277,7 @@ private struct UpgradeSelectionToggle: View {
 
 private struct PackageRow: View {
     let package: BrewPackage
+    let name: String
     var showInstalledBadge = false
     var showUpgradeButton = false
     var onUpgrade: ((BrewPackage) async -> Void)?
@@ -288,13 +288,13 @@ private struct PackageRow: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(package.name)
+                    Text(name)
                         .font(.body)
                         .fontWeight(.semibold)
                         .lineLimit(1)
                         .layoutPriority(1)
-                        .help(package.name)
-                        .accessibilityIdentifier("package-row-\(package.name)")
+                        .help(name)
+                        .accessibilityIdentifier("package-row-\(name)")
                     Spacer(minLength: 0)
                     versionLabel
                 }

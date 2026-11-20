@@ -13,7 +13,7 @@ struct DiscoverView: View {
         guard searchText.isEmpty,
               let result = brewService.lastUpdateResult,
               !result.isEmpty else { return [] }
-        return result.discoverPackages { brewService.installedPackageID(for: $0) != nil }
+        return result.discoverPackages
     }
 
     private var displayedPackages: [BrewPackage] {
@@ -83,7 +83,8 @@ struct DiscoverView: View {
     private func packageRows(_ packages: [BrewPackage]) -> some View {
         ForEach(packages) { package in
             DiscoverRow(
-                package: package,
+                package: brewService.packageForDisplay(package),
+                name: package.name,
                 onInstall: { pkg in await brewService.install(package: pkg) }
             )
             .tag(package.id)
@@ -115,6 +116,7 @@ struct DiscoverView: View {
 
 private struct DiscoverRow: View {
     let package: BrewPackage
+    let name: String
     var onInstall: ((BrewPackage) async -> Void)?
 
     var body: some View {
@@ -123,7 +125,7 @@ private struct DiscoverRow: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
-                    Text(package.name)
+                    Text(name)
                         .font(.body)
                         .fontWeight(.semibold)
                     if package.isInstalled {

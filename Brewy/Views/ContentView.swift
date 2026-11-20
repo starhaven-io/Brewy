@@ -209,7 +209,7 @@ struct ContentView: View {
                 subtitle: "Choose a tap from the list to view its details."
             )
         } else if let selectedPackage {
-            let package = brewService.allInstalled.first(where: { $0.id == selectedPackage.id }) ?? selectedPackage
+            let package = brewService.packageForDisplay(selectedPackage)
             PackageDetailView(package: package)
                 .id(package.id)
                 .navigationSplitViewColumnWidth(ideal: 450)
@@ -220,7 +220,7 @@ struct ContentView: View {
     }
 
     private func navigateToPackage(_ packageID: String) {
-        if let match = brewService.allInstalled.first(where: { $0.id == packageID }) {
+        if let match = brewService.installedPackagesByID[packageID] {
             let destination: SidebarCategory = switch match.source {
             case .formula: .formulae
             case .cask: .casks

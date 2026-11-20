@@ -12,7 +12,14 @@ extension BrewService {
     /// name can belong to several taps and matches whichever package of that name is installed.
     func installedPackageID(for reference: PackageReference) -> String? {
         if reference.name.contains("/") { return installedIDsByQualifiedName[reference.id] }
-        return installedIDs.contains(reference.id) ? reference.id : nil
+        return installedPackagesByID[reference.id]?.id
+    }
+
+    func packageForDisplay(_ package: BrewPackage) -> BrewPackage {
+        if package.isMas { return installedPackagesByID[package.id] ?? package }
+        let reference = PackageReference(name: package.brewName, source: package.source)
+        guard let id = installedPackageID(for: reference) else { return package }
+        return installedPackagesByID[id] ?? package
     }
 
     nonisolated static func installedIDsByQualifiedName(_ packages: [BrewPackage]) -> [String: String] {
@@ -186,13 +193,12 @@ extension BrewService {
     }
 
     private func forwardDependencyTree(forID id: String, maxDepth: Int, maxNodes: Int) -> [DependencyTreeNode] {
-        guard let package = allInstalled.first(where: { $0.id == id }) else { return [] }
+        guard let package = installedPackagesByID[id] else { return [] }
         var walk = DependencyWalk(ancestors: [package.id], budget: maxNodes)
-        let lookup = Dictionary(allInstalled.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         return buildForwardTree(
             dependencies: package.dependencyReferences,
             prefix: package.id,
-            lookup: lookup,
+            lookup: installedPackagesByID,
             walk: &walk,
             remaining: maxDepth
         )

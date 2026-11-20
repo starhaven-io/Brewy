@@ -7,6 +7,28 @@ import Testing
 @Suite("BrewService.search()")
 @MainActor
 struct SearchTests {
+    @Test("An open catalog result follows installation, upgrades, and removal")
+    func catalogResultTracksInventory() async throws {
+        let mock = MockCommandRunner()
+        let (service, _) = makeService(mock: mock)
+        mock.setResult(for: ["search", "--formula", "--", "wget"], output: "wget")
+        mock.setResult(for: ["search", "--cask", "--", "wget"], output: "")
+        await service.search(query: "wget")
+        let selection = try #require(service.searchResults.first)
+        #expect(!service.packageForDisplay(selection).isInstalled)
+
+        let installed = makePackage(name: "wget", pinned: true, isOutdated: true, installedVersion: "1", latestVersion: "2",
+                                    dependencies: ["openssl"])
+        service.installedFormulae = [installed]
+        #expect(service.packageForDisplay(selection) == installed)
+        #expect(service.packages(for: .discover).first?.displayVersion == "1 → 2")
+
+        let upgraded = makePackage(name: "wget", installedVersion: "2")
+        service.installedFormulae = [upgraded]
+        #expect(service.packageForDisplay(selection) == upgraded)
+        service.installedFormulae = []
+        #expect(!service.packageForDisplay(selection).isInstalled)
+    }
 
     @Test("search returns formula and cask results")
     func searchReturnsBoth() async {
@@ -34,8 +56,9 @@ struct SearchTests {
 
         await service.search(query: "wget")
 
-        let wgetResult = service.searchResults.first { $0.name == "wget" }
-        let wget2Result = service.searchResults.first { $0.name == "wget2" }
+        let packages = service.packages(for: .discover)
+        let wgetResult = packages.first { $0.name == "wget" }
+        let wget2Result = packages.first { $0.name == "wget2" }
         #expect(wgetResult?.isInstalled == true)
         #expect(wget2Result?.isInstalled == false)
     }
@@ -52,9 +75,10 @@ struct SearchTests {
 
         await service.search(query: "shark")
 
-        let formulaHit = service.searchResults.first { $0.source == .formula && $0.name == "wireshark" }
-        let caskHit = service.searchResults.first { $0.source == .cask && $0.name == "wireshark" }
-        let masNamedCaskHit = service.searchResults.first { $0.source == .cask && $0.name == "amphetamine" }
+        let packages = service.packages(for: .discover)
+        let formulaHit = packages.first { $0.source == .formula && $0.name == "wireshark" }
+        let caskHit = packages.first { $0.source == .cask && $0.name == "wireshark" }
+        let masNamedCaskHit = packages.first { $0.source == .cask && $0.name == "amphetamine" }
         #expect(formulaHit?.isInstalled == true)
         #expect(caskHit?.isInstalled == false)
         #expect(masNamedCaskHit?.isInstalled == false)

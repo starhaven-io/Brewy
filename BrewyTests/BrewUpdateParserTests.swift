@@ -171,11 +171,9 @@ struct BrewUpdateParserTests {
         #expect(caskPkg.source == .cask)
         #expect(caskPkg.description.isEmpty)
 
-        let installedPkg = formulaItem.asPlaceholderPackage(isInstalled: true)
-        #expect(installedPkg.isInstalled)
     }
 
-    @Test("discoverPackages preserves order and uses source-qualified installed state")
+    @Test("discoverPackages preserves order and source-qualified identities")
     func discoverPackagesMapsRecentItems() {
         let result = BrewUpdateResult(
             newFormulae: [
@@ -189,15 +187,13 @@ struct BrewUpdateParserTests {
             timestamp: Date(timeIntervalSince1970: 1_700_000_000)
         )
 
-        let installedIDs: Set = ["formula-foo", "formula-shared", "cask-bar"]
-        let packages = result.discoverPackages { installedIDs.contains($0.id) }
+        let packages = result.discoverPackages
 
         #expect(packages.map(\.id) == ["formula-foo", "formula-shared", "cask-bar", "cask-shared"])
         #expect(packages.map(\.source) == [.formula, .formula, .cask, .cask])
-        #expect(packages.map(\.isInstalled) == [true, true, true, false])
 
         let empty = BrewUpdateResult(newFormulae: [], newCasks: [], timestamp: Date())
-        #expect(empty.discoverPackages { _ in true }.isEmpty)
+        #expect(empty.discoverPackages.isEmpty)
     }
 
     @Test("Codable round-trip preserves all fields")
