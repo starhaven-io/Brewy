@@ -73,7 +73,7 @@ struct QualifiedPackageReferenceTests {
         await service.search(query: "foo")
 
         #expect(service.searchResults.map(\.name) == ["foo", "other/tap/foo", "wrong/tap/foo"])
-        #expect(service.searchResults.map(\.isInstalled) == [true, true, false])
+        #expect(service.packages(for: .discover).map(\.isInstalled) == [true, true, false])
     }
 
     @Test("Discover marks a qualified update item installed only for the installed tap")
@@ -89,7 +89,7 @@ struct QualifiedPackageReferenceTests {
             timestamp: Date()
         )
 
-        let packages = result.discoverPackages { service.installedPackageID(for: $0) != nil }
+        let packages = result.discoverPackages.map(service.packageForDisplay)
 
         #expect(packages.map(\.isInstalled) == [true, false])
     }

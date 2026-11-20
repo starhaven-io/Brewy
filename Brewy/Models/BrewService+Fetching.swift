@@ -144,36 +144,18 @@ extension BrewService {
         let formulaeOutput = await formulaeResult
         let casksOutput = await casksResult
 
-        // Match on source-qualified IDs, not bare names: a cask hit named like an
-        // installed formula (e.g. wireshark) must not show the installed badge.
         var packages: [BrewPackage] = []
 
         for output in [(formulaeOutput, PackageSource.formula), (casksOutput, PackageSource.cask)] {
             let (result, source) = output
             guard result.success else { continue }
 
-            let prefix = source == .cask ? "cask" : "formula"
             for line in result.output.split(separator: "\n") {
                 // Skip section headers like "==> Formulae" / "==> Casks" wholesale; otherwise the
                 // header word ("Formulae"/"Casks") survives tokenization as a phantom package.
                 if line.hasPrefix("==>") { continue }
                 for token in line.split(whereSeparator: \.isWhitespace) {
-                    let name = String(token)
-                    packages.append(BrewPackage(
-                        id: "\(prefix)-search-\(name)",
-                        name: name,
-                        version: "",
-                        description: "",
-                        homepage: "",
-                        isInstalled: installedPackageID(for: PackageReference(name: name, source: source)) != nil,
-                        isOutdated: false,
-                        installedVersion: nil,
-                        latestVersion: nil,
-                        source: source,
-                        pinned: false,
-                        installedOnRequest: false,
-                        dependencies: []
-                    ))
+                    packages.append(BrewUpdateItem(name: String(token), description: nil, source: source).asPlaceholderPackage())
                 }
             }
         }
