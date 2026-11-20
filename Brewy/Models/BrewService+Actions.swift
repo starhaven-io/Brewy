@@ -43,7 +43,7 @@ extension BrewService {
     // MARK: - Action Helpers
 
     @discardableResult
-    func performBrewAction(_ arguments: [String], refreshAfter: Bool = false) async -> CommandResult? {
+    func performBrewAction(_ arguments: [String], refreshAfter: Bool = false, brewPath: String? = nil) async -> CommandResult? {
         guard !isPerformingAction else {
             logger.info("\(arguments.first ?? "action") skipped, action already in progress")
             return nil
@@ -58,7 +58,7 @@ extension BrewService {
             activeMutationCount -= mutationCount
         }
 
-        let result = await runBrewCommandStreaming(arguments)
+        let result = await runBrewCommandStreaming(arguments, brewPath: brewPath)
         if !result.success, !result.cancelled {
             lastError = .commandFailed(command: arguments.joined(separator: " "), output: result.output)
         }
@@ -122,8 +122,10 @@ extension BrewService {
         return result.output
     }
 
-    func removeOrphans() async {
-        await performBrewAction(["autoremove"], refreshAfter: true)
+    func removeOrphans(_ preview: BrewCommandPreview) async {
+        let arguments = ["autoremove"]
+        guard let path = confirmedBrewPath(for: preview, arguments: arguments) else { return }
+        await performBrewAction(arguments, refreshAfter: true, brewPath: path)
     }
 
     func cacheSize() async -> Int64 {
@@ -141,8 +143,10 @@ extension BrewService {
         return sizeKB * 1_024
     }
 
-    func purgeCache() async {
-        await performBrewAction(["cleanup", "--prune=all", "-s"])
+    func purgeCache(_ preview: BrewCommandPreview) async {
+        let arguments = ["cleanup", "--prune=all", "-s"]
+        guard let path = confirmedBrewPath(for: preview, arguments: arguments) else { return }
+        await performBrewAction(arguments, brewPath: path)
     }
 
     func config() async -> BrewConfig {

@@ -5,6 +5,25 @@ import Testing
 @Suite("History retry previews")
 @MainActor
 struct RetryPreviewTests {
+    @Test("A maintenance retry needs a successful preview of the same command and installation")
+    func confirmedRetry() async {
+        let mock = MockCommandRunner()
+        let (service, _) = makeService(mock: mock)
+        service.customBrewPath = "/usr/bin/true"
+        let retry = entry(["cleanup", "--", "wget"])
+        let dryRun = ["cleanup", "--dry-run", "--", "wget"]
+        mock.setResult(for: dryRun, output: "Would remove old versions")
+        let preview = await service.previewRetry(retry)
+        await service.retryAction(retry)
+        await service.retryAction(entry(["cleanup", "--", "jq"]), preview: preview)
+        service.customBrewPath = "/usr/bin/false"
+        await service.retryAction(retry, preview: preview)
+        #expect(mock.executedCommands == [dryRun])
+        service.customBrewPath = "/usr/bin/true"
+        await service.retryAction(retry, preview: preview)
+        #expect(mock.executedCommands == [dryRun, retry.arguments])
+    }
+
     @Test("Maintenance retries preview the exact options and operands", arguments: [
         (["autoremove"], ["autoremove", "--dry-run"]),
         (["cleanup", "--prune=all", "-s"], ["cleanup", "--prune=all", "-s", "--dry-run"]),
@@ -18,7 +37,7 @@ struct RetryPreviewTests {
         let (service, _) = makeService(mock: mock)
         mock.setResult(for: expected, output: "Current preview")
 
-        let result = await service.previewRetry(entry)
+        let result = await service.previewRetry(entry).result
 
         #expect(result.success)
         #expect(result.output == "Current preview")
@@ -33,9 +52,9 @@ struct RetryPreviewTests {
         let (service, _) = makeService(mock: mock)
         let entry = entry(["autoremove"])
         mock.setResult(for: ["autoremove", "--dry-run"], output: "First preview")
-        let first = await service.previewRetry(entry)
+        let first = await service.previewRetry(entry).result
         mock.setResult(for: ["autoremove", "--dry-run"], output: "Changed preview")
-        let second = await service.previewRetry(entry)
+        let second = await service.previewRetry(entry).result
 
         #expect(first.output == "First preview")
         #expect(second.output == "Changed preview")
@@ -52,7 +71,7 @@ struct RetryPreviewTests {
             result: CommandResult(output: "Preview stopped", success: false, cancelled: cancelled)
         )
 
-        let result = await service.previewRetry(entry(["autoremove"]))
+        let result = await service.previewRetry(entry(["autoremove"])).result
 
         #expect(!result.success)
         #expect(result.cancelled == cancelled)
@@ -65,8 +84,8 @@ struct RetryPreviewTests {
         let (service, _) = makeService(mock: mock)
         let unsupported = entry(["install", "wget"])
         #expect(unsupported.retryPreviewArguments == nil)
-        let result = await service.previewRetry(unsupported)
-        let successful = await service.previewRetry(entry(["autoremove"], status: .success))
+        let result = await service.previewRetry(unsupported).result
+        let successful = await service.previewRetry(entry(["autoremove"], status: .success)).result
         #expect(!result.success)
         #expect(!successful.success)
         #expect(mock.executedCommands.isEmpty)
