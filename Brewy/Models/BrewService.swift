@@ -234,7 +234,7 @@ extension BrewService {
     }
 
     func saveToCache() async {
-        guard let packageCacheURL, packageCacheWritesEnabled else { return }
+        guard let packageCacheURL, packageCacheWritesEnabled, let lastUpdated else { return }
         let cached = CachedData(
             schemaVersion: Self.cacheSchemaVersion,
             formulae: installedFormulae,
@@ -242,7 +242,7 @@ extension BrewService {
             masApps: installedMasApps,
             outdated: outdatedPackages,
             taps: installedTaps,
-            lastUpdated: lastUpdated ?? Date()
+            lastUpdated: lastUpdated
         )
         do {
             try await Task.detached(priority: .utility) {
@@ -330,16 +330,16 @@ extension BrewService {
         let fetchedInstalled = await installed
         let fetchedFormulae = fetchedInstalled?.formulae ?? installedFormulae
         let fetchedCasks = fetchedInstalled?.casks ?? installedCasks
-        let fetchedOutdated = await outdated ?? outdatedPackages.filter { $0.source != .mas }
+        let fetchedOutdated = await outdated
         let fetchedMas = await masApps
         let fetchedMasApps = fetchedMas?.packages ?? installedMasApps
-        let fetchedMasOutdated = await masOutdated ?? outdatedPackages.filter(\.isMas)
-        let fetchedTaps = await taps ?? installedTaps
+        let fetchedMasOutdated = await masOutdated
+        let fetchedTaps = await taps
         let merged = Self.mergeRefreshPackages(
             formulae: fetchedFormulae,
             casks: fetchedCasks,
             masApps: fetchedMasApps,
-            outdated: fetchedOutdated + fetchedMasOutdated
+            outdated: (fetchedOutdated ?? outdatedPackages.filter { !$0.isMas }) + (fetchedMasOutdated ?? outdatedPackages.filter(\.isMas))
         )
         let applicationURLs = Self.refreshedApplicationURLs(
             existingURLs: installedApplicationURLs,
@@ -355,7 +355,9 @@ extension BrewService {
             outdated: merged.outdated,
             applicationURLs: applicationURLs
         )
-        lastUpdated = Date()
+        if fetchedInstalled != nil, fetchedOutdated != nil, fetchedTaps != nil {
+            lastUpdated = Date()
+        }
 
         let masCount = fetchedMasApps.count
         let outdatedCount = merged.outdated.count
@@ -363,14 +365,14 @@ extension BrewService {
         await finishRefresh(previousVersions: previousVersions, taps: fetchedTaps)
     }
 
-    private func finishRefresh(previousVersions: [String: [String]], taps: [BrewTap]) async {
+    private func finishRefresh(previousVersions: [String: [String]], taps: [BrewTap]?) async {
         let currentVersions = Dictionary(allInstalled.map { ($0.infoCacheKey, $0.versionIdentity) }, uniquingKeysWith: { _, last in last })
         for key in infoCache.keys where currentVersions[key] != previousVersions[key] {
             infoCache.removeValue(forKey: key)
         }
 
-        installedTaps = taps
-        tapsLoaded = true
+        if let taps { installedTaps = taps }
+        tapsLoaded = taps != nil
         updateBundleEntryStatuses()
 
         if !refreshReportedError {
