@@ -57,10 +57,42 @@ struct BrewfileSnapshot: Sendable {
     }
 }
 
+struct BrewfileReview: Identifiable {
+    let id = UUID()
+    let snapshot: BrewfileSnapshot
+    let contents: String
+    let showsBytes: Bool
+    let lineCount: Int
+
+    init(reading url: URL) throws {
+        snapshot = try BrewfileSnapshot.read(from: url)
+        let hiddenCharacters = CharacterSet.controlCharacters.subtracting(CharacterSet(charactersIn: "\n\r\t"))
+        if let text = String(bytes: snapshot.data, encoding: .utf8), snapshot.data.elementsEqual(text.utf8),
+           text.rangeOfCharacter(from: hiddenCharacters) == nil {
+            contents = text
+            showsBytes = false
+        } else {
+            // Render every byte when the source cannot be shown faithfully as plain text.
+            let digits = Array("0123456789abcdef".utf8)
+            var hex: [UInt8] = []
+            hex.reserveCapacity(snapshot.data.count * 3)
+            for (index, byte) in snapshot.data.enumerated() {
+                if index > 0 { hex.append(index.isMultiple(of: 16) ? 10 : 32) }
+                hex.append(digits[Int(byte >> 4)])
+                hex.append(digits[Int(byte & 0x0f)])
+            }
+            contents = String(decoding: hex, as: Unicode.ASCII.self)
+            showsBytes = true
+        }
+        lineCount = contents.lazy.filter(\.isNewline).count + (contents.last?.isNewline == false ? 1 : 0)
+    }
+}
+
 enum BrewfileSnapshotError: LocalizedError {
     case unreadable
     case notRegular
     case tooLarge
+    case changedSinceReview
 
     var errorDescription: String? {
         switch self {
@@ -70,6 +102,8 @@ enum BrewfileSnapshotError: LocalizedError {
             "The Brewfile must be a regular file."
         case .tooLarge:
             "The Brewfile exceeds the 1 MB size limit."
+        case .changedSinceReview:
+            "The selected Brewfile changed. Close this review and open the current file to review it again."
         }
     }
 }

@@ -75,7 +75,7 @@ struct BrewBundleDumpDestinationTests {
         let mock = Self.dumpRunner(data: Data("brew \"wget\"\n".utf8))
         let (service, _) = makeService(mock: mock)
         service.customBrewfilePath = previous.path
-        #expect(service.trustBrewfile(at: previous))
+        try service.trustReviewedBrewfile(BrewfileSnapshot.read(from: previous))
         let previousDigest = service.trustedBrewfileDigest
 
         let result = await service.dumpBundle(to: chosen)

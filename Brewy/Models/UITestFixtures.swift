@@ -468,15 +468,16 @@ extension BrewService {
             "BrewyUITest-\(ProcessInfo.processInfo.processIdentifier)-Brewfile"
         )
         let data = Data("brew \"ripgrep\"\nbrew \"jq\"\ncask \"firefox\"\n".utf8)
+        customBrewfilePath = brewfileURL.path
         do {
             try data.write(to: brewfileURL, options: .atomic)
+            try trustReviewedBrewfile(BrewfileSnapshot(sourcePath: brewfileURL.standardizedFileURL.path, data: data))
         } catch {
             bundleEntries = []
             bundleCheckStatus = .failed("Unable to create the UI test Brewfile.")
             return
         }
-        customBrewfilePath = brewfileURL.path
-        guard trustBrewfile(at: brewfileURL), resolveBrewfile() != nil else { return }
+        guard resolveBrewfile() != nil else { return }
         bundleEntries = [
             BrewBundleEntry(type: .formula, name: "ripgrep", status: .installed),
             BrewBundleEntry(type: .formula, name: "jq", status: .missing),

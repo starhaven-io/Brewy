@@ -64,7 +64,7 @@ struct RefreshStateTests {
         let mock = MockCommandRunner()
         let service = BrewService(commandRunner: mock)
         service.customBrewfilePath = original.path
-        #expect(service.trustBrewfile(at: original))
+        try service.trustReviewedBrewfile(BrewfileSnapshot.read(from: original))
         let firstCommand = ["bundle", "list", "--formula", "--file=-"]
         mock.setResult(for: firstCommand, output: "wget")
         let gate = CommandGate()
@@ -92,7 +92,7 @@ struct RefreshStateTests {
         let mock = MockCommandRunner()
         let service = BrewService(commandRunner: mock)
         service.customBrewfilePath = brewfile.path
-        #expect(service.trustBrewfile(at: brewfile))
+        try service.trustReviewedBrewfile(BrewfileSnapshot.read(from: brewfile))
         let cancelled = CommandResult(output: "Command was cancelled.", success: false, cancelled: true)
         mock.setResult(for: ["bundle", "list", "--formula", "--file=-"], result: cancelled)
         await service.refreshBundle()

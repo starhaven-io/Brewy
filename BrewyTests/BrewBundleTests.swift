@@ -151,7 +151,7 @@ struct BrewServiceBundleTests {
         ]
         service.isMasAvailable = false
 
-        #expect(service.trustBrewfile(at: brewfile))
+        try service.trustReviewedBrewfile(BrewfileSnapshot.read(from: brewfile))
         Self.setBundleListResults(mock, path: brewfile.path)
 
         await service.fetchBundleEntries()
@@ -173,7 +173,7 @@ struct BrewServiceBundleTests {
         service.isMasAvailable = true
         service.installedMasApps = [makePackage(name: "Xcode", source: .mas)]
 
-        #expect(service.trustBrewfile(at: brewfile))
+        try service.trustReviewedBrewfile(BrewfileSnapshot.read(from: brewfile))
         Self.setBundleListResults(mock, path: brewfile.path)
 
         await service.fetchBundleEntries()
@@ -209,7 +209,7 @@ struct BrewServiceBundleTests {
         let mock = MockCommandRunner()
         let (service, _) = makeService(mock: mock)
         service.customBrewfilePath = brewfile.path
-        #expect(service.trustBrewfile(at: brewfile))
+        try service.trustReviewedBrewfile(BrewfileSnapshot.read(from: brewfile))
         mock.setResult(
             for: ["bundle", "check", "--verbose", "--file=-"],
             output: "The Brewfile's dependencies are satisfied.\n"
@@ -228,7 +228,7 @@ struct BrewServiceBundleTests {
         let mock = MockCommandRunner()
         let (service, _) = makeService(mock: mock)
         service.customBrewfilePath = brewfile.path
-        #expect(service.trustBrewfile(at: brewfile))
+        try service.trustReviewedBrewfile(BrewfileSnapshot.read(from: brewfile))
         mock.setResult(
             for: ["bundle", "check", "--verbose", "--file=-"],
             output: """
@@ -253,7 +253,7 @@ struct BrewServiceBundleTests {
         let mock = MockCommandRunner()
         let (service, _) = makeService(mock: mock)
         service.customBrewfilePath = brewfile.path
-        #expect(service.trustBrewfile(at: brewfile))
+        try service.trustReviewedBrewfile(BrewfileSnapshot.read(from: brewfile))
         mock.setResult(
             for: ["bundle", "check", "--verbose", "--file=-"],
             output: "Error: Permission denied @ rb_sysopen - \(brewfile.path)\n",
@@ -305,8 +305,8 @@ struct BrewServiceBundleTests {
         #expect(mock.executedCommands.isEmpty)
     }
 
-    @Test("trustCurrentBrewfileAndRefresh executes trusted Brewfile commands")
-    func trustCurrentBrewfileAndRefreshExecutesCommands() async throws {
+    @Test("The reviewed snapshot is used for every trusted Brewfile command")
+    func trustReviewedBrewfileAndRefresh() async throws {
         let brewfile = try Self.makeBrewfile()
         let mock = MockCommandRunner()
         let (service, _) = makeService(mock: mock)
@@ -317,12 +317,15 @@ struct BrewServiceBundleTests {
             output: "The Brewfile's dependencies are satisfied.\n"
         )
 
-        await service.trustCurrentBrewfileAndRefresh()
+        let review = try BrewfileReview(reading: brewfile)
+        try service.trustReviewedBrewfile(review.snapshot)
+        await service.refreshBundle()
 
         #expect(service.trustedBrewfilePath == brewfile.path)
         #expect(service.trustedBrewfileDigest.isEmpty == false)
         #expect(service.bundleCheckStatus == .satisfied)
         #expect(mock.executedCommands.count == 5)
+        #expect(mock.standardInputs.allSatisfy { $0.data == review.snapshot.data })
     }
 
     @Test("refreshBundle stops when listing fails")
@@ -331,7 +334,7 @@ struct BrewServiceBundleTests {
         let mock = MockCommandRunner()
         let (service, _) = makeService(mock: mock)
         service.customBrewfilePath = brewfile.path
-        #expect(service.trustBrewfile(at: brewfile))
+        try service.trustReviewedBrewfile(BrewfileSnapshot.read(from: brewfile))
         mock.setResult(
             for: ["bundle", "list", "--formula", "--file=-"],
             output: "Error: Permission denied @ rb_sysopen - \(brewfile.path)\n",
@@ -358,7 +361,7 @@ struct BrewServiceBundleTests {
         let mock = MockCommandRunner()
         let (service, _) = makeService(mock: mock)
         service.customBrewfilePath = brewfile.path
-        #expect(service.trustBrewfile(at: brewfile))
+        try service.trustReviewedBrewfile(BrewfileSnapshot.read(from: brewfile))
         Self.setBundleListResults(mock, path: brewfile.path)
         mock.setResult(
             for: ["bundle", "check", "--verbose", "--file=-"],
@@ -434,7 +437,7 @@ struct BrewServiceBundleTests {
         let mock = MockCommandRunner()
         let (service, _) = makeService(mock: mock)
         service.customBrewfilePath = brewfile.path
-        #expect(service.trustBrewfile(at: brewfile))
+        try service.trustReviewedBrewfile(BrewfileSnapshot.read(from: brewfile))
         Self.setEmptyBundleListResults(mock, path: brewfile.path)
         mock.setResult(
             for: ["bundle", "check", "--verbose", "--file=-"],
