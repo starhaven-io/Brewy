@@ -58,12 +58,14 @@ struct RefreshTests {
     @Test("refresh sets lastUpdated")
     func refreshSetsLastUpdated() async {
         let mock = MockCommandRunner()
-        let (service, _) = makeService(mock: mock)
+        let service = BrewService(commandRunner: mock, masExecutablePath: "/usr/bin/true")
         setupRefreshMock(mock)
 
         #expect(service.lastUpdated == nil)
         await service.refresh()
         #expect(service.lastUpdated != nil)
+        #expect(mock.executedCommands.contains(["list", "--json"]))
+        #expect(!mock.executedCommands.contains(["list"]))
     }
 
     @Test("refresh handles empty results gracefully")

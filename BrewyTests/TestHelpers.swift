@@ -200,6 +200,8 @@ func setupRefreshMock(_ mock: MockCommandRunner) {
     mock.setResult(for: ["info", "--installed", "--json=v2"], output: TestJSON.installedPackages)
     mock.setResult(for: ["outdated", "--json=v2"], output: TestJSON.outdated)
     mock.setResult(for: ["tap-info", "--json=v1", "--installed"], output: TestJSON.taps)
+    mock.setResult(for: ["list", "--json"], output: "")
+    mock.setResult(for: ["outdated"], output: "")
 }
 
 func makePackage(
