@@ -360,22 +360,21 @@ private struct DependencyTags: View {
                 .foregroundStyle(.secondary)
             FlowLayout(spacing: 6) {
                 ForEach(packages) { package in
-                    let installedID = brewService.installedPackageID(for: package)
-                    let isInstalled = installedID != nil
-                    Button {
-                        if let installedID { selectPackage(installedID) }
-                    } label: {
-                        Text(package.name)
-                            .font(.system(.caption, design: .monospaced))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(.blue.opacity(0.1), in: .capsule)
-                            .foregroundStyle(.blue)
+                    let name = Text(package.name)
+                        .font(.system(.caption, design: .monospaced))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                    if let id = brewService.installedPackageID(for: package) {
+                        Button { selectPackage(id) } label: {
+                            name.foregroundStyle(.blue).background(.blue.opacity(0.1), in: .capsule)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Go to \(package.name)")
+                    } else {
+                        name.foregroundStyle(.secondary).background(.quaternary, in: .capsule)
+                            .accessibilityLabel("\(package.name), not installed")
+                            .help("\(package.name) (not installed)")
                     }
-                    .buttonStyle(.plain)
-                    .disabled(!isInstalled)
-                    .opacity(isInstalled ? 1 : 0.5)
-                    .help(isInstalled ? "Go to \(package.name)" : "\(package.name) (not installed)")
                 }
             }
         }
