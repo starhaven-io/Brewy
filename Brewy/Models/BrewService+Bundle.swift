@@ -414,29 +414,14 @@ extension BrewService {
         return result
     }
 
-    @discardableResult
-    func trustBrewfile(at url: URL) -> Bool {
-        do {
-            let snapshot = try BrewfileSnapshot.read(from: url)
-            adoptTrustedSnapshot(snapshot)
-            if brewfileURL?.standardizedFileURL.path == snapshot.sourcePath,
-               bundleCheckStatus == .untrusted {
-                bundleCheckStatus = .unknown
-            }
-            return true
-        } catch {
-            brewfileSnapshot = nil
-            let message = "Unable to trust Brewfile at \(url.path): \(error.localizedDescription)"
-            bundleCheckStatus = .failed(message)
-            lastError = .commandFailed(command: "bundle trust", output: message)
-            return false
+    func trustReviewedBrewfile(_ reviewed: BrewfileSnapshot) throws {
+        guard let selected = BrewfileDiscovery.resolve(overridePath: customBrewfilePath),
+              selected.standardizedFileURL.path == reviewed.sourcePath,
+              try BrewfileSnapshot.read(from: selected).digest == reviewed.digest else {
+            throw BrewfileSnapshotError.changedSinceReview
         }
-    }
-
-    func trustCurrentBrewfileAndRefresh() async {
-        guard let brewfileURL = resolveBrewfile() else { return }
-        guard trustBrewfile(at: brewfileURL) else { return }
-        await refreshBundle()
+        adoptTrustedSnapshot(reviewed)
+        if bundleCheckStatus == .untrusted { bundleCheckStatus = .unknown }
     }
 
     private func bundleStatus(for name: String, type: BrewBundleEntryType) -> BrewBundleEntryStatus {

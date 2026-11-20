@@ -6,6 +6,7 @@ struct BundleView: View {
     private var brewService
     @AppStorage("brewfilePath")
     private var brewfilePath = ""
+    @State private var review: BrewfileReview?
 
     private var groupedEntries: [BrewBundleEntryType: [BrewBundleEntry]] {
         Dictionary(grouping: brewService.bundleEntries, by: \.type)
@@ -25,7 +26,7 @@ struct BundleView: View {
                     entryCount: brewService.bundleEntries.count,
                     status: brewService.bundleCheckStatus,
                     isLoading: brewService.isBundleLoading,
-                    trustBrewfile: trustBrewfile
+                    reviewBrewfile: { openReview(for: brewfileURL) }
                 )
 
                 if brewService.bundleEntries.isEmpty,
@@ -94,6 +95,7 @@ struct BundleView: View {
         .refreshable {
             await brewService.refreshBundle()
         }
+        .sheet(item: $review) { BrewfileReviewSheet(review: $0) }
     }
 
     @MainActor
@@ -116,8 +118,12 @@ struct BundleView: View {
     }
 
     @MainActor
-    private func trustBrewfile() {
-        Task { await brewService.trustCurrentBrewfileAndRefresh() }
+    private func openReview(for url: URL) {
+        do {
+            review = try BrewfileReview(reading: url)
+        } catch {
+            brewService.lastError = .commandFailed(command: "Review Brewfile", output: error.localizedDescription)
+        }
     }
 }
 
@@ -128,7 +134,7 @@ private struct BundleStatusSection: View {
     let entryCount: Int
     let status: BrewBundleCheckStatus
     let isLoading: Bool
-    let trustBrewfile: () -> Void
+    let reviewBrewfile: () -> Void
 
     var body: some View {
         Section {
@@ -168,14 +174,7 @@ private struct BundleStatusSection: View {
             }
 
             if status == .untrusted {
-                Text("Brewfiles can execute Ruby code. Trust this file before Brewy reads bundle entries.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                Button("Trust and Refresh", systemImage: "checkmark.shield") {
-                    trustBrewfile()
-                }
-                .help("Run Homebrew Bundle for this Brewfile")
+                Button("Review Brewfile…", systemImage: "doc.text.magnifyingglass", action: reviewBrewfile)
             }
         } header: {
             Label("Check", systemImage: "checkmark.seal")
@@ -201,7 +200,7 @@ private struct BundleStatusSection: View {
         case .noBrewfile:
             return "Choose or create a Brewfile."
         case .untrusted:
-            return "Trust this Brewfile before running bundle checks."
+            return "Review and trust this Brewfile to check its dependencies."
         case .checking:
             return "Checking Brewfile dependencies."
         case .satisfied:
