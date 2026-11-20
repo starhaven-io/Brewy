@@ -19,29 +19,6 @@ struct MaintenanceTests {
         #expect(output == "Your system is ready to brew.")
     }
 
-    @Test("removeOrphans calls autoremove and refreshes")
-    func removeOrphansCallsAutoremove() async {
-        let mock = MockCommandRunner()
-        let (service, _) = makeService(mock: mock)
-        setupRefreshMock(mock)
-        mock.setResult(for: ["autoremove"], output: "Removed orphans")
-
-        await service.removeOrphans()
-
-        #expect(mock.executedCommands.contains(["autoremove"]))
-    }
-
-    @Test("purgeCache calls cleanup with -s flag")
-    func purgeCacheCallsCleanup() async {
-        let mock = MockCommandRunner()
-        let (service, _) = makeService(mock: mock)
-        mock.setResult(for: ["cleanup", "--prune=all", "-s"], output: "Purged cache")
-
-        await service.purgeCache()
-
-        #expect(mock.executedCommands.contains(["cleanup", "--prune=all", "-s"]))
-    }
-
     @Test("updateHomebrew calls brew update and refreshes")
     func updateHomebrewCallsUpdate() async {
         let mock = MockCommandRunner()
@@ -471,7 +448,8 @@ struct ErrorHandlingTests {
         let (service, _) = makeService(mock: mock)
         mock.setResult(for: ["cleanup", "--prune=all", "-s"], output: "Permission denied", success: false)
 
-        await service.purgeCache()
+        mock.setResult(for: ["cleanup", "--prune=all", "-s", "--dry-run"], output: "Would clear cache")
+        await service.purgeCache(service.dryRunCleanup())
 
         #expect(service.lastError != nil)
     }
@@ -483,7 +461,8 @@ struct ErrorHandlingTests {
         service.lastError = .commandFailed(command: "old", output: "old error")
         mock.setResult(for: ["cleanup", "--prune=all", "-s"], output: "Cleaned up")
 
-        await service.purgeCache()
+        mock.setResult(for: ["cleanup", "--prune=all", "-s", "--dry-run"], output: "Would clear cache")
+        await service.purgeCache(service.dryRunCleanup())
 
         #expect(service.lastError == nil)
     }

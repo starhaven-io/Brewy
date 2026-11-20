@@ -6,12 +6,12 @@ struct DryRunConfirmationSheet: View {
     let title: String
     let message: String
     let confirmLabel: String
-    let dryRunAction: @MainActor () async -> CommandResult
-    let confirmAction: @MainActor () async -> Void
+    let dryRunAction: @MainActor () async -> BrewCommandPreview
+    let confirmAction: @MainActor (BrewCommandPreview) async -> Void
 
-    @State private var isLoadingPreview = true
-    @State private var previewOutput = ""
-    @State private var previewSucceeded = false
+    @State private var preview: BrewCommandPreview?
+    private var previewOutput: String { preview?.result.output ?? "" }
+    private var previewSucceeded: Bool { preview?.result.success == true && preview?.result.cancelled == false }
 
     var body: some View {
         VStack(spacing: 16) {
@@ -22,31 +22,36 @@ struct DryRunConfirmationSheet: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
 
+            if let path = preview?.executablePath {
+                LabeledContent("Homebrew", value: path)
+                    .font(.caption)
+                    .textSelection(.enabled)
+            }
             previewSection
 
             HStack {
                 Button("Cancel") { dismiss() }
                     .keyboardShortcut(.cancelAction)
                 Button(confirmLabel, role: .destructive) {
+                    guard let preview else { return }
                     dismiss()
-                    Task { await confirmAction() }
+                    Task { await confirmAction(preview) }
                 }
                 .keyboardShortcut(.defaultAction)
-                .disabled(isLoadingPreview || !previewSucceeded)
+                .disabled(!previewSucceeded)
             }
         }
         .padding(20)
         .frame(width: 480)
         .task {
             let result = await dryRunAction()
-            previewOutput = result.output
-            previewSucceeded = result.success && !result.cancelled && !Task.isCancelled
-            isLoadingPreview = false
+            guard !Task.isCancelled else { return }
+            preview = result
         }
     }
 
     @ViewBuilder private var previewSection: some View {
-        if isLoadingPreview {
+        if preview == nil {
             HStack(spacing: 8) {
                 ProgressView()
                     .controlSize(.small)
@@ -103,8 +108,8 @@ extension DryRunConfirmationSheet {
             message: "The following cached downloads and old versions will be removed.",
             confirmLabel: "Clear Cache",
             dryRunAction: { await brewService.dryRunCleanup() },
-            confirmAction: {
-                await brewService.purgeCache()
+            confirmAction: { preview in
+                await brewService.purgeCache(preview)
                 await afterConfirm()
             }
         )

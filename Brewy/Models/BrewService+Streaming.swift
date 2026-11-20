@@ -3,8 +3,8 @@ extension BrewService {
 
     /// Streams command output into a bounded display buffer. The command runner independently
     /// bounds captured output used for error handling and history persistence.
-    func runBrewCommandStreaming(_ arguments: [String]) async -> CommandResult {
-        let brewPath = CommandRunner.resolvedBrewPath(preferred: customBrewPath)
+    func runBrewCommandStreaming(_ arguments: [String], brewPath: String? = nil) async -> CommandResult {
+        let brewPath = brewPath ?? CommandRunner.resolvedBrewPath(preferred: customBrewPath)
         let timeout = CommandRunner.timeout(forBrewArguments: arguments)
         let baseline = actionOutput
         let (stream, continuation) = AsyncStream.makeStream(

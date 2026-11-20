@@ -112,7 +112,7 @@ struct HistoryDetailView: View {
                 message: "Review the current changes before retrying \(retryEntry.displayCommand).",
                 confirmLabel: "Retry",
                 dryRunAction: { await brewService.previewRetry(retryEntry) },
-                confirmAction: { await brewService.retryAction(retryEntry) }
+                confirmAction: { await brewService.retryAction(retryEntry, preview: $0) }
             )
         }
     }

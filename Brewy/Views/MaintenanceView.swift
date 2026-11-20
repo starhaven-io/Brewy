@@ -29,7 +29,7 @@ struct MaintenanceView: View {
                 message: "The following packages were installed as dependencies but are no longer needed.",
                 confirmLabel: "Remove Orphans",
                 dryRunAction: { await brewService.dryRunAutoremove() },
-                confirmAction: { await brewService.removeOrphans() }
+                confirmAction: { await brewService.removeOrphans($0) }
             )
         }
         .sheet(isPresented: $showClearCacheConfirm) {

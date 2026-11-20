@@ -64,8 +64,15 @@ extension BrewService {
 
     // MARK: - Retry
 
-    func retryAction(_ entry: ActionHistoryEntry) async {
+    func retryAction(_ entry: ActionHistoryEntry, preview: BrewCommandPreview? = nil) async {
         guard entry.isRetryable else { return }
+        let brewPath: String?
+        if entry.retryPreviewArguments != nil {
+            guard let preview, let path = confirmedBrewPath(for: preview, arguments: entry.arguments) else { return }
+            brewPath = path
+        } else {
+            brewPath = nil
+        }
         if entry.isBundleDump, let url = entry.bundleDumpURL {
             _ = await dumpBundle(to: url)
             return
@@ -84,7 +91,7 @@ extension BrewService {
             activeMutationCount -= mutationCount
         }
 
-        let result = await runBrewCommandStreaming(entry.arguments)
+        let result = await runBrewCommandStreaming(entry.arguments, brewPath: brewPath)
         if !result.success, !result.cancelled {
             lastError = .commandFailed(command: entry.arguments.joined(separator: " "), output: result.output)
         }
