@@ -66,7 +66,7 @@ struct SettingsView: View {
             }
 
             Toggle("Prevent Homebrew auto-update", isOn: $preventHomebrewAutoUpdate)
-                .help("Stops Homebrew from updating itself before installs and upgrades.")
+                .help("Stops Homebrew from updating itself or its package data automatically.")
 
             HomebrewAnalyticsSetting()
 

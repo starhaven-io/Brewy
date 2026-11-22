@@ -182,6 +182,7 @@ enum CommandRunner {
         logger.info("Running: \(commandDescription)")
         let startTime = ContinuousClock.now
         let preventHomebrewAutoUpdate = shouldPreventHomebrewAutoUpdate(for: arguments)
+        let forceHomebrewAPIAutoUpdate = shouldForceHomebrewAPIAutoUpdate(for: arguments)
 
         let execution = ProcessExecution(
             executablePath: executablePath,
@@ -189,6 +190,7 @@ enum CommandRunner {
             timeout: timeout,
             commandDescription: commandDescription,
             preventHomebrewAutoUpdate: preventHomebrewAutoUpdate,
+            forceHomebrewAPIAutoUpdate: forceHomebrewAPIAutoUpdate,
             standardInput: standardInput
         )
         let handle = ProcessHandle()
@@ -229,6 +231,7 @@ extension CommandRunner {
     static func buildEnvironment(
         brewPath: String,
         preventHomebrewAutoUpdate: Bool,
+        forceHomebrewAPIAutoUpdate: Bool = false,
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) -> [String: String] {
         var env = environment
@@ -246,6 +249,9 @@ extension CommandRunner {
         env["PATH"] = pathComponents.joined(separator: ":")
         if preventHomebrewAutoUpdate {
             env["HOMEBREW_NO_AUTO_UPDATE"] = "1"
+        }
+        if forceHomebrewAPIAutoUpdate {
+            env["HOMEBREW_FORCE_API_AUTO_UPDATE"] = "1"
         }
         return env
     }
@@ -266,6 +272,7 @@ extension CommandRunner {
         let timeout: Duration
         let commandDescription: String
         let preventHomebrewAutoUpdate: Bool
+        let forceHomebrewAPIAutoUpdate: Bool
         let standardInput: Data?
     }
 
@@ -396,7 +403,8 @@ extension CommandRunner {
         process.arguments = execution.arguments
         process.environment = buildEnvironment(
             brewPath: execution.executablePath,
-            preventHomebrewAutoUpdate: execution.preventHomebrewAutoUpdate
+            preventHomebrewAutoUpdate: execution.preventHomebrewAutoUpdate,
+            forceHomebrewAPIAutoUpdate: execution.forceHomebrewAPIAutoUpdate
         )
         process.standardInput = stdinPipe
         process.standardOutput = stdoutPipe
