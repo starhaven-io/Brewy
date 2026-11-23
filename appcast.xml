@@ -3,16 +3,24 @@
     <channel>
         <title>Brewy</title>
         <item>
-            <title>0.26.6</title>
-            <pubDate>Sat, 14 Nov 2026 05:56:56 +0000</pubDate>
-            <sparkle:version>41</sparkle:version>
-            <sparkle:shortVersionString>0.26.6</sparkle:shortVersionString>
+            <title>0.27.0</title>
+            <pubDate>Mon, 23 Nov 2026 02:20:36 +0000</pubDate>
+            <sparkle:version>42</sparkle:version>
+            <sparkle:shortVersionString>0.27.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>Fixes</h2>
+            <description><![CDATA[<h2>What&#x27;s New</h2>
 <ul>
-  <li>write a dumped Brewfile through a symlink</li>
+  <li>review a Brewfile before trusting it</li>
+</ul>
+<h2>Fixes</h2>
+<ul>
+  <li>run only the command that was previewed</li>
+  <li>track the inventory in search and Discover</li>
+  <li>keep the last complete refresh time</li>
+  <li>show missing dependencies as labels</li>
+  <li>refresh Homebrew API data for outdated</li>
 </ul>]]></description>
-            <enclosure url="https://github.com/starhaven-io/Brewy/releases/download/0.26.6/Brewy-0.26.6.zip" length="3980415" type="application/octet-stream" sparkle:edSignature="Y/j/ktLI77RZtXqGAZyg94SMzzBh9kfKufpuHQnTK+ZiJMN2IOc0JJuQgVnWDLwg7XLz12TwBXORhiX5Q+LRAQ=="/>
+            <enclosure url="https://github.com/starhaven-io/Brewy/releases/download/0.27.0/Brewy-0.27.0.zip" length="4002289" type="application/octet-stream" sparkle:edSignature="HiyS5uaZlL5KUSVN2agcsV4o+B5dxNiR3YbdqT0lc2Vowoze+wzOB4mACiA7N88MovVj92UhUIgxiX8sDOjQAA=="/>
         </item>
     </channel>
 </rss>
